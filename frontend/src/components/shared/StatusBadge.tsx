@@ -39,6 +39,10 @@ const STATUS_STYLES: Record<string, string> = {
   // pending/rejected already covered above.
   partially_credited: 'bg-amber-50 text-amber-700',
   fully_credited: 'bg-green-50 text-green-700',
+  // EMR appointment statuses (completed/cancelled already covered above)
+  booked: 'bg-blue-50 text-blue-700',
+  checked_in: 'bg-amber-50 text-amber-700',
+  in_consult: 'bg-purple-50 text-purple-700',
   default: 'bg-gray-100 text-gray-700',
 };
 
@@ -60,6 +64,9 @@ const LABEL_MAPPINGS: Record<string, string> = {
   out_of_stock: 'Out of Stock',
   partially_credited: 'Partially Credited',
   fully_credited: 'Fully Credited',
+  checked_in: 'Checked In',
+  in_consult: 'In Consult',
+  no_show: 'No Show',
   multiple: 'Multi',
   credit_card: 'Credit Card',
   debit_card: 'Debit Card',

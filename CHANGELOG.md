@@ -19,7 +19,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
   token; the queue follows booked → checked in → in consult → completed, with
   cancel (reason required) and no-show. New `receptionist` and `doctor` default
   roles. The endpoint-safety gates (permission, audit, tenant, chain-scope) now
-  also scan module routers. No screens yet.
+  also scan module routers.
+- **EMR module, step 1 screens (Clinic: Appointments, Patients, Doctor Schedules).**
+  The receptionist's day view with a live queue (auto-refreshes every 30s):
+  check in → start consult → complete, cancel with a required reason, no-show;
+  a booking dialog (find or register the patient, pick a free slot or issue a
+  walk-in token); a patients register; and per-doctor weekly working hours.
+  New "Clinic" sidebar group; receptionist and doctor roles land on the
+  Appointments page instead of the pharmacy Dashboard. Built only from the
+  shared design-system components.
 - **New guardrail: doc content can't change without its 'Last updated'
   line changing too.** Audited every doc's header date against real edit
   history and found the same silent-drift pattern as the token bug, three

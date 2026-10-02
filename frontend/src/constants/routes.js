@@ -49,6 +49,13 @@ export const ROUTES = {
     DETAIL:       '/billing/returns/:id',
   },
 
+  // EMR (clinic module)
+  EMR: {
+    APPOINTMENTS: '/emr/appointments',
+    PATIENTS:     '/emr/patients',
+    SCHEDULES:    '/emr/schedules',
+  },
+
   // Inventory
   INVENTORY: {
     LIST:         '/inventory',

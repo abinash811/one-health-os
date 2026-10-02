@@ -226,4 +226,24 @@ export const USER_ROLE = {
   MANAGER:         'manager',
   CASHIER:         'cashier',
   INVENTORY_STAFF: 'inventory_staff',
+  RECEPTIONIST:    'receptionist',
+  DOCTOR:          'doctor',
 };
+
+// ── EMR (backend/modules/emr/constants.py — keep in sync) ────────────────────
+export const APPOINTMENT_STATUS = {
+  BOOKED:     'booked',
+  CHECKED_IN: 'checked_in',
+  IN_CONSULT: 'in_consult',
+  COMPLETED:  'completed',
+  CANCELLED:  'cancelled',
+  NO_SHOW:    'no_show',
+};
+
+export const APPOINTMENT_TYPE = {
+  SCHEDULED: 'scheduled',
+  WALK_IN:   'walk_in',
+};
+
+// 0 = Monday … 6 = Sunday, same as the backend's `weekday`.
+export const WEEKDAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];

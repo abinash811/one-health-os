@@ -16,6 +16,8 @@ import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 import Layout from '@/components/Layout';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ROUTES } from '@/constants/routes';
+import { USER_ROLE } from '@/constants/domainConstants';
 
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const BillingOperations = lazy(() => import('@/pages/BillingOperations'));
@@ -45,6 +47,16 @@ const AuditLog = lazy(() => import('@/pages/AuditLog'));
 const StockMovementLog = lazy(() => import('@/pages/StockMovementLog'));
 const ReorderList = lazy(() => import('@/pages/ReorderList'));
 const TransferHistory = lazy(() => import('@/pages/TransferHistory'));
+// EMR module (docs/28_EMR_SCOPE.md)
+const EmrAppointments = lazy(() => import('@/modules/emr/pages/Appointments'));
+const EmrPatients = lazy(() => import('@/modules/emr/pages/Patients'));
+const EmrDoctorSchedules = lazy(() => import('@/modules/emr/pages/DoctorSchedules'));
+
+// Clinic-only roles have no pharmacy permissions, so the pharmacy Dashboard
+// would just 403 for them — land them on the clinic day view instead.
+const CLINIC_ONLY_ROLES = [USER_ROLE.RECEPTIONIST, USER_ROLE.DOCTOR];
+const homePathFor = (user) =>
+  CLINIC_ONLY_ROLES.includes(user?.role) ? ROUTES.EMR.APPOINTMENTS : ROUTES.DASHBOARD;
 
 // Auth Context
 export const AuthContext = React.createContext(null);
@@ -144,7 +156,10 @@ function AppRoutes({ user }) {
     <Suspense fallback={<PageSkeleton />}>
       <Routes>
         <Route path="/" element={<ErrorBoundary><Layout /></ErrorBoundary>}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<Navigate to={homePathFor(user)} replace />} />
+          <Route path="emr/appointments" element={<EmrAppointments />} />
+          <Route path="emr/patients" element={<EmrPatients />} />
+          <Route path="emr/schedules" element={<EmrDoctorSchedules />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="billing" element={<BillingOperations />} />
           <Route path="billing/new" element={<BillingWorkspace />} />
@@ -178,7 +193,7 @@ function AppRoutes({ user }) {
           <Route path="settings" element={<Settings />} />
           <Route path="team" element={<Team />} />
         </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to={homePathFor(user)} replace />} />
       </Routes>
     </Suspense>
   );

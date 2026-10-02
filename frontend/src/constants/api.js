@@ -322,6 +322,17 @@ export const apiUrl = {
   billSequence:     () => API_ENDPOINTS.SETTINGS.BILL_SEQUENCE,
   billSequences:    () => API_ENDPOINTS.SETTINGS.ALL_BILL_SEQUENCES,
 
+  // EMR (backend/modules/emr/routers)
+  emrPatients:      (params) => `emr/patients${qs(params)}`,
+  emrPatient:       (id) => `emr/patients/${id}`,
+  emrDoctors:       () => 'emr/doctors',
+  emrSchedules:     (params) => `emr/schedules${qs(params)}`,
+  emrSchedule:      (id) => `emr/schedules/${id}`,
+  emrSlots:         (params) => `emr/slots${qs(params)}`,
+  emrAppointments:  (params) => `emr/appointments${qs(params)}`,
+  emrAppointment:   (id) => `emr/appointments/${id}`,
+  emrAppointmentStatus: (id) => `emr/appointments/${id}/status`,
+
   // Backup
   backupExport:     () => API_ENDPOINTS.BACKUP.EXPORT,
 
