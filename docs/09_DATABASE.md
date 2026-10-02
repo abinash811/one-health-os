@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.14 | Last updated: September 26, 2026
+# Version: 1.15 | Last updated: October 2, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -799,6 +799,54 @@ Prescribing doctors. Required for Schedule H1 billing.
 | `deleted_at` | TIMESTAMP | Soft delete |
 
 **Indexes:** `pharmacy_id`
+
+---
+
+## EMR MODULE TABLES (added Oct 2, 2026 — migration `ecd85336d185`)
+
+> EMR is module #2 (`docs/28_EMR_SCOPE.md`). Models live in `backend/modules/emr/models.py`,
+> not `backend/models/`. These tables never reference pharmacy-module tables, so EMR runs
+> with the pharmacy module off. `pharmacy_id` is still the tenant key.
+
+### `emr_patients`
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `pharmacy_id` | UUID FK → pharmacies | Tenant key |
+| `name` | String(200) | Required |
+| `phone`, `alternate_phone` | String(10) | Not unique — families share a phone |
+| `email` | String(200) | |
+| `date_of_birth` / `age` | Date / Integer | Either may be filled |
+| `gender`, `blood_group` | String | |
+| `address`, `city` | Text / String | |
+| `allergies`, `notes` | Text | |
+| `source` | String(20) | `emr` or `pharmacy` — drives the "Added in …" badge |
+| `customer_id` | UUID, **no FK** | Optional soft link to `customers.id`, matched by phone, only when both modules are on |
+| `is_active`, `deleted_at`, `created_at`, `updated_at` | | Soft delete |
+
+Indexes: pharmacy; (pharmacy, phone); (pharmacy, name); customer_id.
+
+### `emr_doctor_schedules`
+- One working-hours block per row: `doctor_user_id` (FK → users), `weekday` (Mon=0..Sun=6), `start_time`, `end_time`, `slot_minutes` (default 15).
+- A doctor with morning + evening clinic has two rows for the same weekday.
+- A doctor is a `users` row, not the pharmacy-module `doctors` directory.
+
+### `emr_appointments`
+| Column | Type | Notes |
+|--------|------|-------|
+| `patient_id` | UUID FK → emr_patients | |
+| `doctor_user_id` | UUID FK → users | |
+| `appointment_date` | Date | |
+| `start_time`, `end_time` | Time, nullable | NULL start_time = walk-in (token only) |
+| `token_number` | Integer | Per doctor per day |
+| `appointment_type` | String | `scheduled` / `walk_in` |
+| `status` | String | `booked → checked_in → in_consult → completed`, or `cancelled` / `no_show` |
+| `reason`, `cancel_reason` | Text | |
+| `checked_in_at`, `started_at`, `completed_at` | Timestamp | |
+| `created_by` | UUID FK → users | |
+
+Constraints: unique (pharmacy, doctor, date, token); partial unique (pharmacy, doctor, date, start_time) for live bookings only (not cancelled / no-show / deleted) — blocks double-booking.
+Status/type values: `backend/modules/emr/constants.py`.
 
 ---
 
