@@ -2,6 +2,8 @@
 
 export interface EmrPatient {
   id: string;
+  /** The clinic's own patient ID, e.g. UH-000123. */
+  uhid: string | null;
   name: string;
   phone: string | null;
   alternate_phone: string | null;
@@ -97,5 +99,41 @@ export interface EmrPrescription {
   created_at: string;
   items: EmrRxItem[];
   patient: { gender: string | null; phone: string | null; age: number | null; allergies: string | null; date_of_birth: string | null } | null;
-  clinic: { name: string; address: string; phone: string };
+  clinic: {
+    name: string; address: string; phone: string; email: string | null;
+    registration_no: string | null; footer: string | null;
+  };
+  doctor: { specialty: string | null; qualification: string | null; registration_no: string | null };
+  patient_uhid: string | null;
+}
+
+export type FieldState = 'hidden' | 'optional' | 'required';
+
+/** Patient-form fields a clinic can hide or require (name is always required). */
+export type PatientFormField =
+  'phone' | 'alternate_phone' | 'age' | 'date_of_birth' | 'gender' | 'blood_group' | 'city' | 'allergies' | 'notes';
+
+export interface EmrSettings {
+  clinic_name: string | null;
+  clinic_address: string | null;
+  clinic_phone: string | null;
+  clinic_email: string | null;
+  registration_no: string | null;
+  rx_footer: string | null;
+  rx_prefix: string;
+  uhid_prefix: string;
+  uhid_digits: number;
+  uhid_next: number;
+  default_slot_minutes: number;
+  patient_form: Record<PatientFormField, FieldState>;
+  /** What printouts show while the clinic fields above are blank. */
+  fallback: { clinic_name: string; clinic_address: string; clinic_phone: string };
+}
+
+export interface EmrDoctorProfile {
+  user_id: string;
+  name: string;
+  specialty: string | null;
+  qualification: string | null;
+  registration_no: string | null;
 }

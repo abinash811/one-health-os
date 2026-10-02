@@ -7,7 +7,8 @@ import { AppButton, FilterPills } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { patientSchema, PatientFormValues } from '@/lib/schemas/patient';
-import type { EmrPatient } from '../types';
+import { useEmrSettings } from '../useEmrSettings';
+import type { EmrPatient, FieldState, PatientFormField } from '../types';
 
 const DEFAULTS: PatientFormValues = {
   name: '', phone: '', alternate_phone: '', age: '', date_of_birth: '',
@@ -33,7 +34,12 @@ export interface PatientFormModalProps {
 }
 
 export default function PatientFormModal({ open, patient, initialName, onClose, onSaved }: PatientFormModalProps) {
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } =
+  const { settings } = useEmrSettings(open);
+  // Until settings load (or if they fail to), every field shows as optional — registration is never blocked.
+  const state = (f: PatientFormField): FieldState => settings?.patient_form?.[f] || 'optional';
+  const shown = (f: PatientFormField) => state(f) !== 'hidden';
+  const star = (f: PatientFormField) => (state(f) === 'required' ? ' *' : '');
+  const { register, handleSubmit, reset, watch, setValue, setError, formState: { errors, isSubmitting } } =
     useForm<PatientFormValues>({ resolver: zodResolver(patientSchema), defaultValues: DEFAULTS });
 
   useEffect(() => {
@@ -46,6 +52,12 @@ export default function PatientFormModal({ open, patient, initialName, onClose, 
   }, [patient, initialName, open, reset]);
 
   const onSubmit = async (v: PatientFormValues) => {
+    const blank = (Object.keys(v) as (keyof PatientFormValues)[]).filter(
+      (k) => k !== 'name' && state(k as PatientFormField) === 'required' && !String(v[k] ?? '').trim());
+    if (blank.length) {
+      blank.forEach((k) => setError(k, { type: 'required', message: 'This field is required' }));
+      return;
+    }
     const body = {
       name: v.name, phone: v.phone || null, alternate_phone: v.alternate_phone || null,
       age: v.age ? Number(v.age) : null, date_of_birth: v.date_of_birth || null,
@@ -83,29 +95,35 @@ export default function PatientFormModal({ open, patient, initialName, onClose, 
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader><DialogTitle>{patient ? 'Edit Patient' : 'Register Patient'}</DialogTitle></DialogHeader>
+        {patient?.uhid && <p className="text-xs text-gray-500 -mt-2 mb-2" data-testid="patient-uhid">Patient ID {patient.uhid}</p>}
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">{field('name', 'Patient Name *')}</div>
-            {field('phone', 'Mobile', { placeholder: '9876543210', inputMode: 'numeric', autoComplete: 'off' })}
-            {field('alternate_phone', 'Alternate Mobile', { inputMode: 'numeric', autoComplete: 'off' })}
-            {field('age', 'Age (years)', { inputMode: 'numeric' })}
-            {field('date_of_birth', 'Date of Birth', { type: 'date' })}
-            <div>
-              {label('Gender', 'patient-gender')}
-              <FilterPills options={GENDER_OPTIONS} active={watch('gender')}
-                onChange={(k) => setValue('gender', k, { shouldDirty: true })} />
-            </div>
-            {field('blood_group', 'Blood Group', { placeholder: 'e.g. B+' })}
-            {field('city', 'City')}
-            <div className="col-span-2">
-              {label('Allergies', 'patient-allergies')}
+            {shown('phone') && field('phone', `Mobile${star('phone')}`, { placeholder: '9876543210', inputMode: 'numeric', autoComplete: 'off' })}
+            {shown('alternate_phone') && field('alternate_phone', `Alternate Mobile${star('alternate_phone')}`, { inputMode: 'numeric', autoComplete: 'off' })}
+            {shown('age') && field('age', `Age (years)${star('age')}`, { inputMode: 'numeric' })}
+            {shown('date_of_birth') && field('date_of_birth', `Date of Birth${star('date_of_birth')}`, { type: 'date' })}
+            {shown('gender') && (
+              <div>
+                {label(`Gender${star('gender')}`, 'patient-gender')}
+                <FilterPills options={GENDER_OPTIONS} active={watch('gender')}
+                  onChange={(k) => setValue('gender', k, { shouldDirty: true })} />
+                {err('gender')}
+              </div>
+            )}
+            {shown('blood_group') && field('blood_group', `Blood Group${star('blood_group')}`, { placeholder: 'e.g. B+' })}
+            {shown('city') && field('city', `City${star('city')}`)}
+            {shown('allergies') && <div className="col-span-2">
+              {label(`Allergies${star('allergies')}`, 'patient-allergies')}
               <textarea id="patient-allergies" {...register('allergies')} rows={2} placeholder="e.g. Penicillin, sulfa drugs"
                 className={`${cls} resize-none`} data-testid="patient-allergies-input" />
-            </div>
-            <div className="col-span-2">
-              {label('Notes', 'patient-notes')}
+              {err('allergies')}
+            </div>}
+            {shown('notes') && <div className="col-span-2">
+              {label(`Notes${star('notes')}`, 'patient-notes')}
               <textarea id="patient-notes" {...register('notes')} rows={2} className={`${cls} resize-none`} />
-            </div>
+              {err('notes')}
+            </div>}
           </div>
           <DialogFooter className="mt-6">
             <AppButton type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>Cancel</AppButton>

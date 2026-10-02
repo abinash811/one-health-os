@@ -100,6 +100,7 @@ export default function PatientProfile() {
               </p>
             )}
             <div className="grid grid-cols-2 gap-4">
+              <Fact label="Patient ID (UHID)" value={p.uhid} />
               <Fact label="Age" value={p.age != null ? `${p.age} yrs` : null} />
               <Fact label="Gender" value={p.gender} />
               <Fact label="Mobile" value={p.phone} />

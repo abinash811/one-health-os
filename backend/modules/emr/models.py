@@ -22,7 +22,9 @@ from sqlalchemy.sql import func
 from sqlalchemy import TIMESTAMP
 
 from database import Base
-from modules.emr.constants import APPT_BOOKED, APPT_TYPE_SCHEDULED, PATIENT_SOURCE_EMR, RX_DRAFT
+from modules.emr.constants import (
+    APPT_BOOKED, APPT_TYPE_SCHEDULED, DEFAULT_RX_PREFIX, DEFAULT_SLOT_MINUTES,
+    DEFAULT_UHID_DIGITS, DEFAULT_UHID_PREFIX, PATIENT_SOURCE_EMR, RX_DRAFT)
 
 
 class EmrPatient(Base):
@@ -32,11 +34,15 @@ class EmrPatient(Base):
         Index("idx_emr_patients_phone", "pharmacy_id", "phone"),
         Index("idx_emr_patients_name", "pharmacy_id", "name"),
         Index("idx_emr_patients_customer", "customer_id"),
+        # UHID = the clinic's own patient ID; unique per clinic, never reused.
+        Index("uq_emr_patients_uhid", "pharmacy_id", "uhid", unique=True,
+              postgresql_where=text("uhid IS NOT NULL")),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     pharmacy_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    uhid: Mapped[Optional[str]] = mapped_column(String(30))
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(String(10))
     alternate_phone: Mapped[Optional[str]] = mapped_column(String(10))
@@ -201,3 +207,58 @@ class EmrPrescriptionItem(Base):
     quantity: Mapped[Optional[int]] = mapped_column(Integer)
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+
+
+class EmrSettings(Base):
+    """One row per clinic: print identity, ID formats and the patient-form
+    layout. Created on first read with defaults, so a clinic never has to
+    configure anything before using EMR."""
+    __tablename__ = "emr_settings"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False, unique=True)
+    # Blank = fall back to the pharmacy's own name / address / phone on printouts.
+    clinic_name: Mapped[Optional[str]] = mapped_column(String(200))
+    clinic_address: Mapped[Optional[str]] = mapped_column(Text)
+    clinic_phone: Mapped[Optional[str]] = mapped_column(String(20))
+    clinic_email: Mapped[Optional[str]] = mapped_column(String(200))
+    registration_no: Mapped[Optional[str]] = mapped_column(String(100))
+    rx_footer: Mapped[Optional[str]] = mapped_column(Text)
+    rx_prefix: Mapped[str] = mapped_column(
+        String(10), default=DEFAULT_RX_PREFIX, server_default=DEFAULT_RX_PREFIX, nullable=False)
+    uhid_prefix: Mapped[str] = mapped_column(
+        String(10), default=DEFAULT_UHID_PREFIX, server_default=DEFAULT_UHID_PREFIX, nullable=False)
+    uhid_digits: Mapped[int] = mapped_column(
+        Integer, default=DEFAULT_UHID_DIGITS, server_default=str(DEFAULT_UHID_DIGITS), nullable=False)
+    # Next number to hand out — advanced atomically at registration, never edited by hand.
+    uhid_next: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
+    default_slot_minutes: Mapped[int] = mapped_column(
+        Integer, default=DEFAULT_SLOT_MINUTES, server_default=str(DEFAULT_SLOT_MINUTES), nullable=False)
+    # {"allergies": "required", "blood_group": "hidden", ...} — missing keys use PATIENT_FORM_DEFAULTS.
+    patient_form: Mapped[dict] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class EmrDoctorProfile(Base):
+    """Professional details printed on a doctor's prescriptions. The doctor
+    themself is still just a `users` row."""
+    __tablename__ = "emr_doctor_profiles"
+    __table_args__ = (UniqueConstraint("pharmacy_id", "user_id", name="uq_emr_doctor_profiles_user"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    specialty: Mapped[Optional[str]] = mapped_column(String(100))
+    qualification: Mapped[Optional[str]] = mapped_column(String(200))
+    registration_no: Mapped[Optional[str]] = mapped_column(String(100))
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

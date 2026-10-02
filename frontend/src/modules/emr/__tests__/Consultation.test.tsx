@@ -21,7 +21,8 @@ const RX = {
   complaints: 'Fever', diagnosis: null, advice: null, follow_up_date: null, issued_at: null,
   cancel_reason: null, created_at: '2026-10-05T09:00:00Z', items: [],
   patient: { gender: 'female', phone: '9000000001', age: 41, allergies: 'Penicillin', date_of_birth: null },
-  clinic: { name: 'Sunrise Clinic', address: '1 MG Road', phone: '9999999999' },
+  clinic: { name: 'Sunrise Clinic', address: '1 MG Road', phone: '9999999999', email: null, registration_no: null, footer: null },
+  doctor: { specialty: null, qualification: null, registration_no: null }, patient_uhid: 'UH-000001',
 };
 
 function mockApi(rx = RX, history: unknown[] = []) {
@@ -140,6 +141,17 @@ describe('PrescriptionPrint', () => {
     expect(screen.getByText(/BP 120\/80 mmHg/)).toBeInTheDocument();
     expect(screen.getByText('Dr Rao')).toBeInTheDocument();
     expect(screen.queryByTestId('rx-not-valid')).not.toBeInTheDocument();
+  });
+
+  it('prints the clinic registration, doctor credentials and footer from settings', async () => {
+    (api.get as jest.Mock).mockResolvedValue({ data: { ...RX, status: 'issued',
+      clinic: { ...RX.clinic, registration_no: 'KMC-123', footer: 'Closed Sundays' },
+      doctor: { specialty: 'Paediatrics', qualification: 'MBBS, MD', registration_no: 'KMC-9981' } } });
+    renderPrint();
+    expect(await screen.findByTestId('rx-clinic-reg')).toHaveTextContent('KMC-123');
+    expect(screen.getByTestId('rx-doctor-quals')).toHaveTextContent('MBBS, MD · Paediatrics');
+    expect(screen.getByText('Reg. no. KMC-9981')).toBeInTheDocument();
+    expect(screen.getByTestId('rx-footer')).toHaveTextContent('Closed Sundays');
   });
 
   it('marks a draft sheet as not issued', async () => {

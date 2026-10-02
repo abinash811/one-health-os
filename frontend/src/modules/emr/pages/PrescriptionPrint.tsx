@@ -67,13 +67,14 @@ export default function PrescriptionPrint() {
         )}
         <header className="border-b-2 border-gray-900 pb-3 mb-4">
           <h1 className="font-display text-2xl font-bold text-gray-900" data-testid="rx-clinic-name">{rx.clinic.name}</h1>
-          <p className="text-xs text-gray-600">{rx.clinic.address} · {rx.clinic.phone}</p>
+          <p className="text-xs text-gray-600">{[rx.clinic.address, rx.clinic.phone, rx.clinic.email].filter(Boolean).join(' · ')}</p>
+          {rx.clinic.registration_no && <p className="text-xs text-gray-500" data-testid="rx-clinic-reg">Reg. no. {rx.clinic.registration_no}</p>}
         </header>
 
         <div className="flex justify-between text-sm mb-4">
           <div>
             <p className="font-semibold text-gray-900 text-base" data-testid="rx-patient-name">{rx.patient_name}</p>
-            <p className="text-gray-600">{[p?.age ? `${p.age} yrs` : null, p?.gender, p?.phone].filter(Boolean).join(' · ')}</p>
+            <p className="text-gray-600">{[rx.patient_uhid, p?.age ? `${p.age} yrs` : null, p?.gender, p?.phone].filter(Boolean).join(' · ')}</p>
             {p?.allergies && <p className="text-red-700 font-medium">Allergies: {p.allergies}</p>}
           </div>
           <div className="text-right">
@@ -113,10 +114,19 @@ export default function PrescriptionPrint() {
         {rx.advice && <Section title="Advice">{rx.advice}</Section>}
         {rx.follow_up_date && <Section title="Follow-up">{`Please visit again on ${formatDate(rx.follow_up_date)}`}</Section>}
 
-        <footer className="absolute bottom-10 right-10 text-right text-sm">
+        <footer className="absolute bottom-16 right-10 text-right text-sm">
           <div className="w-48 border-b border-gray-400 mb-1" />
           <p className="font-semibold text-gray-900">{rx.doctor_name}</p>
+          {(rx.doctor.qualification || rx.doctor.specialty) && (
+            <p className="text-xs text-gray-600" data-testid="rx-doctor-quals">
+              {[rx.doctor.qualification, rx.doctor.specialty].filter(Boolean).join(' · ')}</p>
+          )}
+          {rx.doctor.registration_no && <p className="text-xs text-gray-500">Reg. no. {rx.doctor.registration_no}</p>}
         </footer>
+        {rx.clinic.footer && (
+          <p className="absolute bottom-3 left-10 right-10 text-center text-[11px] text-gray-500 border-t pt-2" data-testid="rx-footer">
+            {rx.clinic.footer}</p>
+        )}
       </article>
     </div>
   );

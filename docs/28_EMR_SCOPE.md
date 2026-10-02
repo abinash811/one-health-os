@@ -1,5 +1,5 @@
 # EMR Module — v1 Scope (clinic-day flow)
-# Version: 0.4 | Last updated: October 2, 2026
+# Version: 0.5 | Last updated: October 2, 2026
 # Type: Explanation
 # Status: Steps 1–2 built (Oct 2, 2026); steps 3–5 not started. Schema decisions live in docs/09_DATABASE.md
 
@@ -58,6 +58,14 @@
 3. Rx → pharmacy incoming list → Fill Rx into a bill → dispensed status back. **On hold.** Design when resumed: pharmacy owns a public `rx-inbox` API (per-pharmacy API key); EMR is just one client of it, so a pharmacy can use any external EMR.
 4. Whatsapp send + follow-up reminders.
 5. Fresh whole-feature audit as receptionist / doctor / pharmacist / patient (Manifesto rule 11).
+
+## Settings (built Oct 2, 2026 — Abinash: "doctors, clinics, UHID configuration, patient form and other things")
+- Clinic profile (name, address, phone, registration no., Rx footer) — blank fields fall back to the pharmacy record.
+- UHID prefix/length and Rx prefix — formats change for new records only; numbers are never reused or restarted.
+- Patient form: each optional field can be hidden / optional / required (name always required); enforced by the API, not just the screen.
+- Doctor profiles (specialty, qualification, registration no.) printed on their prescriptions.
+- Everyone in the clinic can read; only the admin can change (`emr_settings:edit`).
+- Not yet: clinic logo (needs file upload), multiple locations per clinic, per-doctor Rx templates.
 
 ## Not in v1 — competitor gaps to revisit (rule 15)
 - Allergy/interaction warnings, lab orders, e-signature, patient self-booking, teleconsult, ABHA/ABDM, consultation fee billing.

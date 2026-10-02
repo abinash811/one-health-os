@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.16 | Last updated: October 2, 2026
+# Version: 1.17 | Last updated: October 2, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -847,6 +847,26 @@ Indexes: pharmacy; (pharmacy, phone); (pharmacy, name); customer_id.
 
 Constraints: unique (pharmacy, doctor, date, token); partial unique (pharmacy, doctor, date, start_time) for live bookings only (not cancelled / no-show / deleted) — blocks double-booking.
 Status/type values: `backend/modules/emr/constants.py`.
+
+### `emr_settings` (migration `3c734b0950bb`)
+One row per clinic, created with defaults on first read (`modules/emr/settings_service.py`).
+| Column | Type | Notes |
+|--------|------|-------|
+| `pharmacy_id` | UUID FK, **unique** | |
+| `clinic_name`, `clinic_address`, `clinic_phone`, `clinic_email`, `registration_no`, `rx_footer` | text, nullable | Printed on prescriptions; blank name/address/phone fall back to the pharmacy record |
+| `rx_prefix` | String(10) | Default `RX-` |
+| `uhid_prefix`, `uhid_digits` | String(10), Integer | Default `UH-` / 6 |
+| `uhid_next` | Integer | Next number to issue; advanced atomically (`UPDATE ... RETURNING`), never hand-edited, never reused |
+| `default_slot_minutes` | Integer | Default 15 |
+| `patient_form` | JSONB | `{field: hidden\|optional\|required}`; missing keys use `PATIENT_FORM_DEFAULTS`. `name` is not configurable |
+
+### `emr_doctor_profiles`
+| Column | Type | Notes |
+|--------|------|-------|
+| `user_id` | UUID FK → users | Unique per pharmacy |
+| `specialty`, `qualification`, `registration_no` | String, nullable | Printed under the doctor's name on their Rx |
+
+`emr_patients.uhid` (String(30), nullable) — the clinic's own patient ID; partial unique index per pharmacy. The migration backfilled existing patients as `UH-000001…` (oldest first).
 
 ### `emr_prescriptions` (migration `dc6a0865f1a9`)
 One row per visit — holds the WHOLE consultation record. There is deliberately no separate

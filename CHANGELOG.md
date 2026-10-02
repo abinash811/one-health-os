@@ -11,6 +11,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **EMR Clinic Settings.** New Settings tab: clinic profile and registration number, prescription footer,
+  patient ID (UHID) and Rx number formats, default appointment length, a configurable patient
+  registration form (hide or require fields — enforced by the server) and doctor profiles (specialty,
+  qualification, registration number printed on their prescriptions). Every patient now gets a UHID
+  (existing patients were numbered by a migration) and can be searched by it. EMR actions now show
+  with readable labels in the Audit Log.
 - **EMR patient profile.** Click a patient to see details, allergy warning and every visit with its
   prescription (view / print), and book a new appointment from there. Issuing a prescription now also
   completes the visit, so the queue no longer leaves finished visits "In Consult".

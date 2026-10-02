@@ -55,6 +55,7 @@ export const ROUTES = {
     PATIENTS:     '/emr/patients',
     PATIENT:      (id) => `/emr/patients/${id}`,
     SCHEDULES:    '/emr/schedules',
+    SETTINGS:     '/emr/settings',
     CONSULT:      (appointmentId) => `/emr/consult/${appointmentId}`,
     RX_PRINT:     (rxId) => `/emr/prescriptions/${rxId}/print`,
   },

@@ -150,7 +150,7 @@ export default function Consultation() {
       <DataCard noPadding={false} className="mb-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
           <span className="font-semibold text-gray-900 text-base" data-testid="consult-patient">{rx.patient_name}</span>
-          <span className="text-gray-600">{[p?.age ? `${p.age} yrs` : null, p?.gender, p?.phone].filter(Boolean).join(' · ')}</span>
+          <span className="text-gray-600">{[rx.patient_uhid, p?.age ? `${p.age} yrs` : null, p?.gender, p?.phone].filter(Boolean).join(' · ')}</span>
           <StatusBadge status={rx.status} />
           {p?.allergies && (
             <span className="px-2 py-0.5 rounded bg-red-50 text-red-700 text-xs font-medium" data-testid="allergy-banner">

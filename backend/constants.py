@@ -155,6 +155,9 @@ ALL_PERMISSIONS = {
         {"id": "prescriptions:issue", "name": "Issue Prescriptions"},
         {"id": "prescriptions:cancel", "name": "Cancel Prescriptions"},
     ]},
+    "emr_settings": {"display_name": "Clinic Settings (EMR)", "permissions": [
+        {"id": "emr_settings:edit", "name": "Edit Clinic Settings & Doctor Profiles"},
+    ]},
     "schedules": {"display_name": "Doctor Schedules (EMR)", "permissions": [
         {"id": "schedules:view", "name": "View Doctor Schedules"},
         {"id": "schedules:edit", "name": "Edit Doctor Schedules"},

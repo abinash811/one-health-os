@@ -14,7 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from deps import get_db
 from modules.emr.common import (
     _client_ip, _record_audit, _require_emr_permission, _validate_phone_length)
+from modules.emr.constants import FIELD_REQUIRED
 from modules.emr.models import EmrPatient
+from modules.emr.settings_service import effective_patient_form, get_or_create_settings, next_uhid
 from routers.auth_helpers import User, get_current_user, get_owned_or_404, paginate_response
 
 router = APIRouter(prefix="/api/emr", tags=["emr-patients"])
@@ -49,9 +51,27 @@ class PatientCreate(BaseModel):
         return v.strip()
 
 
+FIELD_LABELS = {
+    "phone": "Mobile", "alternate_phone": "Alternate mobile", "age": "Age", "date_of_birth": "Date of birth",
+    "gender": "Gender", "blood_group": "Blood group", "city": "City", "allergies": "Allergies", "notes": "Notes",
+}
+
+
+async def _enforce_required(db, pharmacy_id, values: dict, only_keys=None) -> None:
+    """The clinic's patient-form settings decide which fields must be filled. On create every
+    required field is checked; on edit only the fields actually being sent are."""
+    form = effective_patient_form(await get_or_create_settings(db, pharmacy_id))
+    missing = [FIELD_LABELS[f] for f, state in form.items()
+               if state == FIELD_REQUIRED and (only_keys is None or f in only_keys)
+               and values.get(f) in (None, "")]
+    if missing:
+        verb = "is" if len(missing) == 1 else "are"
+        raise HTTPException(status_code=422, detail=f"{', '.join(missing)} {verb} required")
+
+
 def _patient_response(p: EmrPatient) -> dict:
     return {
-        "id": str(p.id), "name": p.name, "phone": p.phone, "alternate_phone": p.alternate_phone,
+        "id": str(p.id), "uhid": p.uhid, "name": p.name, "phone": p.phone, "alternate_phone": p.alternate_phone,
         "email": p.email,
         "date_of_birth": p.date_of_birth.isoformat() if p.date_of_birth else None,
         "age": p.age, "gender": p.gender, "blood_group": p.blood_group,
@@ -73,7 +93,8 @@ async def create_patient(data: PatientCreate, request: Request,
                          db: AsyncSession = Depends(get_db)):
     await _require_emr_permission(current_user, "patients:create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    patient = EmrPatient(pharmacy_id=pharmacy_id, **data.model_dump())
+    await _enforce_required(db, pharmacy_id, data.model_dump())
+    patient = EmrPatient(pharmacy_id=pharmacy_id, uhid=await next_uhid(db, pharmacy_id), **data.model_dump())
     db.add(patient)
     await db.flush()
     await _record_audit(
@@ -93,7 +114,7 @@ async def list_patients(page: int = 1, page_size: int = 50, search: Optional[str
     if search:
         pattern = f"%{search}%"
         query = query.where(or_(
-            EmrPatient.name.ilike(pattern), EmrPatient.phone.ilike(pattern),
+            EmrPatient.name.ilike(pattern), EmrPatient.phone.ilike(pattern), EmrPatient.uhid.ilike(pattern),
             EmrPatient.alternate_phone.ilike(pattern)))
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar()
     rows = (await db.execute(
@@ -122,6 +143,8 @@ async def update_patient(patient_id: str, data: dict, request: Request,
     patient = await get_owned_or_404(
         db, EmrPatient, patient_id, pharmacy_id, not_found_detail="Patient not found",
         extra_conditions=[EmrPatient.deleted_at.is_(None)])
+    sent = {k: v for k, v in data.items() if k in PATIENT_EDITABLE}
+    await _enforce_required(db, pharmacy_id, sent, only_keys=set(sent))
     old_values: dict = {}
     new_values: dict = {}
     for key, value in data.items():

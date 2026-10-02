@@ -16,6 +16,9 @@ export function ActionBadge({ action }) {
     stock_adjusted:    'bg-orange-50 text-orange-700',
     payment_recorded:  'bg-green-50 text-green-700',
     return_processed:  'bg-pink-50 text-pink-700',
+    issue:             'bg-green-50 text-green-700',
+    cancel:            'bg-red-50 text-red-700',
+    status_change:     'bg-blue-50 text-blue-700',
   };
   const label = action?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Unknown';
   const cls   = styles[action?.toLowerCase()] || 'bg-gray-100 text-gray-600';
@@ -42,6 +45,12 @@ export const ENTITY_LABELS = {
   settings:         'Settings',
   auth:             'Login',
   data_export:      'Data Export',
+  emr_patient:      'Patient (EMR)',
+  emr_appointment:  'Appointment (EMR)',
+  emr_schedule:     'Doctor Schedule (EMR)',
+  emr_prescription: 'Prescription (EMR)',
+  emr_settings:     'Clinic Settings (EMR)',
+  emr_doctor_profile: 'Doctor Profile (EMR)',
 };
 
 export const ENTITY_TYPES = [
@@ -56,4 +65,8 @@ export const ENTITY_TYPES = [
   { key: 'settings',        label: 'Settings'        },
   { key: 'auth',            label: 'Login'           },
   { key: 'data_export',     label: 'Data Export'     },
+  { key: 'emr_patient',      label: 'Patient (EMR)'      },
+  { key: 'emr_appointment',  label: 'Appointment (EMR)'  },
+  { key: 'emr_prescription', label: 'Prescription (EMR)' },
+  { key: 'emr_settings',     label: 'Clinic Settings (EMR)' },
 ];

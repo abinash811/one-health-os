@@ -52,6 +52,7 @@ const EmrAppointments = lazy(() => import('@/modules/emr/pages/Appointments'));
 const EmrPatients = lazy(() => import('@/modules/emr/pages/Patients'));
 const EmrDoctorSchedules = lazy(() => import('@/modules/emr/pages/DoctorSchedules'));
 const EmrPatientProfile = lazy(() => import('@/modules/emr/pages/PatientProfile'));
+const EmrSettingsPage = lazy(() => import('@/modules/emr/pages/EmrSettings'));
 const EmrConsultation = lazy(() => import('@/modules/emr/pages/Consultation'));
 const EmrPrescriptionPrint = lazy(() => import('@/modules/emr/pages/PrescriptionPrint'));
 
@@ -164,6 +165,7 @@ function AppRoutes({ user }) {
           <Route path="emr/patients" element={<EmrPatients />} />
           <Route path="emr/patients/:patientId" element={<EmrPatientProfile />} />
           <Route path="emr/schedules" element={<EmrDoctorSchedules />} />
+          <Route path="emr/settings" element={<EmrSettingsPage />} />
           <Route path="emr/consult/:appointmentId" element={<EmrConsultation />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="billing" element={<BillingOperations />} />

@@ -19,6 +19,7 @@ from modules.emr.routers import appointments as emr_appointments
 from modules.emr.routers import patients as emr_patients
 from modules.emr.routers import prescriptions as emr_prescriptions
 from modules.emr.routers import schedules as emr_schedules
+from modules.emr.routers import settings as emr_settings
 from services.provisioning import create_pharmacy_with_defaults
 from utils import excel
 
@@ -76,6 +77,7 @@ app.include_router(emr_patients.router)
 app.include_router(emr_schedules.router)
 app.include_router(emr_appointments.router)
 app.include_router(emr_prescriptions.router)
+app.include_router(emr_settings.router)
 
 
 # ── Startup seeder ────────────────────────────────────────────────────────────

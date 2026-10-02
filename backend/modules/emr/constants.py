@@ -48,3 +48,22 @@ RX_ISSUED = "issued"
 RX_CANCELLED = "cancelled"
 PRESCRIPTION_STATUSES = (RX_DRAFT, RX_ISSUED, RX_CANCELLED)
 RX_NUMBER_PREFIX = "RX-"
+
+# ── Clinic settings (docs/28_EMR_SCOPE.md → Settings) ────────────────────────
+FIELD_HIDDEN = "hidden"
+FIELD_OPTIONAL = "optional"
+FIELD_REQUIRED = "required"
+FIELD_STATES = (FIELD_HIDDEN, FIELD_OPTIONAL, FIELD_REQUIRED)
+
+# Patient-form fields a clinic can hide or require. `name` is always required
+# and is deliberately not configurable. Defaults match the pre-settings form.
+PATIENT_FORM_DEFAULTS = {
+    "phone": FIELD_OPTIONAL, "alternate_phone": FIELD_OPTIONAL,
+    "age": FIELD_OPTIONAL, "date_of_birth": FIELD_OPTIONAL,
+    "gender": FIELD_OPTIONAL, "blood_group": FIELD_OPTIONAL,
+    "city": FIELD_OPTIONAL, "allergies": FIELD_OPTIONAL, "notes": FIELD_OPTIONAL,
+}
+DEFAULT_RX_PREFIX = "RX-"
+DEFAULT_UHID_PREFIX = "UH-"
+DEFAULT_UHID_DIGITS = 6
+DEFAULT_SLOT_MINUTES = 15

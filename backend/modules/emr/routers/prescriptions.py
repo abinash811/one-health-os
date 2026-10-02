@@ -3,6 +3,7 @@
 Draft is freely editable; issuing locks it for printing (docs/28_EMR_SCOPE.md)."""
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import date, datetime, timezone
 from typing import Optional
@@ -18,8 +19,10 @@ from models.pharmacy import Pharmacy
 from models.users import User as UserORM
 from modules.emr.common import _client_ip, _record_audit, _require_emr_permission
 from modules.emr.constants import (
-    APPT_CANCELLED, APPT_COMPLETED, APPT_IN_CONSULT, RX_CANCELLED, RX_DRAFT, RX_ISSUED, RX_NUMBER_PREFIX)
-from modules.emr.models import EmrAppointment, EmrPatient, EmrPrescription, EmrPrescriptionItem
+    APPT_CANCELLED, APPT_COMPLETED, APPT_IN_CONSULT, RX_CANCELLED, RX_DRAFT, RX_ISSUED)
+from modules.emr.models import (
+    EmrAppointment, EmrDoctorProfile, EmrPatient, EmrPrescription, EmrPrescriptionItem)
+from modules.emr.settings_service import get_or_create_settings
 from routers.auth_helpers import User, get_current_user, get_owned_or_404
 
 router = APIRouter(prefix="/api/emr", tags=["emr-prescriptions"])
@@ -67,10 +70,13 @@ def _clean_vitals(v: Optional[dict]) -> Optional[dict]:
 
 
 async def _next_rx_number(db, pharmacy_id) -> str:
+    """Next number = highest trailing number ever issued + 1, formatted with the clinic's
+    current prefix — changing the prefix later never reuses or restarts numbers."""
     rows = (await db.execute(select(EmrPrescription.rx_number).where(
         EmrPrescription.pharmacy_id == pharmacy_id))).scalars().all()
-    top = max((int(r[len(RX_NUMBER_PREFIX):]) for r in rows if r[len(RX_NUMBER_PREFIX):].isdigit()), default=0)
-    return f"{RX_NUMBER_PREFIX}{top + 1:06d}"
+    top = max((int(m.group()) for r in rows if (m := re.search(r"\d+$", r))), default=0)
+    prefix = (await get_or_create_settings(db, pharmacy_id)).rx_prefix
+    return f"{prefix}{top + 1:06d}"
 
 
 async def _items(db, rx_id) -> list[EmrPrescriptionItem]:
@@ -95,6 +101,10 @@ async def _rx_response(db, rx: EmrPrescription, full: bool = True) -> dict:
     }
     if full:
         ph = (await db.execute(select(Pharmacy).where(Pharmacy.id == rx.pharmacy_id))).scalar_one()
+        cfg = await get_or_create_settings(db, rx.pharmacy_id)
+        prof = (await db.execute(select(EmrDoctorProfile).where(
+            EmrDoctorProfile.pharmacy_id == rx.pharmacy_id,
+            EmrDoctorProfile.user_id == rx.doctor_user_id))).scalar_one_or_none()
         out["items"] = [{
             "id": str(i.id), "medicine_name": i.medicine_name, "dosage": i.dosage,
             "frequency": i.frequency, "duration_days": i.duration_days,
@@ -103,7 +113,15 @@ async def _rx_response(db, rx: EmrPrescription, full: bool = True) -> dict:
             "gender": p.gender, "phone": p.phone, "age": p.age, "allergies": p.allergies,
             "date_of_birth": p.date_of_birth.isoformat() if p and p.date_of_birth else None,
         } if p else None
-        out["clinic"] = {"name": ph.name, "address": ph.address, "phone": ph.phone}
+        # Clinic identity from EMR settings; blank fields fall back to the pharmacy record.
+        out["clinic"] = {
+            "name": cfg.clinic_name or ph.name, "address": cfg.clinic_address or ph.address,
+            "phone": cfg.clinic_phone or ph.phone, "email": cfg.clinic_email,
+            "registration_no": cfg.registration_no, "footer": cfg.rx_footer}
+        out["doctor"] = {
+            "specialty": prof.specialty if prof else None, "qualification": prof.qualification if prof else None,
+            "registration_no": prof.registration_no if prof else None}
+        out["patient_uhid"] = p.uhid if p else None
     return out
 
 

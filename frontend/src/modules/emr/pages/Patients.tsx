@@ -86,7 +86,7 @@ export default function Patients() {
 
       <div className="mb-4 max-w-sm">
         <SearchInput value={search} onChange={(v) => { setSearch(v); applySearch(v); }}
-          placeholder="Search by name or mobile" />
+          placeholder="Search by name, mobile or UHID" />
       </div>
 
       <DataCard noPadding>
@@ -94,6 +94,7 @@ export default function Patients() {
           <table className="w-full text-sm" data-testid="emr-patients-table">
             <thead className="bg-gray-50 border-b">
               <tr>
+                <th className={TH}>UHID</th>
                 <th className={TH}>Patient</th>
                 <th className={TH}>Mobile</th>
                 <th className={TH}>Age / Gender</th>
@@ -104,9 +105,9 @@ export default function Patients() {
             </thead>
             <tbody className="divide-y">
               {loading ? (
-                <tr><td colSpan={6} className="p-0"><TableSkeleton rows={8} columns={6} /></td></tr>
+                <tr><td colSpan={7} className="p-0"><TableSkeleton rows={8} columns={7} /></td></tr>
               ) : patients.length === 0 ? (
-                <tr><td colSpan={6}>
+                <tr><td colSpan={7}>
                   <EmptyState
                     icon={Users}
                     title={query ? 'No patients match your search' : 'No patients yet'}
@@ -116,6 +117,7 @@ export default function Patients() {
                 </td></tr>
               ) : patients.map((p) => (
                 <tr key={p.id} className="hover:bg-brand-tint transition-colors" data-testid={`patient-row-${p.id}`}>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-600" data-testid={`uhid-${p.id}`}>{p.uhid || '—'}</td>
                   <td className="px-4 py-3">
                     <AppButton variant="chip" onClick={() => navigate(ROUTES.EMR.PATIENT(p.id))}
                       data-testid={`open-patient-${p.id}`}>{p.name}</AppButton>

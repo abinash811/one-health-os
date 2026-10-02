@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.26 | Last updated: October 2, 2026
+# Version: 1.27 | Last updated: October 2, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1504,6 +1504,18 @@ Get full audit trail for a specific entity.
 curl http://localhost:8000/docs       # FastAPI auto-docs
 curl http://localhost:8000/openapi.json  # OpenAPI spec
 ```
+
+### Clinic settings — read: `patients:view` (any clinic user) · write: `emr_settings:edit` (admin)
+Audit `entity_type` = `emr_settings` / `emr_doctor_profile`.
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/emr/settings` | Created with defaults on first read. Returns clinic profile, `rx_prefix`, `uhid_prefix/digits/next`, `default_slot_minutes`, `patient_form` (field → hidden/optional/required) and `fallback` (pharmacy name/address/phone used while clinic fields are blank) |
+| PUT | `/emr/settings` | Partial update. 422 on bad prefix (1-10 letters/numbers/dashes), `uhid_digits` outside 3-10, slot length outside 5-120, unknown form field or state. `patient_form` merges into the existing layout |
+| GET | `/emr/doctor-profiles` | Active doctors with `specialty`, `qualification`, `registration_no` |
+| PUT | `/emr/doctor-profiles/{user_id}` | Upsert; blank text stored as null. 404 for a user in another clinic |
+
+Patients: every patient gets a `uhid` (clinic prefix + zero-padded counter) at registration; `GET /emr/patients?search=` also matches UHID. Fields set to `required` in the patient-form settings are enforced here (422 "Allergies is required") on create, and on edit for any field being sent.
+Prescriptions: the `clinic` block now uses EMR settings (+ `registration_no`, `email`, `footer`), and the response adds `doctor` (specialty/qualification/registration) and `patient_uhid`. `rx_number` uses the clinic's `rx_prefix`; numbering continues across prefix changes.
 
 ### Prescriptions — `prescriptions:view|create|edit|issue|cancel` (doctor role; receptionist can only view)
 One prescription per visit = consultation record + medicine lines. Audit `entity_type` = `emr_prescription`.

@@ -5,6 +5,7 @@ import { AppButton, FilterPills } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { WEEKDAY_LABELS } from '@/constants/domainConstants';
+import { useEmrSettings } from '../useEmrSettings';
 import type { EmrScheduleBlock } from '../types';
 
 const SLOT_OPTIONS = [10, 15, 20, 30, 45, 60].map((m) => ({ key: String(m), label: `${m} min` }));
@@ -30,14 +31,16 @@ export default function ScheduleBlockModal({ open, doctorId, block, defaultWeekd
   const [end, setEnd] = useState('13:00');
   const [slot, setSlot] = useState('15');
   const [busy, setBusy] = useState(false);
+  const { settings } = useEmrSettings(open);
+  const defaultSlot = settings?.default_slot_minutes || 15;
 
   useEffect(() => {
     if (!open) return;
     setWeekday(String(block ? block.weekday : defaultWeekday));
     setStart(block?.start_time || '09:00');
     setEnd(block?.end_time || '13:00');
-    setSlot(String(block?.slot_minutes || 15));
-  }, [open, block, defaultWeekday]);
+    setSlot(String(block?.slot_minutes || defaultSlot));
+  }, [open, block, defaultWeekday, defaultSlot]);
 
   const submit = async () => {
     setBusy(true);
