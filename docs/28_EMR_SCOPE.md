@@ -1,46 +1,64 @@
-# EMR Module — v1 Scope
-# Version: 0.1 | Last updated: October 2, 2026
+# EMR Module — v1 Scope (clinic-day flow)
+# Version: 0.2 | Last updated: October 2, 2026
 # Type: Explanation
-# Status: Draft — scoping only. 🚫 No tables or code built until Abinash approves the schema (Manifesto rule 13).
+# Status: Draft — scoping only. 🚫 No tables or code until Abinash approves (Manifesto rule 13). Schema is deliberately not decided here.
 
-## Goal
-- EMR = module #2 on the shared platform (see `docs/27_PLATFORM_MODULE_MAP.md`).
-- v1 = Patient records, Appointments, Consultation + Rx, Send Rx to the linked pharmacy.
-- Code lives in a new `backend/modules/emr/` and `frontend/src/modules/emr/`; pharmacy code untouched.
+## Approach
+- EMR first: design the clinic day, then decide where the pharmacy plugs in.
+- EMR = module #2 on the shared platform (`docs/27_PLATFORM_MODULE_MAP.md`). Hospital = a chain; each clinic is linked to one pharmacy.
+
+## The clinic day, by person
+
+### 1. Receptionist — "who is here, who is next?"
+- Find or register a patient in seconds (phone number first).
+- Book, reschedule, cancel a visit; walk-ins join today's queue.
+- Live queue: waiting → with doctor → done.
+- Pain solved: paper registers, double-booking, "is the doctor free?"
+
+### 2. Doctor — "see the patient, write the Rx, move on"
+- Open the next patient with history: past visits, past medicines, allergies noted.
+- Record complaints, vitals, diagnosis, notes with minimal typing.
+- Write the Rx fast: medicine search with smart defaults (dose, frequency, duration), repeat last Rx in one click.
+- See whether the clinic's pharmacy has the medicine in stock while prescribing.
+- Set follow-up date; print or send the Rx.
+- Pain solved: handwritten Rx, patients forgetting what was prescribed, medicines that are out of stock.
+
+### 3. Patient — "get my medicines and not lose my Rx"
+- Gets the Rx on WhatsApp/print right after the visit.
+- Chooses: collect at the clinic's pharmacy, or get it delivered.
+- Gets a follow-up reminder.
+- Pain solved: lost slips, walking to a pharmacy that doesn't stock the medicine.
+
+### 4. Pharmacist — "Rx arrives, I fill it"
+- Rx appears in a pharmacy "incoming Rx" list, already linked to the patient.
+- "Fill Rx" prefills a bill; substitutions and out-of-stock items flagged back to the doctor.
+- Dispensed status flows back, so the doctor sees what the patient actually took.
+- Pain solved: re-typing Rx into billing, phone calls to the doctor, wrong-medicine errors.
+
+## Where EMR and pharmacy connect (the real product value)
+| Moment | EMR side | Pharmacy side (existing code) |
+|--------|----------|-------------------------------|
+| Prescribing | Stock visibility while writing Rx | `products` / `stock_batches` availability |
+| Rx issued | Rx saved to the visit | Incoming-Rx list for the linked pharmacy |
+| Dispensing | Doctor sees "dispensed" | Bill created from Rx (prefilled lines) |
+| Compliance | Rx is the legal prescription | Schedule H1 register can reuse the Rx's doctor + patient |
+| Repeat patient | History shows past medicines | Past bills for the same patient |
 
 ## Reuse (verified in code)
-- Patient = existing `customers` row (per `pharmacy_id`); prescriber = `doctors` row. Both are per-pharmacy today, not shared across pharmacies.
+- Patient = existing `customers` row; prescriber = existing `doctors` row — both per-pharmacy today.
 - Login, roles, audit log, store scoping, shared UI = core, reused as-is.
-- Clinic is identified by its linked `pharmacy_id` (see decision in doc 27).
 
-## New tables (proposed, all soft-delete, all carry `pharmacy_id`)
-| Table | Purpose | Key columns |
-|-------|---------|-------------|
-| `emr_doctor_schedules` | When a doctor sees patients | doctor_id, weekday, start_time, end_time, slot_minutes |
-| `emr_appointments` | A booked visit | customer_id, doctor_id, start_at, end_at, status, reason |
-| `emr_consultations` | What happened in the visit | appointment_id, vitals (JSON), complaints, diagnosis, notes, follow_up_date |
-| `emr_prescriptions` | The Rx header | consultation_id, rx_number, status |
-| `emr_prescription_items` | Medicines on the Rx | product_id (optional), medicine_name, dose, frequency, duration_days, instructions, quantity |
+## Build order (each step shippable on its own)
+1. Patients + appointments + live queue (receptionist can run the day).
+2. Consultation + Rx editor + printable Rx (doctor can run the day).
+3. Rx → pharmacy incoming list → Fill Rx into a bill → dispensed status back.
+4. Whatsapp send + follow-up reminders.
+5. Fresh whole-feature audit as receptionist / doctor / pharmacist / patient (Manifesto rule 11).
 
-- Appointment status: `booked → checked_in → in_consult → completed`, plus `cancelled`, `no_show`.
-- Rx status: `draft → issued → sent_to_pharmacy → dispensed`, plus `cancelled`. Values go in a constants file first (rule 9).
+## Not in v1 — competitor gaps to revisit (rule 15)
+- Allergy/interaction warnings, lab orders, e-signature, patient self-booking, teleconsult, ABHA/ABDM, consultation fee billing.
 
-## Permissions (new groups, registered by the module)
-- `appointments:view|create|edit|cancel`
-- `consultations:view|create|edit`
-- `prescriptions:view|create|issue|cancel`
-
-## Build order
-1. Schema + migration + models (needs approval).
-2. Appointments API + tests → frontend page (calendar/day list, booking).
-3. Consultation + Rx API + tests → frontend (notes, vitals, Rx editor, printable Rx).
-4. Send Rx to pharmacy: Rx shows in billing; "Fill Rx" prefills a bill; `bills.prescription_id` link.
-5. Fresh whole-feature audit as doctor / receptionist / pharmacist (rule 11) before marking done.
-
-## Not in v1 (competitor gaps to revisit)
-- Medicine allergy/interaction warnings, lab orders, e-signature, patient-facing booking, teleconsult, ABHA/ABDM integration.
-- Fees/billing for consultations (v1 = Rx only).
-
-## Open questions
-- Does a doctor log in as a `users` row? (Proposed: yes, `doctors` links to `users` optionally.)
-- Clinic with no pharmacy — deferred.
+## Open questions for Abinash
+- Does the doctor log in with their own user account? (Assumed yes.)
+- Clinic with no linked pharmacy — deferred.
+- Is the WhatsApp send in v1 or step 4 as written?
