@@ -332,6 +332,12 @@ export const apiUrl = {
   emrAppointments:  (params) => `emr/appointments${qs(params)}`,
   emrAppointment:   (id) => `emr/appointments/${id}`,
   emrAppointmentStatus: (id) => `emr/appointments/${id}/status`,
+  emrPrescriptions: () => 'emr/prescriptions',
+  emrPrescription:  (id) => `emr/prescriptions/${id}`,
+  emrPrescriptionIssue:  (id) => `emr/prescriptions/${id}/issue`,
+  emrPrescriptionCancel: (id) => `emr/prescriptions/${id}/cancel`,
+  emrPrescriptionSuggestions: () => 'emr/prescriptions/suggestions',
+  emrPatientPrescriptions: (patientId) => `emr/patients/${patientId}/prescriptions`,
 
   // Backup
   backupExport:     () => API_ENDPOINTS.BACKUP.EXPORT,

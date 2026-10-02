@@ -54,7 +54,7 @@ DEFAULT_ROLES = [
         "permissions": [
             "patients:view", "patients:create", "patients:edit",
             "appointments:view", "appointments:create", "appointments:edit", "appointments:cancel",
-            "schedules:view",
+            "schedules:view", "prescriptions:view",
         ],
         "is_default": True,
         "is_super_admin": False,
@@ -66,6 +66,8 @@ DEFAULT_ROLES = [
             "patients:view", "patients:create", "patients:edit",
             "appointments:view", "appointments:create", "appointments:edit",
             "schedules:view", "schedules:edit",
+            "prescriptions:view", "prescriptions:create", "prescriptions:edit",
+            "prescriptions:issue", "prescriptions:cancel",
         ],
         "is_default": True,
         "is_super_admin": False,
@@ -145,6 +147,13 @@ ALL_PERMISSIONS = {
         {"id": "appointments:create", "name": "Book Appointments"},
         {"id": "appointments:edit", "name": "Reschedule / Update Appointments"},
         {"id": "appointments:cancel", "name": "Cancel Appointments"},
+    ]},
+    "prescriptions": {"display_name": "Prescriptions (EMR)", "permissions": [
+        {"id": "prescriptions:view", "name": "View / Print Prescriptions"},
+        {"id": "prescriptions:create", "name": "Start a Prescription"},
+        {"id": "prescriptions:edit", "name": "Edit Draft Prescriptions"},
+        {"id": "prescriptions:issue", "name": "Issue Prescriptions"},
+        {"id": "prescriptions:cancel", "name": "Cancel Prescriptions"},
     ]},
     "schedules": {"display_name": "Doctor Schedules (EMR)", "permissions": [
         {"id": "schedules:view", "name": "View Doctor Schedules"},

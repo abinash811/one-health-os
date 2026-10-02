@@ -1,7 +1,7 @@
 # EMR Module — v1 Scope (clinic-day flow)
-# Version: 0.2 | Last updated: October 2, 2026
+# Version: 0.3 | Last updated: October 2, 2026
 # Type: Explanation
-# Status: Draft — scoping only. 🚫 No tables or code until Abinash approves (Manifesto rule 13). Schema is deliberately not decided here.
+# Status: Steps 1–2 built (Oct 2, 2026); steps 3–5 not started. Schema decisions live in docs/09_DATABASE.md
 
 ## Approach
 - EMR first: design the clinic day, then decide where the pharmacy plugs in.
@@ -50,7 +50,11 @@
 
 ## Build order (each step shippable on its own)
 1. Patients + appointments + live queue (receptionist can run the day).
-2. Consultation + Rx editor + printable Rx (doctor can run the day).
+2. Consultation + Rx editor + printable Rx (doctor can run the day). **Built Oct 2, 2026** — design decided with Abinash:
+   - ONE prescription record per visit holds the consultation (vitals, complaints, diagnosis, advice, follow-up) AND the medicine lines — no separate consultation entity. Tables: `emr_prescriptions` + `emr_prescription_items` (see `docs/09_DATABASE.md`).
+   - Medicines are free text, with suggestions from the clinic's own prescribing history (no drug catalog yet).
+   - Rx lifecycle: draft (editable) → issued (locked, printable) / cancelled (reason required; frees the visit for a new Rx).
+   - Print = browser print page (clean A4, Print / Save as PDF). Doctor-only writes; receptionist can view.
 3. Rx → pharmacy incoming list → Fill Rx into a bill → dispensed status back.
 4. Whatsapp send + follow-up reminders.
 5. Fresh whole-feature audit as receptionist / doctor / pharmacist / patient (Manifesto rule 11).

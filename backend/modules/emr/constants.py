@@ -40,3 +40,11 @@ ROLE_RECEPTIONIST = "receptionist"
 
 MIN_SLOT_MINUTES = 5
 MAX_SLOT_MINUTES = 120
+
+# Prescription lifecycle: a doctor edits a draft freely; issuing makes it final
+# (printable, immutable). A cancelled Rx frees the appointment for a replacement.
+RX_DRAFT = "draft"
+RX_ISSUED = "issued"
+RX_CANCELLED = "cancelled"
+PRESCRIPTION_STATUSES = (RX_DRAFT, RX_ISSUED, RX_CANCELLED)
+RX_NUMBER_PREFIX = "RX-"

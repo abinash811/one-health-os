@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.15 | Last updated: October 2, 2026
+# Version: 1.16 | Last updated: October 2, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -847,6 +847,33 @@ Indexes: pharmacy; (pharmacy, phone); (pharmacy, name); customer_id.
 
 Constraints: unique (pharmacy, doctor, date, token); partial unique (pharmacy, doctor, date, start_time) for live bookings only (not cancelled / no-show / deleted) — blocks double-booking.
 Status/type values: `backend/modules/emr/constants.py`.
+
+### `emr_prescriptions` (migration `dc6a0865f1a9`)
+One row per visit — holds the WHOLE consultation record. There is deliberately no separate
+consultation table (Abinash, Oct 2, 2026: "all these details should be part of one single prescription").
+| Column | Type | Notes |
+|--------|------|-------|
+| `appointment_id` | UUID FK → emr_appointments | One live (non-cancelled) Rx per appointment — partial unique index |
+| `patient_id` | UUID FK → emr_patients | |
+| `doctor_user_id` | UUID FK → users | |
+| `rx_number` | String(30) | `RX-000001`, unique per pharmacy |
+| `status` | String | `draft` (editable) → `issued` (locked, printable) or `cancelled` |
+| `vitals` | JSONB, nullable | Optional keys: `bp_systolic`, `bp_diastolic`, `pulse`, `temperature_c`, `spo2`, `weight_kg` |
+| `complaints`, `diagnosis`, `advice` | Text | |
+| `follow_up_date` | Date | |
+| `issued_at` | Timestamp | |
+| `cancel_reason` | Text | Required when cancelling |
+| `created_by`, `deleted_at`, `created_at`, `updated_at` | | Soft delete |
+
+### `emr_prescription_items`
+| Column | Type | Notes |
+|--------|------|-------|
+| `prescription_id` | UUID FK → emr_prescriptions | ON DELETE CASCADE (lines are replaced wholesale on each draft save) |
+| `sort_order` | Integer | |
+| `medicine_name` | String(300) | Free text — EMR works without the pharmacy module |
+| `dosage`, `frequency`, `instructions` | String | |
+| `duration_days`, `quantity` | Integer, nullable | |
+Index on (pharmacy_id, medicine_name) powers the clinic's own-history autocomplete.
 
 ---
 

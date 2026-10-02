@@ -57,3 +57,45 @@ export interface EmrSlot {
   end_time: string;
   available: boolean;
 }
+
+export interface EmrVitals {
+  bp_systolic?: number;
+  bp_diastolic?: number;
+  pulse?: number;
+  temperature_c?: number;
+  spo2?: number;
+  weight_kg?: number;
+}
+
+export interface EmrRxItem {
+  id?: string;
+  medicine_name: string;
+  dosage: string | null;
+  frequency: string | null;
+  duration_days: number | null;
+  instructions: string | null;
+  quantity: number | null;
+}
+
+/** One prescription = the whole visit: consultation record + medicine lines. */
+export interface EmrPrescription {
+  id: string;
+  rx_number: string;
+  status: string;
+  appointment_id: string;
+  patient_id: string;
+  patient_name: string | null;
+  doctor_user_id: string;
+  doctor_name: string | null;
+  vitals: EmrVitals;
+  complaints: string | null;
+  diagnosis: string | null;
+  advice: string | null;
+  follow_up_date: string | null;
+  issued_at: string | null;
+  cancel_reason: string | null;
+  created_at: string;
+  items: EmrRxItem[];
+  patient: { gender: string | null; phone: string | null; age: number | null; allergies: string | null; date_of_birth: string | null } | null;
+  clinic: { name: string; address: string; phone: string };
+}

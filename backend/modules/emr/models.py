@@ -16,13 +16,13 @@ from typing import Optional
 from sqlalchemy import (
     Boolean, Date, ForeignKey, Index, Integer, String, Text, Time,
     UniqueConstraint, text)
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 from sqlalchemy import TIMESTAMP
 
 from database import Base
-from modules.emr.constants import APPT_BOOKED, APPT_TYPE_SCHEDULED, PATIENT_SOURCE_EMR
+from modules.emr.constants import APPT_BOOKED, APPT_TYPE_SCHEDULED, PATIENT_SOURCE_EMR, RX_DRAFT
 
 
 class EmrPatient(Base):
@@ -131,3 +131,73 @@ class EmrAppointment(Base):
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class EmrPrescription(Base):
+    """One prescription per visit — it carries the whole consultation record
+    (vitals, complaints, diagnosis, advice, follow-up) plus its medicine lines
+    (Abinash, Oct 2, 2026: "all these details should be part of one single
+    prescription"). There is deliberately no separate consultation table."""
+    __tablename__ = "emr_prescriptions"
+    __table_args__ = (
+        UniqueConstraint("pharmacy_id", "rx_number", name="uq_emr_prescriptions_number"),
+        # One live (non-cancelled) Rx per appointment; cancelling frees it for a replacement.
+        Index("uq_emr_prescriptions_appointment", "appointment_id", unique=True,
+              postgresql_where=text("status <> 'cancelled' AND deleted_at IS NULL")),
+        Index("idx_emr_prescriptions_patient", "patient_id"),
+        Index("idx_emr_prescriptions_pharmacy", "pharmacy_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    appointment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("emr_appointments.id"), nullable=False)
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("emr_patients.id"), nullable=False)
+    doctor_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    rx_number: Mapped[str] = mapped_column(String(30), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), default=RX_DRAFT, server_default=RX_DRAFT, nullable=False)
+    # {"bp_systolic": 120, "bp_diastolic": 80, "pulse": 72, "temperature_c": 37.2,
+    #  "spo2": 98, "weight_kg": 64.5} — every key optional.
+    vitals: Mapped[Optional[dict]] = mapped_column(JSONB)
+    complaints: Mapped[Optional[str]] = mapped_column(Text)
+    diagnosis: Mapped[Optional[str]] = mapped_column(Text)
+    advice: Mapped[Optional[str]] = mapped_column(Text)
+    follow_up_date: Mapped[Optional[date]] = mapped_column(Date)
+    issued_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
+    cancel_reason: Mapped[Optional[str]] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    deleted_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class EmrPrescriptionItem(Base):
+    """One medicine line on a prescription. `medicine_name` is free text so EMR
+    works without the pharmacy module."""
+    __tablename__ = "emr_prescription_items"
+    __table_args__ = (
+        Index("idx_emr_prescription_items_rx", "prescription_id"),
+        Index("idx_emr_prescription_items_name", "pharmacy_id", "medicine_name"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    prescription_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("emr_prescriptions.id", ondelete="CASCADE"), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    medicine_name: Mapped[str] = mapped_column(String(300), nullable=False)
+    dosage: Mapped[Optional[str]] = mapped_column(String(100))
+    frequency: Mapped[Optional[str]] = mapped_column(String(100))
+    duration_days: Mapped[Optional[int]] = mapped_column(Integer)
+    instructions: Mapped[Optional[str]] = mapped_column(String(300))
+    quantity: Mapped[Optional[int]] = mapped_column(Integer)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)

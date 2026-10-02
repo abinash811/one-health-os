@@ -68,6 +68,9 @@ describe('Appointments queue', () => {
     expect(await screen.findByTestId('queue-next-w')).toHaveTextContent('Start consult');
     expect(screen.getByTestId('queue-next-c')).toHaveTextContent('Complete');
     expect(screen.queryByTestId('queue-next-d')).not.toBeInTheDocument();
+    expect(screen.getByTestId('queue-rx-c')).toHaveTextContent('Write Rx');
+    expect(screen.getByTestId('queue-rx-d')).toHaveTextContent('View Rx');
+    expect(screen.queryByTestId('queue-rx-w')).not.toBeInTheDocument();
     expect(screen.queryByTestId('queue-more-d')).not.toBeInTheDocument();
   });
 

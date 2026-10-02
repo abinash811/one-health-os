@@ -240,6 +240,12 @@ export const APPOINTMENT_STATUS = {
   NO_SHOW:    'no_show',
 };
 
+export const PRESCRIPTION_STATUS = {
+  DRAFT:     'draft',
+  ISSUED:    'issued',
+  CANCELLED: 'cancelled',
+};
+
 export const APPOINTMENT_TYPE = {
   SCHEDULED: 'scheduled',
   WALK_IN:   'walk_in',

@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.61 | Last updated: October 2, 2026
+# Version: 3.62 | Last updated: October 2, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1541,7 +1541,7 @@ going forward — do not re-propose Sheets without Abinash raising it again.
 | 1a. Tables + migration (`emr_patients`, `emr_doctor_schedules`, `emr_appointments`) | ✅ Built Oct 2, 2026 |
 | 1b. Backend API: patients, doctor schedules, slots, appointments, queue status machine (+ 16 pytest tests) | ✅ Built Oct 2, 2026 |
 | 1c. Frontend: Appointments day view + live queue + booking dialog, Patients, Doctor Schedules (18 jest tests) | ✅ Built + live-walked Oct 2, 2026 (receptionist: register → walk-in → check-in → consult; doctor: set hours → book slot → slot locks) |
-| 2. Consultation + Rx editor + printable Rx | ⬜ Not started |
+| 2. Consultation + Rx editor + printable Rx — ONE prescription record per visit (`emr_prescriptions` + items), own-history medicine suggestions, issue/cancel lifecycle, browser print page (7 pytest + 9 jest tests) | ✅ Built Oct 2, 2026 (live walkthrough pending) |
 | 3. Rx → pharmacy incoming list → Fill Rx → dispensed status | ⬜ Not started |
 | 4. WhatsApp send + follow-up reminders | ⬜ Not started |
 | 5. Whole-feature persona audit (receptionist / doctor / pharmacist / patient) | ⬜ Not started |

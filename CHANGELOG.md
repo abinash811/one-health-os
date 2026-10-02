@@ -11,6 +11,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **EMR step 2: consultation + prescription + printable Rx.** One prescription record per
+  visit carries the whole consultation (vitals, complaints, diagnosis, advice, follow-up) plus
+  its medicine lines — requested by Abinash so a visit is a single document, not two linked ones.
+  - New tables `emr_prescriptions` + `emr_prescription_items` (migration `dc6a0865f1a9`); RX numbers per pharmacy.
+  - Draft → issued (locked) / cancelled (reason required); one live Rx per appointment.
+  - New `prescriptions:*` permissions — doctor role writes, receptionist can only view.
+  - Doctor screen at `/emr/consult/:appointmentId`; "Start consult" in the queue now opens it directly.
+  - Medicine name suggestions come from the clinic's own past prescriptions.
+  - Printable A4 page at `/emr/prescriptions/:id/print` (Print / Save as PDF).
 - **EMR module, step 1 backend (patients, doctor schedules, appointments, live queue).**
   Second platform module after pharmacy (`docs/27`, `docs/28`). EMR has its own
   patients table so it works without the pharmacy module; a doctor is a login user.

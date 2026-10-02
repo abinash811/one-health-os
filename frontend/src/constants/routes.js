@@ -54,6 +54,8 @@ export const ROUTES = {
     APPOINTMENTS: '/emr/appointments',
     PATIENTS:     '/emr/patients',
     SCHEDULES:    '/emr/schedules',
+    CONSULT:      (appointmentId) => `/emr/consult/${appointmentId}`,
+    RX_PRINT:     (rxId) => `/emr/prescriptions/${rxId}/print`,
   },
 
   // Inventory

@@ -14,6 +14,7 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { APPOINTMENT_STATUS, APPOINTMENT_TYPE } from '@/constants/domainConstants';
 import { formatDate, today } from '@/utils/dates';
+import { ROUTES } from '@/constants/routes';
 import { EMR_TABS, emrTabRoute } from '../emrTabs';
 import { to12h } from '../timeFormat';
 import BookAppointmentModal from '../components/BookAppointmentModal';
@@ -83,6 +84,8 @@ export default function Appointments() {
     setBusyId(a.id);
     try {
       await api.post(apiUrl.emrAppointmentStatus(a.id), { status: next });
+      // Starting a consult goes straight to the prescription — one click, not two.
+      if (next === APPOINTMENT_STATUS.IN_CONSULT) { navigate(ROUTES.EMR.CONSULT(a.id)); return; }
       fetchQueue(false);
     } catch (err) {
       toast.error((err as Error).message);
@@ -155,7 +158,8 @@ export default function Appointments() {
                   </td>
                   <td className="px-4 py-3"><StatusBadge status={a.status} /></td>
                   <td className="px-4 py-3">
-                    <QueueActions appointment={a} busy={busyId === a.id} onMove={move} onCancel={setCancelling} />
+                    <QueueActions appointment={a} busy={busyId === a.id} onMove={move} onCancel={setCancelling}
+                      onOpenRx={(x) => navigate(ROUTES.EMR.CONSULT(x.id))} />
                   </td>
                 </tr>
               ))}

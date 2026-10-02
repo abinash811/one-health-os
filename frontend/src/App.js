@@ -51,6 +51,8 @@ const TransferHistory = lazy(() => import('@/pages/TransferHistory'));
 const EmrAppointments = lazy(() => import('@/modules/emr/pages/Appointments'));
 const EmrPatients = lazy(() => import('@/modules/emr/pages/Patients'));
 const EmrDoctorSchedules = lazy(() => import('@/modules/emr/pages/DoctorSchedules'));
+const EmrConsultation = lazy(() => import('@/modules/emr/pages/Consultation'));
+const EmrPrescriptionPrint = lazy(() => import('@/modules/emr/pages/PrescriptionPrint'));
 
 // Clinic-only roles have no pharmacy permissions, so the pharmacy Dashboard
 // would just 403 for them — land them on the clinic day view instead.
@@ -160,6 +162,7 @@ function AppRoutes({ user }) {
           <Route path="emr/appointments" element={<EmrAppointments />} />
           <Route path="emr/patients" element={<EmrPatients />} />
           <Route path="emr/schedules" element={<EmrDoctorSchedules />} />
+          <Route path="emr/consult/:appointmentId" element={<EmrConsultation />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="billing" element={<BillingOperations />} />
           <Route path="billing/new" element={<BillingWorkspace />} />
@@ -193,6 +196,8 @@ function AppRoutes({ user }) {
           <Route path="settings" element={<Settings />} />
           <Route path="team" element={<Team />} />
         </Route>
+        {/* Printable Rx renders outside Layout so the sheet has no app chrome */}
+        <Route path="emr/prescriptions/:id/print" element={<EmrPrescriptionPrint />} />
         <Route path="*" element={<Navigate to={homePathFor(user)} replace />} />
       </Routes>
     </Suspense>
