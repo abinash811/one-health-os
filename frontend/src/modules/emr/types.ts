@@ -136,4 +136,6 @@ export interface EmrDoctorProfile {
   specialty: string | null;
   qualification: string | null;
   registration_no: string | null;
+  /** Default consultation fee in paise; null or 0 = no fee is charged at check-in. */
+  consultation_fee_paise: number | null;
 }

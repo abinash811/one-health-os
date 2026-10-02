@@ -55,6 +55,8 @@ DEFAULT_ROLES = [
             "patients:view", "patients:create", "patients:edit",
             "appointments:view", "appointments:create", "appointments:edit", "appointments:cancel",
             "schedules:view", "prescriptions:view",
+            "patient_billing:view", "patient_billing:charge", "patient_billing:invoice",
+            "patient_billing:collect",
         ],
         "is_default": True,
         "is_super_admin": False,
@@ -67,7 +69,7 @@ DEFAULT_ROLES = [
             "appointments:view", "appointments:create", "appointments:edit",
             "schedules:view", "schedules:edit",
             "prescriptions:view", "prescriptions:create", "prescriptions:edit",
-            "prescriptions:issue", "prescriptions:cancel",
+            "prescriptions:issue", "prescriptions:cancel", "patient_billing:view",
         ],
         "is_default": True,
         "is_super_admin": False,
@@ -157,6 +159,13 @@ ALL_PERMISSIONS = {
     ]},
     "emr_settings": {"display_name": "Clinic Settings (EMR)", "permissions": [
         {"id": "emr_settings:edit", "name": "Edit Clinic Settings & Doctor Profiles"},
+    ]},
+    "patient_billing": {"display_name": "Patient Billing (Clinic)", "permissions": [
+        {"id": "patient_billing:view", "name": "View Patient Bills & Pending"},
+        {"id": "patient_billing:charge", "name": "Add Charges"},
+        {"id": "patient_billing:invoice", "name": "Create Invoices"},
+        {"id": "patient_billing:collect", "name": "Collect Payments"},
+        {"id": "patient_billing:void", "name": "Void Charges / Cancel Invoices"},
     ]},
     "schedules": {"display_name": "Doctor Schedules (EMR)", "permissions": [
         {"id": "schedules:view", "name": "View Doctor Schedules"},

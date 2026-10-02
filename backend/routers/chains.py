@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import get_db
+from deps import DbSession
 from models.chains import Chain as ChainORM
 from models.pharmacy import Pharmacy as PharmacyORM, PharmacySettings as PharmacySettingsORM
 from models.users import AuditLog, Role as RoleORM
@@ -60,7 +60,7 @@ class StoreCreate(BaseModel):
 
 @router.get("/pharmacies/stores")
 async def get_chain_stores(current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     """Every store in the caller's chain, including their own — for the
     Settings "Stores" tab and the Team page's per-user store-access
     picker. A standalone (non-chain) pharmacy just gets its one store
@@ -89,7 +89,7 @@ async def get_chain_stores(current_user: User = Depends(
 
 @router.post("/pharmacies/stores")
 async def create_chain_store(body: StoreCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     """Adds a new store. If the caller's pharmacy isn't in a chain yet,
     creates one now (this is the one and only place a Chain gets created)
     and puts the caller's own existing pharmacy in it too, alongside the

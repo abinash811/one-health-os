@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.27 | Last updated: October 2, 2026
+# Version: 1.28 | Last updated: October 2, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1504,6 +1504,25 @@ Get full audit trail for a specific entity.
 curl http://localhost:8000/docs       # FastAPI auto-docs
 curl http://localhost:8000/openapi.json  # OpenAPI spec
 ```
+
+### Patient Billing — `/api/patient-billing` (B1 · permissions `patient_billing:view|charge|invoice|collect|void`)
+> Plan: `docs/29_BILLING_SCOPE.md`. Separate module; other modules call `modules/patient_billing/service.py` (same rules as these endpoints).
+> Audit `entity_type` = `pb_charge_item` / `pb_invoice` / `pb_payment`. Defaults: receptionist = view+charge+invoice+collect, doctor = view, admin = all; pharmacy roles get none.
+| Method | Path | Notes |
+|--------|------|-------|
+| POST | `/charges` | `charge`. Body: `patient_id`, `patient_name`, `patient_uhid`, `source_module`, `description`, `quantity`, `unit_price_paise`, optional `source_ref`/`encounter_ref`/`idempotency_key`. Same key twice → returns the original, no second charge. `pharmacy` source → 422 (not open yet) |
+| POST | `/charges/{id}/void` | `void`. Reason required; only `unbilled` (409 if invoiced — cancel the invoice first) |
+| GET | `/accounts?status=&source=&search=&page=` | `view`. Billing desk list. `status`: `pending` (default) · `not_invoiced` · `invoiced_unpaid` · `part_paid` · `all`. Each row: `not_invoiced_paise`, `invoiced_unpaid_paise`, `balance_paise`, `sources[]`, `has_part_paid`, `last_activity`. Response adds `totals` |
+| GET | `/accounts/{patient_id}` | `view`. One patient's complete bill: `totals`, `charges`, `invoices` (non-cancelled), `payments`. 404 if no account |
+| POST | `/invoices` | `invoice`. `{patient_id, charge_item_ids[], discount_paise, counter}` — unbilled charges only, one patient; freezes `lines`. 100% discount → paid immediately |
+| GET | `/invoices?status=&patient_id=` · `/invoices/{id}` | `view`. Detail includes `payments` |
+| POST | `/invoices/{id}/payments` | `collect`. `{amount_paise, mode, reference}`. Part-payment OK; more than the balance → 422; row-locked so simultaneous payments can never overpay. Returns `{payment, invoice}` with `receipt_number` |
+| POST | `/invoices/{id}/cancel` | `void`. Reason required. Unpaid only — an invoice with payments returns 409 (refunds not supported yet). Charges return to `unbilled` |
+| POST | `/accounts/{patient_id}/collect` | `invoice` + `collect`. The "Collect" button: invoice chosen charges and pay (full unless `amount_paise`) atomically |
+| GET | `/payments?date=&patient_id=` | `view`. Receipts, newest first, paginated |
+| GET | `/summary/today?date=` | `view`. `collected_paise`, `receipts`, `by_mode`, `by_counter` |
+
+**EMR consultation fee (B2):** `PUT /emr/doctor-profiles/{id}` accepts `consultation_fee_paise` (0–₹10 lakh, blank clears). When an appointment moves to `checked_in`, that fee is posted as a charge on the patient's account (`idempotency_key = emr:appointment:<id>:consultation`, so one visit is charged once; no fee set = no charge). Moving the visit to `cancelled`/`no_show` voids the charge **only if still unbilled**; once invoiced, the billing desk decides.
 
 ### Clinic settings — read: `patients:view` (any clinic user) · write: `emr_settings:edit` (admin)
 Audit `entity_type` = `emr_settings` / `emr_doctor_profile`.

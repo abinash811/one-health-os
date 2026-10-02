@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from constants import ALL_PERMISSIONS, DEFAULT_ROLES  # noqa: F401 — DEFAULT_ROLES re-exported for main.py
-from deps import get_db
+from deps import DbSession
 from models.billing import Bill, SalesReturn
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.users import AuditLog, Role as RoleORM, User as UserORM
@@ -248,7 +248,7 @@ def _role_response(role: RoleORM) -> dict:
 
 @router.get("/settings")
 async def get_settings(current_user: User = Depends(get_current_user),
-                       db: AsyncSession = Depends(get_db)):
+                       db: AsyncSession = DbSession):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     result = await db.execute(select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
     ps = result.scalar_one_or_none()
@@ -345,7 +345,7 @@ async def get_settings(current_user: User = Depends(get_current_user),
 
 @router.put("/settings")
 async def update_settings(settings_data: dict, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -503,7 +503,7 @@ async def update_settings(settings_data: dict, request: Request, current_user: U
 
 @router.get("/permissions")
 async def get_all_permissions(current_user: User = Depends(get_current_user),
-                              db: AsyncSession = Depends(get_db)):
+                              db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     return ALL_PERMISSIONS
 
@@ -512,7 +512,7 @@ async def get_all_permissions(current_user: User = Depends(get_current_user),
 
 @router.get("/roles")
 async def get_all_roles(current_user: User = Depends(get_current_user),
-                        db: AsyncSession = Depends(get_db)):
+                        db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     result = await db.execute(
         select(RoleORM).where(
@@ -525,7 +525,7 @@ async def get_all_roles(current_user: User = Depends(get_current_user),
 
 @router.post("/roles")
 async def create_role(role_data: RoleCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     existing = await db.execute(select(RoleORM).where(
@@ -552,7 +552,7 @@ async def create_role(role_data: RoleCreate, request: Request, current_user: Use
 
 @router.get("/roles/{role_id}")
 async def get_role(role_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     role = await get_owned_or_404(
         db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
@@ -561,7 +561,7 @@ async def get_role(role_id: str, current_user: User = Depends(
 
 @router.put("/roles/{role_id}")
 async def update_role(role_id: str, role_update: RoleUpdate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     role = await get_owned_or_404(
         db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
@@ -588,7 +588,7 @@ async def update_role(role_id: str, role_update: RoleUpdate, request: Request, c
 
 @router.delete("/roles/{role_id}")
 async def delete_role(role_id: str, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     role = await get_owned_or_404(
         db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
@@ -636,7 +636,7 @@ def _sequence_response(ps: Optional[PharmacySettings], document_type: str) -> di
 async def get_bill_sequence_settings(
     document_type: str = "sales_invoice",
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbSession,
 ):
     if document_type not in _SEQUENCE_TYPES:
         raise HTTPException(status_code=400, detail=f"Unknown document_type '{document_type}'")
@@ -653,7 +653,7 @@ async def update_bill_sequence_settings(
         seq_settings: BillSequenceSettings,
         request: Request,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     if seq_settings.document_type not in _SEQUENCE_TYPES:
         raise HTTPException(
@@ -730,7 +730,7 @@ async def update_bill_sequence_settings(
 
 @router.get("/settings/bill-sequence/all")
 async def get_all_bill_sequences(current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     result = await db.execute(
         select(PharmacySettings).where(
             PharmacySettings.pharmacy_id == uuid.UUID(

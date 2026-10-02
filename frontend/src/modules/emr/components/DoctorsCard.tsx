@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pencil } from 'lucide-react';
 import { DataCard, AppButton, EmptyState, TableSkeleton } from '@/components/shared';
+import { formatCurrency, toRupees } from '@/utils/currency';
 import type { EmrDoctorProfile } from '../types';
 
 export interface DoctorsCardProps {
@@ -22,7 +23,7 @@ export default function DoctorsCard({ doctors, loading, readOnly, onEdit }: Doct
       ) : (
         <table className="w-full text-sm" data-testid="doctors-table">
           <thead className="bg-gray-50 border-y">
-            <tr>{['Doctor', 'Specialty', 'Qualification', 'Registration no.', ''].map((h) => (
+            <tr>{['Doctor', 'Specialty', 'Qualification', 'Registration no.', 'Consultation fee', ''].map((h) => (
               <th key={h} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>))}</tr>
           </thead>
           <tbody className="divide-y">
@@ -32,6 +33,8 @@ export default function DoctorsCard({ doctors, loading, readOnly, onEdit }: Doct
                 <td className="px-4 py-3 text-gray-700">{d.specialty || '—'}</td>
                 <td className="px-4 py-3 text-gray-700">{d.qualification || '—'}</td>
                 <td className="px-4 py-3 text-gray-700">{d.registration_no || '—'}</td>
+                <td className="px-4 py-3 text-gray-700" data-testid={`fee-${d.user_id}`}>
+                  {d.consultation_fee_paise ? formatCurrency(toRupees(d.consultation_fee_paise)) : 'No fee'}</td>
                 <td className="px-4 py-3 text-right">
                   {!readOnly && (
                     <AppButton variant="ghost" size="sm" iconOnly icon={<Pencil className="w-4 h-4" />}

@@ -9,7 +9,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import get_db
+from deps import DbSession
 from models.billing import Bill
 from models.customers import Customer as CustomerORM, Doctor as DoctorORM
 from models.users import AuditLog
@@ -138,7 +138,7 @@ def _doctor_response(d: DoctorORM) -> dict:
 
 @router.post("/customers")
 async def create_customer(customer_data: CustomerCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_customers_permission(current_user, "create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     customer = CustomerORM(
@@ -163,7 +163,7 @@ async def create_customer(customer_data: CustomerCreate, request: Request, curre
 async def get_customers(
     page: int = 1, page_size: int = 50, search: Optional[str] = None,
     customer_type: Optional[str] = None, fields: Optional[str] = None,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     query = select(CustomerORM).where(
@@ -195,7 +195,7 @@ async def get_customers(
 
 @router.get("/customers/search")
 async def search_customers(q: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     pattern = f"%{q}%"
     result = await db.execute(
@@ -210,7 +210,7 @@ async def search_customers(q: str, current_user: User = Depends(
 
 @router.get("/customers/{customer_id}")
 async def get_customer(customer_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     customer = await get_owned_or_404(
         db, CustomerORM, customer_id, uuid.UUID(current_user.pharmacy_id),
         not_found_detail="Customer not found",
@@ -220,7 +220,7 @@ async def get_customer(customer_id: str, current_user: User = Depends(
 
 @router.put("/customers/{customer_id}")
 async def update_customer(customer_id: str, customer_data: dict, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_customers_permission(current_user, "edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     customer = await get_owned_or_404(
@@ -251,7 +251,7 @@ async def update_customer(customer_id: str, customer_data: dict, request: Reques
 
 @router.delete("/customers/{customer_id}")
 async def delete_customer(customer_id: str, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_customers_permission(current_user, "delete", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     customer = await get_owned_or_404(
@@ -268,7 +268,7 @@ async def delete_customer(customer_id: str, request: Request, current_user: User
 
 @router.get("/customers/{customer_id}/stats")
 async def get_customer_stats(customer_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     customer = await get_owned_or_404(
         db, CustomerORM, customer_id, uuid.UUID(current_user.pharmacy_id),
         not_found_detail="Customer not found")
@@ -294,7 +294,7 @@ async def get_customer_stats(customer_id: str, current_user: User = Depends(
 
 @router.post("/doctors")
 async def create_doctor(doctor_data: DoctorCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_customers_permission(current_user, "create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     doctor = DoctorORM(
@@ -322,7 +322,7 @@ async def get_doctors(
         page: int = 1,
         page_size: int = 50,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     page_size = min(max(page_size, 1), 100)
     page = max(page, 1)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -356,7 +356,7 @@ async def get_doctors(
 
 @router.put("/doctors/{doctor_id}")
 async def update_doctor(doctor_id: str, doctor_data: dict, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_customers_permission(current_user, "edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     doctor = await get_owned_or_404(
@@ -390,7 +390,7 @@ async def update_doctor(doctor_id: str, doctor_data: dict, request: Request, cur
 
 @router.delete("/doctors/{doctor_id}")
 async def delete_doctor(doctor_id: str, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_customers_permission(current_user, "delete", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     doctor = await get_owned_or_404(

@@ -13,12 +13,13 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import get_db
+from deps import DbSession
 from models.users import User as UserORM
+from modules.emr.billing_hooks import post_consultation_fee, withdraw_consultation_fee
 from modules.emr.common import _client_ip, _record_audit, _require_emr_permission
 from modules.emr.constants import (
     APPOINTMENT_TRANSITIONS, APPT_BOOKED, APPT_CANCELLED, APPT_CHECKED_IN, APPT_COMPLETED,
-    APPT_IN_CONSULT, APPT_TYPE_SCHEDULED, APPT_TYPE_WALK_IN)
+    APPT_IN_CONSULT, APPT_NO_SHOW, APPT_TYPE_SCHEDULED, APPT_TYPE_WALK_IN)
 from modules.emr.models import EmrAppointment, EmrDoctorSchedule, EmrPatient
 from routers.auth_helpers import User, get_current_user, get_owned_or_404
 
@@ -126,7 +127,7 @@ async def _resolve_slot(db, pharmacy_id, doctor_user_id, day, start, ignore_id=N
 @router.get("/slots")
 async def available_slots(doctor_user_id: uuid.UUID, on_date: date = Query(..., alias="date"),
                           current_user: User = Depends(get_current_user),
-                          db: AsyncSession = Depends(get_db)):
+                          db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "appointments:view", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     grid = await _slot_grid(db, pharmacy_id, doctor_user_id, on_date)
@@ -138,7 +139,7 @@ async def available_slots(doctor_user_id: uuid.UUID, on_date: date = Query(..., 
 @router.post("/appointments")
 async def create_appointment(data: AppointmentCreate, request: Request,
                              current_user: User = Depends(get_current_user),
-                             db: AsyncSession = Depends(get_db)):
+                             db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "appointments:create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     if data.appointment_date < date.today():
@@ -177,7 +178,7 @@ async def create_appointment(data: AppointmentCreate, request: Request,
 async def list_appointments(
     on_date: Optional[date] = Query(None, alias="date"), doctor_user_id: Optional[uuid.UUID] = None,
     patient_id: Optional[uuid.UUID] = None, status: Optional[str] = None,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     """The day view / live queue. Defaults to today; ordered by token."""
     await _require_emr_permission(current_user, "appointments:view", db)
@@ -204,7 +205,7 @@ async def list_appointments(
 
 @router.get("/appointments/{appointment_id}")
 async def get_appointment(appointment_id: str, current_user: User = Depends(get_current_user),
-                          db: AsyncSession = Depends(get_db)):
+                          db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "appointments:view", db)
     appt = await get_owned_or_404(
         db, EmrAppointment, appointment_id, uuid.UUID(current_user.pharmacy_id),
@@ -216,7 +217,7 @@ async def get_appointment(appointment_id: str, current_user: User = Depends(get_
 @router.put("/appointments/{appointment_id}")
 async def reschedule_appointment(appointment_id: str, data: dict, request: Request,
                                  current_user: User = Depends(get_current_user),
-                                 db: AsyncSession = Depends(get_db)):
+                                 db: AsyncSession = DbSession):
     """Move a still-`booked` visit to another doctor/date/slot, or edit its reason."""
     await _require_emr_permission(current_user, "appointments:edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -260,7 +261,7 @@ async def reschedule_appointment(appointment_id: str, data: dict, request: Reque
 @router.post("/appointments/{appointment_id}/status")
 async def change_appointment_status(appointment_id: str, data: StatusChange, request: Request,
                                     current_user: User = Depends(get_current_user),
-                                    db: AsyncSession = Depends(get_db)):
+                                    db: AsyncSession = DbSession):
     """Queue moves: check in, start consult, complete, cancel (with reason), no-show."""
     cancelling = data.status == APPT_CANCELLED
     await _require_emr_permission(
@@ -286,6 +287,12 @@ async def change_appointment_status(appointment_id: str, data: StatusChange, req
         appt.cancel_reason = data.cancel_reason.strip()
     appt.status = data.status
     await db.flush()
+    uid = uuid.UUID(current_user.id)
+    if data.status == APPT_CHECKED_IN:       # the consultation fee lands on the patient's account
+        await post_consultation_fee(db, appt, uid, _client_ip(request))
+    elif data.status in (APPT_CANCELLED, APPT_NO_SHOW):
+        await withdraw_consultation_fee(
+            db, appt, uid, f"Appointment {data.status.replace('_', ' ')}", _client_ip(request))
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "status_change", "emr_appointment", appt.id,
         {"status": appt.status, "cancel_reason": appt.cancel_reason}, db, old_values=old,

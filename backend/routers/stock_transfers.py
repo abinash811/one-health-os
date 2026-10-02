@@ -32,7 +32,7 @@ from pydantic import BaseModel
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import get_db
+from deps import DbSession
 from models.pharmacy import Pharmacy as PharmacyORM
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.stock_transfers import StockTransfer, StockTransferItem
@@ -155,7 +155,7 @@ async def _get_or_create_destination_batch(
 @router.post("/stock-transfers")
 async def create_stock_transfer(
     body: StockTransferCreate, request: Request,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     await require_admin_or_super(current_user, db)
     source_pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -286,7 +286,7 @@ async def create_stock_transfer(
 
 @router.get("/stock-transfers")
 async def list_stock_transfers(
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     """Every transfer where the caller's own pharmacy is either the
     source or the destination.
@@ -319,7 +319,7 @@ async def list_stock_transfers(
 @router.post("/stock-transfers/{transfer_id}/reverse")
 async def reverse_stock_transfer(
     transfer_id: str, request: Request,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     await require_admin_or_super(current_user, db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)

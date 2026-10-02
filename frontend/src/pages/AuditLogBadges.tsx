@@ -19,6 +19,8 @@ export function ActionBadge({ action }) {
     issue:             'bg-green-50 text-green-700',
     cancel:            'bg-red-50 text-red-700',
     status_change:     'bg-blue-50 text-blue-700',
+    void:              'bg-red-50 text-red-700',
+    payment:           'bg-green-50 text-green-700',
   };
   const label = action?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Unknown';
   const cls   = styles[action?.toLowerCase()] || 'bg-gray-100 text-gray-600';
@@ -51,6 +53,9 @@ export const ENTITY_LABELS = {
   emr_prescription: 'Prescription (EMR)',
   emr_settings:     'Clinic Settings (EMR)',
   emr_doctor_profile: 'Doctor Profile (EMR)',
+  pb_charge_item:   'Charge (Patient Billing)',
+  pb_invoice:       'Invoice (Patient Billing)',
+  pb_payment:       'Payment (Patient Billing)',
 };
 
 export const ENTITY_TYPES = [
@@ -69,4 +74,7 @@ export const ENTITY_TYPES = [
   { key: 'emr_appointment',  label: 'Appointment (EMR)'  },
   { key: 'emr_prescription', label: 'Prescription (EMR)' },
   { key: 'emr_settings',     label: 'Clinic Settings (EMR)' },
+  { key: 'pb_charge_item',   label: 'Charge (Billing)'  },
+  { key: 'pb_invoice',       label: 'Invoice (Billing)' },
+  { key: 'pb_payment',       label: 'Payment (Billing)' },
 ];

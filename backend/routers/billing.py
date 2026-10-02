@@ -12,7 +12,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import get_db
+from deps import DbSession
 from models.billing import (
     Bill as BillORM, BillItem as BillItemORM, BillPaymentSplit as BillPaymentSplitORM,
     DayEndClosing as DayEndClosingORM, SalesReturn as SalesReturnORM, ScheduleH1Register,
@@ -475,7 +475,7 @@ async def _save_payment_splits(bill_id: uuid.UUID, splits: list[dict], db: Async
 
 @router.post("/bills")
 async def create_bill(bill_data: BillCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     # permission-exempt: app-wide Billing RBAC rollout is an explicit, undecided
     # product decision (docs/15_ROADMAP.md KNOWN ISSUES) — gating this blind risks
     # locking cashiers out of billing itself; do not add a check here without asking
@@ -805,7 +805,7 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
 
 @router.put("/bills/{bill_id}")
 async def update_bill(bill_id: str, bill_data: BillCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     # permission-exempt: same pending app-wide Billing RBAC decision as create_bill above
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
@@ -1167,7 +1167,7 @@ async def get_bills(
     payment_method: Optional[str] = None,
     search: Optional[str] = None, from_date: Optional[str] = None, to_date: Optional[str] = None,
     page: int = 1, page_size: int = 50,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     page_size = min(max(page_size, 1), 100)
     page = max(page, 1)
@@ -1221,7 +1221,7 @@ async def get_bills(
 
 @router.get("/bills/{bill_id}")
 async def get_bill(bill_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     bill = await get_owned_or_404(
         db, BillORM, bill_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Bill not found")
     items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bill.id))
@@ -1234,7 +1234,7 @@ async def get_bill(bill_id: str, current_user: User = Depends(
 
 @router.get("/bills/{bill_id}/pdf")
 async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     from utils.bill_pdf import generate_bill_pdf_bytes
 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -1301,7 +1301,7 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
 
 @router.post("/payments")
 async def create_payment(payment_data: PaymentCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     # permission-exempt: same pending app-wide Billing RBAC decision as create_bill above
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
@@ -1373,7 +1373,7 @@ async def create_payment(payment_data: PaymentCreate, request: Request, current_
 
 @router.get("/payments")
 async def get_payments(invoice_id: Optional[str] = None, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     if not invoice_id:
         return []
     try:
@@ -1398,7 +1398,7 @@ async def get_payments(invoice_id: Optional[str] = None, current_user: User = De
 
 @router.post("/refunds")
 async def create_refund(refund_data: RefundCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     # permission-exempt: same pending app-wide Billing RBAC decision as create_bill above
     bill = await get_owned_or_404(
         db, BillORM, refund_data.return_invoice_id, uuid.UUID(current_user.pharmacy_id),
@@ -1439,7 +1439,7 @@ async def get_refunds(
         return_invoice_id: Optional[str] = None,
         original_invoice_id: Optional[str] = None,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     # Refunds are tracked via bill status and audit logs
     if not return_invoice_id:
         return []
@@ -1478,7 +1478,7 @@ async def get_audit_logs(
     entity_type: Optional[str] = None, entity_id: Optional[str] = None,
     action: Optional[str] = None,
     page: int = 1, page_size: int = 50,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     # Found Sep 12, 2026: no permission gate existed here at all — any
     # logged-in role, cashier included, could read the full action history
@@ -1530,7 +1530,7 @@ async def get_audit_logs(
 
 @router.get("/audit-logs/entity/{entity_type}/{entity_id}")
 async def get_entity_audit_trail(entity_type: str, entity_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     # Found Sep 12, 2026 alongside the multi-tenancy fix pass: this had no
     # pharmacy_id filter at all — any logged-in user from any pharmacy could
     # pull another pharmacy's full audit trail (old/new values, including

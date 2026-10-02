@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from deps import get_db
+from deps import DbSession
 from models.pharmacy import Pharmacy
 from models.users import User as UserORM
 from modules.emr.common import _client_ip, _record_audit, _require_emr_permission
@@ -21,6 +21,7 @@ from modules.emr.constants import (
     FIELD_STATES, MAX_SLOT_MINUTES, MIN_SLOT_MINUTES, PATIENT_FORM_DEFAULTS, ROLE_DOCTOR)
 from modules.emr.models import EmrDoctorProfile, EmrSettings
 from modules.emr.settings_service import effective_patient_form, get_or_create_settings
+from modules.patient_billing.constants import MAX_AMOUNT_PAISE
 from routers.auth_helpers import User, get_current_user, get_owned_or_404
 
 router = APIRouter(prefix="/api/emr", tags=["emr-settings"])
@@ -43,6 +44,7 @@ class SettingsUpdate(BaseModel):
 
 
 class DoctorProfileUpdate(BaseModel):
+    consultation_fee_paise: Optional[int] = Field(None, ge=0, le=MAX_AMOUNT_PAISE)
     specialty: Optional[str] = Field(None, max_length=100)
     qualification: Optional[str] = Field(None, max_length=200)
     registration_no: Optional[str] = Field(None, max_length=100)
@@ -62,7 +64,7 @@ async def _settings_response(db, s: EmrSettings) -> dict:
 
 
 @router.get("/settings")
-async def get_settings(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_settings(current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:view", db)
     s = await get_or_create_settings(db, uuid.UUID(current_user.pharmacy_id))
     return await _settings_response(db, s)
@@ -70,7 +72,7 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
 
 @router.put("/settings")
 async def update_settings(data: SettingsUpdate, request: Request,
-                          current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+                          current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "emr_settings:edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     s = await get_or_create_settings(db, pharmacy_id)
@@ -113,12 +115,13 @@ async def _profile(db, pharmacy_id, user_id) -> Optional[EmrDoctorProfile]:
 def _profile_dict(u: UserORM, p: Optional[EmrDoctorProfile]) -> dict:
     return {"user_id": str(u.id), "name": u.name,
             "specialty": p.specialty if p else None, "qualification": p.qualification if p else None,
-            "registration_no": p.registration_no if p else None}
+            "registration_no": p.registration_no if p else None,
+            "consultation_fee_paise": p.consultation_fee_paise if p else None}
 
 
 @router.get("/doctor-profiles")
 async def list_doctor_profiles(current_user: User = Depends(get_current_user),
-                               db: AsyncSession = Depends(get_db)):
+                               db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:view", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     users = (await db.execute(
@@ -132,7 +135,7 @@ async def list_doctor_profiles(current_user: User = Depends(get_current_user),
 @router.put("/doctor-profiles/{user_id}")
 async def update_doctor_profile(user_id: uuid.UUID, data: DoctorProfileUpdate, request: Request,
                                 current_user: User = Depends(get_current_user),
-                                db: AsyncSession = Depends(get_db)):
+                                db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "emr_settings:edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user = await get_owned_or_404(db, UserORM, user_id, pharmacy_id, not_found_detail="Doctor not found",
@@ -144,7 +147,8 @@ async def update_doctor_profile(user_id: uuid.UUID, data: DoctorProfileUpdate, r
         db.add(profile)
     else:
         old = {"specialty": profile.specialty, "qualification": profile.qualification,
-               "registration_no": profile.registration_no}
+               "registration_no": profile.registration_no,
+               "consultation_fee_paise": profile.consultation_fee_paise}
     changes = {k: (v.strip() or None if isinstance(v, str) else v)
                for k, v in data.model_dump(exclude_unset=True).items()}
     for k, v in changes.items():

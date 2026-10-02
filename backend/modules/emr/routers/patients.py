@@ -11,7 +11,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import get_db
+from deps import DbSession
 from modules.emr.common import (
     _client_ip, _record_audit, _require_emr_permission, _validate_phone_length)
 from modules.emr.constants import FIELD_REQUIRED
@@ -90,7 +90,7 @@ def _audit_safe(data: dict) -> dict:
 @router.post("/patients")
 async def create_patient(data: PatientCreate, request: Request,
                          current_user: User = Depends(get_current_user),
-                         db: AsyncSession = Depends(get_db)):
+                         db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     await _enforce_required(db, pharmacy_id, data.model_dump())
@@ -106,7 +106,7 @@ async def create_patient(data: PatientCreate, request: Request,
 @router.get("/patients")
 async def list_patients(page: int = 1, page_size: int = 50, search: Optional[str] = None,
                         current_user: User = Depends(get_current_user),
-                        db: AsyncSession = Depends(get_db)):
+                        db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:view", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     query = select(EmrPatient).where(
@@ -125,7 +125,7 @@ async def list_patients(page: int = 1, page_size: int = 50, search: Optional[str
 
 @router.get("/patients/{patient_id}")
 async def get_patient(patient_id: str, current_user: User = Depends(get_current_user),
-                      db: AsyncSession = Depends(get_db)):
+                      db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:view", db)
     patient = await get_owned_or_404(
         db, EmrPatient, patient_id, uuid.UUID(current_user.pharmacy_id),
@@ -137,7 +137,7 @@ async def get_patient(patient_id: str, current_user: User = Depends(get_current_
 @router.put("/patients/{patient_id}")
 async def update_patient(patient_id: str, data: dict, request: Request,
                          current_user: User = Depends(get_current_user),
-                         db: AsyncSession = Depends(get_db)):
+                         db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     patient = await get_owned_or_404(
@@ -175,7 +175,7 @@ async def update_patient(patient_id: str, data: dict, request: Request,
 @router.delete("/patients/{patient_id}")
 async def delete_patient(patient_id: str, request: Request,
                          current_user: User = Depends(get_current_user),
-                         db: AsyncSession = Depends(get_db)):
+                         db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:delete", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     patient = await get_owned_or_404(

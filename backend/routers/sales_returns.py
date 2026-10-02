@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import get_db
+from deps import DbSession
 from models.billing import Bill, BillItem, SalesReturn as SalesReturnORM, SalesReturnItem as SalesReturnItemORM
 from models.pharmacy import PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
@@ -276,7 +276,7 @@ async def _reverse_stock(
 
 @router.post("/sales-returns")
 async def create_sales_return(return_data: SalesReturnCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     # permission-exempt: removing the allow_manual_returns check (Sep 23,
     # 2026, see the original_bill_id block below) exposed that it was the
     # ONLY permission check this endpoint ever had — the normal bill-linked
@@ -572,7 +572,7 @@ async def get_sales_returns(
     from_date: Optional[str] = None, to_date: Optional[str] = None,
     search: Optional[str] = None, payment_type: Optional[str] = None,
     page: int = 1, page_size: int = 50,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     query = select(SalesReturnORM).where(SalesReturnORM.pharmacy_id == pharmacy_id)
@@ -643,7 +643,7 @@ async def get_sales_returns(
 
 @router.get("/sales-returns/{return_id}")
 async def get_sales_return(return_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     # Try by UUID first, then by return_number
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     sales_return: SalesReturnORM | None = None
@@ -679,7 +679,7 @@ async def get_sales_return(return_id: str, current_user: User = Depends(
 async def update_sales_return(
     return_id: str, update_data: SalesReturnUpdate, request: Request,
     financial_edit: bool = False,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
@@ -944,7 +944,7 @@ async def update_sales_return(
 
 @router.get("/roles/{role_name}/permissions/returns")
 async def get_role_return_permissions(role_name: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     result = await db.execute(
         select(RoleORM).where(RoleORM.pharmacy_id == pharmacy_id, RoleORM.name == role_name)
@@ -963,7 +963,7 @@ async def update_role_return_permissions(
     role_id: str,
     request: Request,
     allow_financial_edit_return: bool = False,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     await require_admin_or_super(current_user, db, detail="Only admins can update permissions")
 
@@ -996,7 +996,7 @@ async def update_role_return_permissions(
 @router.get("/analytics/purchases")
 async def get_purchase_analytics(
     from_date: Optional[str] = None, to_date: Optional[str] = None,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 

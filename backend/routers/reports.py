@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import get_db
+from deps import DbSession
 from models.billing import (
     Bill as BillORM,
     BillItem as BillItemORM,
@@ -79,7 +79,7 @@ async def _require_reports_permission(current_user: User, db: AsyncSession) -> N
 async def get_sales_summary(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbSession,
     current_user: User = Depends(get_current_user),
 ):
     await _require_reports_permission(current_user, db)
@@ -127,8 +127,7 @@ async def get_sales_summary(
 
 
 @router.get("/reports/low-stock")
-async def get_low_stock_report(db: AsyncSession = Depends(
-        get_db), current_user: User = Depends(get_current_user)):
+async def get_low_stock_report(db: AsyncSession = DbSession, current_user: User = Depends(get_current_user)):
     await _require_reports_permission(current_user, db)
     try:
         pid = current_user.pharmacy_id
@@ -174,8 +173,8 @@ async def get_low_stock_report(db: AsyncSession = Depends(
 
 
 @router.get("/reports/expiry")
-async def get_expiry_report(days: int = 30, db: AsyncSession = Depends(
-        get_db), current_user: User = Depends(get_current_user)):
+async def get_expiry_report(
+        days: int = 30, db: AsyncSession = DbSession, current_user: User = Depends(get_current_user)):
     await _require_reports_permission(current_user, db)
     try:
         pid = current_user.pharmacy_id
@@ -220,7 +219,7 @@ async def get_expiry_report(days: int = 30, db: AsyncSession = Depends(
 
 
 @router.get("/reports/dashboard")
-async def get_dashboard_stats(db: AsyncSession = Depends(get_db),
+async def get_dashboard_stats(db: AsyncSession = DbSession,
                               current_user: User = Depends(get_current_user)):
     try:
         pid = current_user.pharmacy_id
@@ -286,7 +285,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db),
 async def get_sales_report(
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     pid = current_user.pharmacy_id
     conds = [BillORM.pharmacy_id == pid, BillORM.deleted_at.is_(None)]
@@ -329,7 +328,7 @@ async def get_sales_report(
 async def get_margin_report(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     await _require_reports_permission(current_user, db)
     try:
@@ -425,7 +424,7 @@ async def get_margin_report(
 async def get_price_variation_report(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     await _require_reports_permission(current_user, db)
     try:
@@ -528,7 +527,7 @@ async def get_price_variation_report(
 async def get_doctor_wise_sales_report(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     await _require_reports_permission(current_user, db)
     pid = current_user.pharmacy_id
@@ -599,7 +598,7 @@ async def get_doctor_wise_sales_report(
 async def get_sales_returns_report(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     await _require_reports_permission(current_user, db)
     try:
@@ -677,7 +676,7 @@ async def get_sales_returns_report(
 async def get_purchase_returns_report(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     await _require_reports_permission(current_user, db)
     try:
@@ -748,7 +747,7 @@ async def get_purchase_returns_report(
 async def get_purchase_payments_report(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     """Payments were only ever queryable one purchase at a time
     (GET /purchases/{id}/payments) — nothing aggregated/listed them across
@@ -812,7 +811,7 @@ async def get_purchase_payments_report(
 async def get_supplier_analytics_report(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     """No cross-supplier ranking, payment-performance, return-rate, or
     price-comparison existed anywhere — GET /suppliers/{id}/summary only
@@ -959,7 +958,7 @@ async def get_supplier_analytics_report(
 async def get_purchase_variance_report(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     """Two distinct "didn't go as planned" signals, never surfaced in
     aggregate before: (1) quantity variance — a delivery that didn't match
@@ -1058,7 +1057,7 @@ async def get_purchase_variance_report(
 async def get_batch_purchase_report(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     """No report grouped stock batches by the purchase/supplier they came
     from — tracing a batch back to its source meant opening the purchase
@@ -1133,7 +1132,7 @@ async def get_gst_report(
         start_date: str,
         end_date: str,
         scope: Literal["store", "chain"] = Query("store"),
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     await _require_reports_permission(current_user, db)
     # "chain" sums every store's own already-independently-filed GST numbers
@@ -1266,7 +1265,7 @@ async def get_gst_report(
 async def get_schedule_h1_register(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     # Was a hardcoded `role not in ["admin","manager"]` string check — same
     # "not the real permission catalog" pattern already found and fixed
@@ -1302,8 +1301,7 @@ async def get_schedule_h1_register(
 
 
 @router.get("/analytics/summary")
-async def get_analytics_summary(db: AsyncSession = Depends(
-        get_db), current_user: User = Depends(get_current_user)):
+async def get_analytics_summary(db: AsyncSession = DbSession, current_user: User = Depends(get_current_user)):
     try:
         pid = current_user.pharmacy_id
         today = date.today()
@@ -1363,8 +1361,8 @@ async def get_analytics_summary(db: AsyncSession = Depends(
 
 
 @router.get("/analytics/daily")
-async def get_daily_analytics(days: int = 7, db: AsyncSession = Depends(
-        get_db), current_user: User = Depends(get_current_user)):
+async def get_daily_analytics(
+        days: int = 7, db: AsyncSession = DbSession, current_user: User = Depends(get_current_user)):
     try:
         pid = current_user.pharmacy_id
         start = date.today() - timedelta(days=days)
@@ -1408,7 +1406,7 @@ async def get_dashboard_analytics(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
         scope: Literal["store", "chain"] = Query("store"),
-        db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+        db: AsyncSession = DbSession, current_user: User = Depends(get_current_user)):
     try:
         pid = current_user.pharmacy_id
         pids = await resolve_chain_scope_pids(current_user, scope, db)
@@ -1726,7 +1724,7 @@ async def get_purchase_analytics(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
         scope: Literal["store", "chain"] = Query("store"),
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     pids = await resolve_chain_scope_pids(current_user, scope, db)
     pconds = [PurchaseORM.pharmacy_id.in_(pids), PurchaseORM.status.notin_(
@@ -1763,7 +1761,7 @@ async def get_purchase_analytics(
 
 
 @router.get("/backup/export")
-async def export_data(request: Request, db: AsyncSession = Depends(get_db),
+async def export_data(request: Request, db: AsyncSession = DbSession,
                       current_user: User = Depends(get_current_user)):
     await require_admin_or_super(current_user, db, detail="Only admins can export data")
     pid = current_user.pharmacy_id
@@ -1949,7 +1947,7 @@ async def _day_end_breakdown(pid: uuid.UUID, closing_date: date, db: AsyncSessio
 @router.get("/reports/day-end")
 async def get_day_end_report(
         closing_date: Optional[str] = None,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     await _require_reports_permission(current_user, db)
     pid = uuid.UUID(current_user.pharmacy_id)
@@ -1981,7 +1979,7 @@ async def get_day_end_report(
 @router.post("/reports/day-end/close")
 async def close_day_end(
         body: DayEndCloseRequest, request: Request,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = DbSession,
         current_user: User = Depends(get_current_user)):
     # A recorded cash variance is a financial-control record, same class of
     # action as correcting a purchase or resetting another user's password

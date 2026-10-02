@@ -1,0 +1,122 @@
+"""
+Patient Billing B2 (docs/29_BILLING_SCOPE.md): the doctor's consultation fee is posted to the
+patient's account at check-in, once per visit, and withdrawn if the visit is cancelled before
+it is billed. P0: no double charge, no silent loss of a billed charge, clinic isolation.
+"""
+from datetime import date
+
+import requests
+
+from test_emr_appointments import BASE_URL
+from test_patient_billing import API, _Billing
+
+
+class _Fee(_Billing):
+    def _doctor(self, fee_paise=50000):
+        doctor_id, _ = self._user("doctor")
+        if fee_paise is not None:
+            r = self.session.put(f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}",
+                                 json={"consultation_fee_paise": fee_paise})
+            assert r.status_code == 200, r.text
+        return doctor_id
+
+    def _walk_in(self, doctor_id):
+        patient = self._patient()
+        appt = self._book(patient["id"], doctor_id, date.today())
+        assert appt.status_code == 200, appt.text
+        return patient, appt.json()
+
+    def _move(self, appt, status, **extra):
+        return self.session.post(f"{BASE_URL}/api/emr/appointments/{appt['id']}/status",
+                                 json={"status": status, **extra})
+
+    def _account(self, patient_id):
+        return self.session.get(f"{API}/accounts/{patient_id}")
+
+
+class TestConsultationFee(_Fee):
+    def test_fee_is_part_of_the_doctor_profile(self):
+        doctor_id = self._doctor(fee_paise=45000)
+        listed = self.session.get(f"{BASE_URL}/api/emr/doctor-profiles").json()
+        assert next(d for d in listed if d["user_id"] == doctor_id)["consultation_fee_paise"] == 45000
+        bad = self.session.put(f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}", json={"consultation_fee_paise": -1})
+        assert bad.status_code == 422
+        _, rec = self._user("receptionist")
+        r = rec.put(f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}", json={"consultation_fee_paise": 1})
+        assert r.status_code == 403
+
+    def test_check_in_posts_the_fee_once(self):
+        doctor_id = self._doctor(50000)
+        patient, appt = self._walk_in(doctor_id)
+        assert self._account(patient["id"]).status_code == 404          # nothing owed before check-in
+        assert self._move(appt, "checked_in").status_code == 200
+        acct = self._account(patient["id"]).json()
+        assert len(acct["charges"]) == 1
+        c = acct["charges"][0]
+        assert (c["total_paise"], c["status"], c["source_module"]) == (50000, "unbilled", "emr")
+        assert c["description"].startswith("Consultation — ") and c["encounter_ref"] == appt["id"]
+        assert c["patient_name"] == patient["name"] and c["patient_uhid"] == patient["uhid"]
+        assert self._move(appt, "checked_in").status_code == 409         # can't check in twice
+        assert len(self._account(patient["id"]).json()["charges"]) == 1
+        pending = self.session.get(f"{API}/accounts").json()
+        assert [a["patient_id"] for a in pending["data"]] == [patient["id"]]
+        assert pending["data"][0]["balance_paise"] == 50000 and pending["data"][0]["sources"] == ["emr"]
+
+    def test_no_fee_set_means_no_charge(self):
+        for fee in (None, 0):
+            patient, appt = self._walk_in(self._doctor(fee_paise=fee))
+            assert self._move(appt, "checked_in").status_code == 200
+            assert self._account(patient["id"]).status_code == 404
+
+    def test_later_fee_change_does_not_touch_posted_charge(self):
+        doctor_id = self._doctor(50000)
+        patient, appt = self._walk_in(doctor_id)
+        self._move(appt, "checked_in")
+        self.session.put(f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}", json={"consultation_fee_paise": 90000})
+        assert self._account(patient["id"]).json()["charges"][0]["total_paise"] == 50000
+
+    def test_cancel_before_billing_withdraws_the_fee(self):
+        patient, appt = self._walk_in(self._doctor(50000))
+        self._move(appt, "checked_in")
+        r = self._move(appt, "cancelled", cancel_reason="Patient left")
+        assert r.status_code == 200
+        c = self._account(patient["id"]).json()["charges"][0]
+        assert c["status"] == "void" and "cancelled" in c["void_reason"].lower()
+        assert self.session.get(f"{API}/accounts").json()["totals"]["patients"] == 0
+
+    def test_cancel_after_invoicing_leaves_the_billed_charge_alone(self):
+        patient, appt = self._walk_in(self._doctor(50000))
+        self._move(appt, "checked_in")
+        charge = self._account(patient["id"]).json()["charges"][0]
+        assert self._invoice(patient["id"], [charge["id"]], counter="front_desk").status_code == 200
+        assert self._move(appt, "cancelled", cancel_reason="Changed mind").status_code == 200
+        acct = self._account(patient["id"]).json()
+        assert acct["charges"][0]["status"] == "invoiced"                # billing desk decides; no silent loss
+        assert acct["totals"]["balance_paise"] == 50000
+
+    def test_booked_no_show_has_no_charge(self):
+        patient, appt = self._walk_in(self._doctor(50000))
+        assert self._move(appt, "no_show").status_code == 200
+        assert self._account(patient["id"]).status_code == 404
+
+    def test_fee_charges_stay_inside_the_clinic(self):
+        patient, appt = self._walk_in(self._doctor(50000))
+        self._move(appt, "checked_in")
+        other = requests.post(f"{BASE_URL}/api/auth/register", json={
+            "email": f"fee_o_{self.suffix}@pharmacy.com", "name": "Other", "password": "OtherFee12345",
+            "phone": "9855555587", "pharmacy_name": f"Fee Other {self.suffix}", "address": "1 St",
+            "city": "Testville", "state": "Karnataka", "pincode": "560007",
+            "drug_license_number": f"DL-FEEO-{self.suffix}"})
+        h = {"Authorization": f"Bearer {other.json()['token']}"}
+        assert requests.get(f"{API}/accounts/{patient['id']}", headers=h).status_code == 404
+        assert requests.get(f"{API}/accounts", headers=h).json()["totals"]["patients"] == 0
+
+    def test_fee_posting_is_in_the_audit_trail(self):
+        patient, appt = self._walk_in(self._doctor(50000))
+        self._move(appt, "checked_in")
+        charge_id = self._account(patient["id"]).json()["charges"][0]["id"]
+        logs = self.session.get(f"{BASE_URL}/api/audit-logs", params={"entity_type": "pb_charge_item"})
+        assert logs.status_code == 200, logs.text
+        body = logs.json()
+        rows = body["data"] if isinstance(body, dict) and "data" in body else body
+        assert any(r.get("entity_id") == charge_id and r.get("action") == "create" for r in rows)

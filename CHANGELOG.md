@@ -11,6 +11,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **Patient Billing, steps B1–B2 (backend).** A separate module: one account per patient, where every
+  service posts a *charge*; each counter invoices and collects its own; the billing desk gets a Pending
+  list and a complete bill per patient. Includes invoices (frozen copies), part-payments, receipts,
+  day summary, and safeguards against double-charging and overpaying even when two people click at once.
+  Doctors now have a consultation fee (Settings → Doctors); it is added to the patient's bill
+  automatically at check-in and withdrawn if the visit is cancelled before billing. Medicines stay on the
+  pharmacy's own GST bill. Screens for collecting and the billing desk come in B3–B4.
 - **EMR Clinic Settings.** New Settings tab: clinic profile and registration number, prescription footer,
   patient ID (UHID) and Rx number formats, default appointment length, a configurable patient
   registration form (hide or require fields — enforced by the server) and doctor profiles (specialty,
@@ -70,6 +77,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
   trusting it.
 
 ### Fixed
+- **Saved-before-committed bug (all endpoints).** The server was sending "success" to the browser a moment *before* the
+  database finished saving, so a quick follow-up request could miss the data (the cause of the random test failures we had been
+  calling "flaky"), and a failed save would never have been reported. Every endpoint now finishes saving before replying;
+  an automatic check (design-guard Rule 22) stops it coming back.
 - **`page` background disagreed too** — `tailwind.config.js` (`#F8FAFB`,
   the real value, matches CLAUDE.md's documented page-root pattern) vs
   `colors_and_type.css`'s `--bg-app` (`#f8f9fa`) — same drift class as the

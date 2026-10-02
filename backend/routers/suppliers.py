@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import get_db
+from deps import DbSession
 from models.pharmacy import PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM
 from models.purchases import Purchase, PurchaseItem, PurchasePayment, PurchaseReturn
@@ -191,7 +191,7 @@ async def _payment_history_by_suppliers(
 async def get_suppliers(
     search: Optional[str] = None, active_only: Optional[bool] = None,
     page: int = 1, page_size: int = 50, pharmacy_id: Optional[str] = None,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     page_size = min(max(page_size, 1), 100)
     page = max(page, 1)
@@ -242,7 +242,7 @@ async def get_suppliers(
 @router.post("/suppliers")
 async def create_supplier(
         supplier_data: SupplierCreate, request: Request,
-        current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+        current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     pharmacy_id = await resolve_store_override_for_write(
         current_user, supplier_data.pharmacy_id, "suppliers:create", db)
     existing = await db.execute(
@@ -281,7 +281,7 @@ async def create_supplier(
 
 @router.get("/suppliers/{supplier_id}")
 async def get_supplier(supplier_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     supplier = await get_owned_or_404(
         db, SupplierORM, supplier_id, uuid.UUID(current_user.pharmacy_id),
         not_found_detail="Supplier not found")
@@ -297,7 +297,7 @@ async def update_supplier(
         supplier_data: SupplierUpdate,
         request: Request,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     await _require_suppliers_permission(current_user, "edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     supplier = await get_owned_or_404(
@@ -336,7 +336,7 @@ async def record_supplier_payment(
         payment: SupplierPaymentRequest,
         request: Request,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     """Suppliers never had a way to record a payment — the frontend's
     'Record Payment' button (SupplierPaymentModal) posted to this exact
     route and got a 404 every time (docs/15_ROADMAP.md Suppliers audit,
@@ -414,7 +414,7 @@ async def record_supplier_payment(
 
 @router.delete("/suppliers/{supplier_id}")
 async def delete_supplier(supplier_id: str, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_suppliers_permission(current_user, "deactivate", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     supplier = await get_owned_or_404(
@@ -441,7 +441,7 @@ async def delete_supplier(supplier_id: str, request: Request, current_user: User
 
 @router.patch("/suppliers/{supplier_id}/toggle-status")
 async def toggle_supplier_status(supplier_id: str, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     # toggle-status had zero permission check until now — same class of
     # gap as the ACL miss already fixed for create/edit/delete on this
     # router; found while wiring audit logging into every mutating
@@ -467,7 +467,7 @@ async def toggle_supplier_status(supplier_id: str, request: Request, current_use
 
 @router.get("/suppliers/{supplier_id}/summary")
 async def get_supplier_summary(supplier_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     supplier = await get_owned_or_404(
         db, SupplierORM, supplier_id, uuid.UUID(current_user.pharmacy_id),
         not_found_detail="Supplier not found")
@@ -500,7 +500,7 @@ async def get_supplier_summary(supplier_id: str, current_user: User = Depends(
 
 @router.get("/suppliers/{supplier_id}/near-expiry-batches")
 async def get_supplier_near_expiry_batches(supplier_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     """Named Pharmasoft feature (return-to-supplier before expiry write-
     off) — PharmaCare's purchase-return flow was real but purely
     reactive; nothing proactively surfaced near-expiry stock bought from

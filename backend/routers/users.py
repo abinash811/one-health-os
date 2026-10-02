@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from deps import get_db
+from deps import DbSession
 from models.pharmacy import Pharmacy as PharmacyORM
 from models.users import AuditLog, Role as RoleORM, User as UserORM, UserStoreRole
 from routers.auth_helpers import (
@@ -87,7 +87,7 @@ def _user_response(user: UserORM) -> dict:
 
 @router.get("/users")
 async def get_all_users(current_user: User = Depends(get_current_user),
-                        db: AsyncSession = Depends(get_db)):
+                        db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     result = await db.execute(
         select(UserORM)
@@ -99,7 +99,7 @@ async def get_all_users(current_user: User = Depends(get_current_user),
 
 @router.post("/users")
 async def create_user(user_data: UserCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -143,7 +143,7 @@ async def create_user(user_data: UserCreate, request: Request, current_user: Use
 
 @router.get("/users/{user_id}")
 async def get_user(user_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     result = await db.execute(
         select(UserORM).options(joinedload(UserORM.role)).where(
@@ -157,7 +157,7 @@ async def get_user(user_id: str, current_user: User = Depends(
 
 @router.put("/users/{user_id}")
 async def update_user(user_id: str, user_update: UserUpdate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     result = await db.execute(
         select(UserORM).options(joinedload(UserORM.role)).where(
@@ -213,7 +213,7 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, c
 
 @router.delete("/users/{user_id}")
 async def deactivate_user(user_id: str, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot deactivate yourself")
@@ -233,7 +233,7 @@ async def deactivate_user(user_id: str, request: Request, current_user: User = D
 @router.put("/users/{user_id}/reset-password")
 async def admin_reset_password(user_id: str, password_data: AdminResetPassword, request: Request,
                                current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     """Admin/Super Admin sets a new password directly for another user —
     no email/token infra needed, unlike a self-service "forgot password"
     flow (still separately planned). Closes a real gap: a locked-out
@@ -257,7 +257,7 @@ async def admin_reset_password(user_id: str, password_data: AdminResetPassword, 
 
 @router.put("/users/me/change-password")
 async def change_password(password_data: ChangePassword, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     # permission-exempt: self-service — any authenticated user may change their own
     # password, gated by knowing the current password, not by role
     # audit-exempt: self-initiated password change with no privilege change;
@@ -281,7 +281,7 @@ class SwitchStore(BaseModel):
 
 @router.get("/users/me/stores")
 async def get_my_stores(current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     """Every store this person can access, for the sidebar switcher —
     docs/26_MULTI_CHAIN_SCOPE.md Step 2. Always returns at least one row
     (today's single-store reality); the switcher shows even then, per
@@ -316,7 +316,7 @@ async def get_my_stores(current_user: User = Depends(
 
 @router.post("/users/me/switch-store")
 async def switch_store(body: SwitchStore, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     """Makes another store this person already has access to their active
     one. Not a login/session change — `users.pharmacy_id`/`role_id` are
     read fresh from the DB on every request (routers/auth_helpers.py's
@@ -381,7 +381,7 @@ async def _same_chain_or_self(target_pharmacy_id: uuid.UUID, admin_pharmacy_id: 
 
 @router.get("/users/{user_id}/store-access")
 async def get_user_store_access(user_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     await get_owned_or_404(
         db, UserORM, user_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="User not found")
@@ -402,7 +402,7 @@ async def get_user_store_access(user_id: str, current_user: User = Depends(
 @router.post("/users/{user_id}/store-access")
 async def grant_user_store_access(user_id: str, body: GrantStoreAccess, request: Request,
                                   current_user: User = Depends(get_current_user),
-                                  db: AsyncSession = Depends(get_db)):
+                                  db: AsyncSession = DbSession):
     """Grants (or updates the role for) one of the admin's team members
     at another store in the same chain. The target user must already be
     one of the admin's own team members — this never looks up an
@@ -442,7 +442,7 @@ async def grant_user_store_access(user_id: str, body: GrantStoreAccess, request:
 @router.delete("/users/{user_id}/store-access/{pharmacy_id}")
 async def revoke_user_store_access(user_id: str, pharmacy_id: str, request: Request,
                                    current_user: User = Depends(get_current_user),
-                                   db: AsyncSession = Depends(get_db)):
+                                   db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     admin_pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     target_user = await get_owned_or_404(

@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import AsyncSessionLocal, get_db
+from deps import AsyncSessionLocal, DbSession
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from routers.auth_helpers import User, get_current_user
 
@@ -211,7 +211,7 @@ async def parse_bulk_upload_file(file: UploadFile = File(...),
 @router.post("/inventory/bulk-upload/validate")
 async def validate_bulk_upload(
     request: BulkUploadValidateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbSession,
     current_user: User = Depends(get_current_user),
 ):
     job_id = request.job_id

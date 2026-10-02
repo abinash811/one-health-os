@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
-from fastapi import Cookie, Depends, HTTPException, Request
+from fastapi import Cookie, HTTPException, Request
 from passlib.context import CryptContext
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from config import settings
-from deps import get_db
+from deps import DbSession
 from models.users import Role as RoleORM, User as UserORM
 
 # ── security config ────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ def create_access_token(data: dict) -> str:
 async def get_current_user(
     request: Request,
     session_token: Optional[str] = Cookie(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbSession,
 ) -> User:
     token = session_token
     if not token:

@@ -258,6 +258,8 @@ class EmrDoctorProfile(Base):
     specialty: Mapped[Optional[str]] = mapped_column(String(100))
     qualification: Mapped[Optional[str]] = mapped_column(String(200))
     registration_no: Mapped[Optional[str]] = mapped_column(String(100))
+    # Default consultation fee in paise; blank or 0 = no fee is charged at check-in.
+    consultation_fee_paise: Mapped[Optional[int]] = mapped_column(Integer)
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[str] = mapped_column(

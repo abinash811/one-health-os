@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import get_db
+from deps import DbSession
 from models.pharmacy import Pharmacy
 from models.users import User as UserORM
 from modules.emr.common import _client_ip, _record_audit, _require_emr_permission
@@ -134,7 +134,7 @@ async def _get_rx(db, rx_id, pharmacy_id) -> EmrPrescription:
 @router.post("/prescriptions")
 async def start_prescription(data: RxCreate, request: Request,
                              current_user: User = Depends(get_current_user),
-                             db: AsyncSession = Depends(get_db)):
+                             db: AsyncSession = DbSession):
     """Starts the visit's prescription; if a live one already exists, returns it (so
     'Open Rx' is idempotent)."""
     await _require_emr_permission(current_user, "prescriptions:create", db)
@@ -182,7 +182,7 @@ async def start_prescription(data: RxCreate, request: Request,
 @router.get("/prescriptions/suggestions")
 async def medicine_suggestions(q: str = Query("", max_length=100), limit: int = Query(200, le=500),
                                current_user: User = Depends(get_current_user),
-                               db: AsyncSession = Depends(get_db)):
+                               db: AsyncSession = DbSession):
     """Medicines this clinic has prescribed before, most-used first — the 'own history' autocomplete."""
     await _require_emr_permission(current_user, "prescriptions:view", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -197,7 +197,7 @@ async def medicine_suggestions(q: str = Query("", max_length=100), limit: int = 
 
 @router.get("/patients/{patient_id}/prescriptions")
 async def patient_prescriptions(patient_id: uuid.UUID, current_user: User = Depends(get_current_user),
-                                db: AsyncSession = Depends(get_db)):
+                                db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "prescriptions:view", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     await get_owned_or_404(db, EmrPatient, patient_id, pharmacy_id, not_found_detail="Patient not found",
@@ -210,7 +210,7 @@ async def patient_prescriptions(patient_id: uuid.UUID, current_user: User = Depe
 
 @router.get("/prescriptions/{rx_id}")
 async def get_prescription(rx_id: uuid.UUID, current_user: User = Depends(get_current_user),
-                           db: AsyncSession = Depends(get_db)):
+                           db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "prescriptions:view", db)
     rx = await _get_rx(db, rx_id, uuid.UUID(current_user.pharmacy_id))
     return await _rx_response(db, rx)
@@ -219,7 +219,7 @@ async def get_prescription(rx_id: uuid.UUID, current_user: User = Depends(get_cu
 @router.put("/prescriptions/{rx_id}")
 async def update_prescription(rx_id: uuid.UUID, data: RxUpdate, request: Request,
                               current_user: User = Depends(get_current_user),
-                              db: AsyncSession = Depends(get_db)):
+                              db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "prescriptions:edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     rx = await _get_rx(db, rx_id, pharmacy_id)
@@ -246,7 +246,7 @@ async def update_prescription(rx_id: uuid.UUID, data: RxUpdate, request: Request
 @router.post("/prescriptions/{rx_id}/issue")
 async def issue_prescription(rx_id: uuid.UUID, request: Request,
                              current_user: User = Depends(get_current_user),
-                             db: AsyncSession = Depends(get_db)):
+                             db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "prescriptions:issue", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     rx = await _get_rx(db, rx_id, pharmacy_id)
@@ -270,7 +270,7 @@ async def issue_prescription(rx_id: uuid.UUID, request: Request,
 @router.post("/prescriptions/{rx_id}/cancel")
 async def cancel_prescription(rx_id: uuid.UUID, data: RxCancel, request: Request,
                               current_user: User = Depends(get_current_user),
-                              db: AsyncSession = Depends(get_db)):
+                              db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "prescriptions:cancel", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     rx = await _get_rx(db, rx_id, pharmacy_id)

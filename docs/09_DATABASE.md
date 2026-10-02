@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.17 | Last updated: October 2, 2026
+# Version: 1.18 | Last updated: October 2, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -867,6 +867,44 @@ One row per clinic, created with defaults on first read (`modules/emr/settings_s
 | `specialty`, `qualification`, `registration_no` | String, nullable | Printed under the doctor's name on their Rx |
 
 `emr_patients.uhid` (String(30), nullable) — the clinic's own patient ID; partial unique index per pharmacy. The migration backfilled existing patients as `UH-000001…` (oldest first).
+
+`emr_doctor_profiles.consultation_fee_paise` (Integer, nullable; migration `1462660fbf8c`) — default fee posted to the patient's account at check-in; blank or 0 = no fee.
+
+## PATIENT BILLING MODULE TABLES (added Oct 2, 2026 — migration `23cabc12aa4a`)
+
+> Plan: `docs/29_BILLING_SCOPE.md`. Models: `backend/modules/patient_billing/models.py`. These tables have **no
+> foreign keys into EMR or pharmacy tables** — the patient is a plain `patient_id` plus a name/UHID snapshot taken when the
+> charge is posted. Money is integer paise; soft delete via `deleted_at`.
+
+### `pb_charge_items`
+| Column | Type | Notes |
+|--------|------|-------|
+| `patient_id`, `patient_name`, `patient_uhid` | UUID, String | Snapshot — no FK |
+| `source_module` | String | `emr` / `lab` / `ipd` / `manual` / `pharmacy` (pharmacy not postable yet; never invoiced here) |
+| `source_ref`, `encounter_ref`, `encounter_type` | String | What produced it (e.g. appointment id) — lets IPD group by admission later |
+| `description`, `quantity`, `unit_price_paise`, `total_paise` | | |
+| `status` | String | `unbilled → invoiced → paid`, or `void` |
+| `invoice_id` | UUID FK → pb_invoices | Null while unbilled |
+| `idempotency_key` | String | Unique per pharmacy (partial index) — a retried post never double-charges; never reused |
+| `void_reason` | Text | |
+
+### `pb_invoices`
+| Column | Type | Notes |
+|--------|------|-------|
+| `invoice_number` | String | `INV-000001`, unique per pharmacy, never reused (cancelled numbers stay used) |
+| `counter` | String | `front_desk` / `billing_desk` / `lab` / `ipd` — which desk issued it (day closing) |
+| `status` | String | `issued → part_paid → paid`, or `cancelled` |
+| `gross_paise`, `discount_paise`, `net_paise`, `paid_paise` | Integer | |
+| `lines` | JSONB | Frozen copy of the charges at invoice time |
+| `cancel_reason` | Text | |
+
+### `pb_payments`
+| Column | Type | Notes |
+|--------|------|-------|
+| `invoice_id` | UUID FK → pb_invoices | |
+| `amount_paise`, `mode` (`cash`/`upi`/`card`), `reference` | | |
+| `receipt_number` | String | `RCT-000001`, unique per pharmacy, never reused |
+| `paid_on` | Date | Clinic's local day — used for day closing |
 
 ### `emr_prescriptions` (migration `dc6a0865f1a9`)
 One row per visit — holds the WHOLE consultation record. There is deliberately no separate

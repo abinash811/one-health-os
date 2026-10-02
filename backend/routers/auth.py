@@ -13,7 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from deps import get_db
+from deps import DbSession
 from models.pharmacy import Pharmacy
 from models.users import AuditLog, PasswordResetToken as PasswordResetTokenORM, Role as RoleORM, User as UserORM
 from routers.auth_helpers import (
@@ -91,7 +91,7 @@ class ResetPassword(BaseModel):
 
 
 @router.post("/auth/register")
-async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+async def register(user_data: UserCreate, db: AsyncSession = DbSession):
     # Email uniqueness is checked globally (not per-pharmacy) because login
     # looks a user up by email alone — see routers/auth.py::login below.
     existing = await db.execute(select(UserORM).where(UserORM.email == user_data.email))
@@ -135,7 +135,7 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/auth/login")
-async def login(credentials: UserLogin, request: Request, db: AsyncSession = Depends(get_db)):
+async def login(credentials: UserLogin, request: Request, db: AsyncSession = DbSession):
     result = await db.execute(
         select(UserORM)
         .options(joinedload(UserORM.role))
@@ -185,7 +185,7 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
 
 
 @router.post("/auth/forgot-password")
-async def forgot_password(payload: ForgotPassword, request: Request, db: AsyncSession = Depends(get_db)):
+async def forgot_password(payload: ForgotPassword, request: Request, db: AsyncSession = DbSession):
     """Self-service password reset (docs/15_ROADMAP.md Auth Overhaul #6) —
     a locked-out user with no admin around previously had no way back in
     at all (admin_reset_password in users.py covers the "an admin is
@@ -234,7 +234,7 @@ async def forgot_password(payload: ForgotPassword, request: Request, db: AsyncSe
 
 
 @router.post("/auth/reset-password")
-async def reset_password(payload: ResetPassword, request: Request, db: AsyncSession = Depends(get_db)):
+async def reset_password(payload: ResetPassword, request: Request, db: AsyncSession = DbSession):
     token_hash = hashlib.sha256(payload.token.encode()).hexdigest()
     result = await db.execute(
         select(PasswordResetTokenORM).where(PasswordResetTokenORM.token_hash == token_hash))
@@ -257,7 +257,7 @@ async def reset_password(payload: ResetPassword, request: Request, db: AsyncSess
 
 
 @router.post("/auth/session")
-async def create_session(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+async def create_session(request: Request, response: Response, db: AsyncSession = DbSession):
     session_id = request.headers.get("X-Session-ID")
     if not session_id:
         raise HTTPException(status_code=400, detail="Session ID required")
@@ -329,7 +329,7 @@ async def logout(response: Response, current_user: User = Depends(get_current_us
 
 
 @router.get("/auth/me")
-async def get_me(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_me(current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     return {
         "id": current_user.id,
         "email": current_user.email,

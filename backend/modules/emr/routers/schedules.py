@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from deps import get_db
+from deps import DbSession
 from models.users import User as UserORM
 from modules.emr.common import _client_ip, _record_audit, _require_emr_permission
 from modules.emr.constants import MAX_SLOT_MINUTES, MIN_SLOT_MINUTES, ROLE_DOCTOR
@@ -72,7 +72,7 @@ async def _assert_no_overlap(db, pharmacy_id, doctor_user_id, weekday, start, en
 
 @router.get("/doctors")
 async def list_doctors(current_user: User = Depends(get_current_user),
-                       db: AsyncSession = Depends(get_db)):
+                       db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "appointments:view", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     scheduled_ids = set((await db.execute(
@@ -90,7 +90,7 @@ async def list_doctors(current_user: User = Depends(get_current_user),
 @router.get("/schedules")
 async def list_schedules(doctor_user_id: Optional[uuid.UUID] = None,
                          current_user: User = Depends(get_current_user),
-                         db: AsyncSession = Depends(get_db)):
+                         db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "schedules:view", db)
     query = select(EmrDoctorSchedule).where(
         EmrDoctorSchedule.pharmacy_id == uuid.UUID(current_user.pharmacy_id),
@@ -105,7 +105,7 @@ async def list_schedules(doctor_user_id: Optional[uuid.UUID] = None,
 @router.post("/schedules")
 async def create_schedule(data: ScheduleCreate, request: Request,
                           current_user: User = Depends(get_current_user),
-                          db: AsyncSession = Depends(get_db)):
+                          db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "schedules:edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     _validate_block(data.weekday, data.start_time, data.end_time, data.slot_minutes)
@@ -124,7 +124,7 @@ async def create_schedule(data: ScheduleCreate, request: Request,
 @router.put("/schedules/{schedule_id}")
 async def update_schedule(schedule_id: str, data: dict, request: Request,
                           current_user: User = Depends(get_current_user),
-                          db: AsyncSession = Depends(get_db)):
+                          db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "schedules:edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     block = await get_owned_or_404(
@@ -153,7 +153,7 @@ async def update_schedule(schedule_id: str, data: dict, request: Request,
 @router.delete("/schedules/{schedule_id}")
 async def delete_schedule(schedule_id: str, request: Request,
                           current_user: User = Depends(get_current_user),
-                          db: AsyncSession = Depends(get_db)):
+                          db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "schedules:edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     block = await get_owned_or_404(

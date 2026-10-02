@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import get_db
+from deps import DbSession
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.purchases import (
     Purchase as PurchaseORM,
@@ -252,7 +252,7 @@ async def _deduct_stock_and_record(
 
 @router.get("/purchases/{purchase_id}/items-for-return")
 async def get_purchase_items_for_return(purchase_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     pid = uuid.UUID(purchase_id)
     purchase = await get_owned_or_404(
         db, PurchaseORM, pid, uuid.UUID(current_user.pharmacy_id), not_found_detail="Purchase not found")
@@ -330,7 +330,7 @@ async def get_purchase_items_for_return(purchase_id: str, current_user: User = D
 
 @router.post("/purchase-returns")
 async def create_purchase_return(return_data: PurchaseReturnCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_purchases_permission(current_user, "create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     supplier_id = uuid.UUID(return_data.supplier_id)
@@ -503,7 +503,7 @@ async def create_purchase_return(return_data: PurchaseReturnCreate, request: Req
 async def get_purchase_returns(
     from_date: Optional[str] = None, to_date: Optional[str] = None,
     supplier_id: Optional[str] = None, status: Optional[str] = None,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     query = select(PurchaseReturnORM).where(PurchaseReturnORM.pharmacy_id == pharmacy_id)
@@ -541,7 +541,7 @@ async def get_purchase_returns(
 
 @router.get("/purchase-returns/{return_id}")
 async def get_purchase_return(return_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     rid = uuid.UUID(return_id)
     purchase_return = await get_owned_or_404(
         db, PurchaseReturnORM, rid, uuid.UUID(current_user.pharmacy_id),
@@ -565,7 +565,7 @@ async def update_purchase_return(
         update_data: PurchaseReturnUpdate,
         request: Request,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     await _require_purchases_permission(current_user, "edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     rid = uuid.UUID(return_id)
@@ -716,7 +716,7 @@ async def update_purchase_return_credit_status(
         body: PurchaseReturnCreditUpdate,
         request: Request,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     """Record how much of a return the distributor has actually credited
     so far — separate from `status` (the return record itself, which is
     "confirmed" the instant stock is deducted). A pharmacy returning

@@ -384,6 +384,19 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# ── Rule 22: DB session must be the shared scope="function" DbSession ──────
+# Found Oct 2, 2026: a bare Depends(get_db) makes FastAPI (0.118+) send the response BEFORE
+# the session commits — clients were told "saved" before the data was committed, causing
+# random read-after-write failures and hiding any commit error. See deps.py's DbSession and
+# docs/15_ROADMAP.md RULE MISSES LOG.
+if python3 scripts/check_db_session_scope.py > /tmp/db_session_scope_output 2>&1; then
+  green "Rule 22 PASS: Every endpoint uses the shared DbSession (commit finishes before the response)"
+else
+  red "Rule 22 FAIL: bare Depends(get_db) found — use DbSession from deps.py"
+  cat /tmp/db_session_scope_output | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

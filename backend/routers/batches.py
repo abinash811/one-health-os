@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from constants import PRODUCT_CATEGORIES
-from deps import get_db
+from deps import DbSession
 from models.billing import Bill as BillORM, SalesReturn as SalesReturnORM
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.purchases import (
@@ -243,7 +243,7 @@ def _client_ip(request: Request) -> str | None:
 
 @router.post("/stock/batches")
 async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_inventory_permission(current_user, "batches_create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     product = await _get_product_by_sku(pharmacy_id, batch_data.product_sku, db)
@@ -310,7 +310,7 @@ async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = 
 async def get_stock_batches(
         product_sku: Optional[str] = None,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     query = select(BatchORM).where(BatchORM.pharmacy_id == pharmacy_id)
 
@@ -339,7 +339,7 @@ async def get_stock_batches(
 
 @router.get("/stock/batches/{batch_id}")
 async def get_stock_batch(batch_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
     # tenant-safe: batch already scoped via _get_batch
     prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
@@ -351,7 +351,7 @@ async def get_stock_batch(batch_id: str, current_user: User = Depends(
 
 @router.get("/stock/batches/{batch_id}/origin-purchase")
 async def get_batch_origin_purchase(batch_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     """A near-expiry/expired batch on Medicine Detail had no path to
     returning it to the supplier — a return is always initiated from a
     specific past Purchase (GET /purchases/{id}/items-for-return), and
@@ -382,7 +382,7 @@ async def update_stock_batch(
         batch_data: StockBatchUpdate,
         request: Request,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     await require_admin_or_super(current_user, db, detail="Only admins can update stock batches")
 
@@ -471,7 +471,7 @@ async def update_stock_batch(
 
 @router.delete("/stock/batches/{batch_id}")
 async def delete_stock_batch(batch_id: str, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     await require_admin_or_super(current_user, db, detail="Only admins can delete stock batches")
 
@@ -496,7 +496,7 @@ async def delete_stock_batch(batch_id: str, request: Request, current_user: User
 
 @router.post("/batches/{batch_id}/adjust")
 async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_inventory_permission(current_user, "stock_adjust", db)
     batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
     # tenant-safe: batch already scoped via _get_batch
@@ -533,7 +533,7 @@ async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user:
 
 @router.post("/batches/{batch_id}/writeoff-expiry")
 async def writeoff_expired_batch(batch_id: str, writeoff_data: dict, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_inventory_permission(current_user, "stock_adjust", db)
     batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
     # tenant-safe: batch already scoped via _get_batch
@@ -573,7 +573,7 @@ async def writeoff_expired_batch(batch_id: str, writeoff_data: dict, current_use
 
 @router.post("/stock-movements")
 async def create_stock_movement(movement_data: StockMovementCreate, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_inventory_permission(current_user, "stock_adjust", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     product = await _get_product_by_sku(pharmacy_id, movement_data.product_sku, db)
@@ -611,7 +611,7 @@ async def get_stock_movements(
     product_sku: Optional[str] = None, batch_id: Optional[str] = None,
     movement_type: Optional[str] = None,
     page: int = 1, page_size: int = 50,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     query = select(MovementORM).where(MovementORM.pharmacy_id == pharmacy_id)

@@ -1,7 +1,7 @@
 # Patient Billing — Build Plan (clinic, pharmacy, lab, IPD on one account)
-# Version: 0.1 | Last updated: October 2, 2026
+# Version: 0.2 | Last updated: October 2, 2026
 # Type: Explanation
-# Status: PLAN — 🚫 no tables or code until Abinash approves (Manifesto rule 13). Visual mock-up: `docs/mockups/29_billing_mock.html` (8 screens, open in a browser).
+# Status: B1 + B2 BUILT (Oct 2, 2026, approved by Abinash); B3–B5 not started. Decisions taken while building are in "Decisions made in B1/B2" below. Visual mock-up: `docs/mockups/29_billing_mock.html` (8 screens, open in a browser).
 
 ## Why (product view)
 - A patient's complete bill must be visible in one place: consultation today, medicines and lab tomorrow, beds and nursing when IPD arrives.
@@ -65,6 +65,16 @@ The mock-up (screen 4) shows medicines on the clinic invoice. For GST, stock and
 | **B3** | Queue: fee chip + **Collect** dialog (mode, discount, part-pay) + printable invoice/receipt + "Collected today" card |
 | **B4** | Patient **Billing** tab (complete bill) + **Billing** page: All bills · Pending · Receipts · Day closing, CSV export |
 | **B5** | Whole-feature audit as front desk / doctor / billing desk (rule 11). Pharmacy mirror + lab + IPD hooks are specified here but built with their own modules |
+
+## Decisions made in B1/B2 (Oct 2, 2026)
+- API prefix is `/api/patient-billing` (pharmacy already owns `/api/billing`). Permissions are `patient_billing:*` — the pharmacy's `billing:*` group already exists and must not grant clinic billing.
+- **Advance deposits and overpayment are deferred to IPD** (nothing to apply them to yet). v1 refuses a payment above the balance, so no half-built advance balance exists.
+- **Refunds are not supported**: an invoice with payments cannot be cancelled (409). Unpaid invoices can; their charges go back to unbilled.
+- **Discounts**: any role with `patient_billing:invoice` can discount up to the invoice total; every discount is in the Audit Log. (Open question 2 still stands — tighten when decided.)
+- **Fee timing = check-in** (recommended option taken; open question 3). **Free follow-ups** not in v1 (question 4).
+- The patient is a snapshot (`patient_name`, `patient_uhid`) on each charge/invoice — billing never reads EMR tables.
+- EMR → billing is an in-process call to `patient_billing/service.py` (the same functions the HTTP API uses), via `modules/emr/billing_hooks.py`. It becomes an HTTP/API-key call if modules are ever deployed apart.
+- Fee cancelled after invoicing is left for the billing desk (no silent loss of a billed charge).
 
 ## Cross-cutting consumers to check in the same change (rule 11)
 - Audit Log labels (`pb_charge_item`, `pb_invoice`, `pb_payment`) · patient profile page (new Billing tab) · queue page (fee chip) · Settings (doctor fee) · CSV export · permissions seed · docs 09/10/15/28 + CHANGELOG.

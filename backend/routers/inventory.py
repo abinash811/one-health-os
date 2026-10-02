@@ -14,7 +14,7 @@ from constants import (
     CATEGORY_HSN_MAP, DOSAGE_FORMS, PRODUCT_CATEGORIES,
     VALID_CATEGORIES, VALID_DOSAGE_FORMS, VALID_GST_RATES,
 )
-from deps import get_db
+from deps import DbSession
 from models.billing import Bill, BillItem, SalesReturn, SalesReturnItem
 from models.pharmacy import PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM
@@ -180,7 +180,7 @@ def _batch_for_billing(b: BatchORM, units_per_pack: int = 1) -> dict:
 
 @router.post("/products")
 async def create_product(data: ProductCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     await _require_inventory_permission(current_user, "create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
@@ -238,7 +238,7 @@ async def create_product(data: ProductCreate, request: Request, current_user: Us
 async def get_products(
     search: Optional[str] = None, category: Optional[str] = None,
     fields: Optional[str] = None, page: int = 1, page_size: int = 100, pharmacy_id: Optional[str] = None,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     # pharmacy_id here is the HQ-buyer store picker's optional override
     # (docs/26_MULTI_CHAIN_SCOPE.md Section 3 #3) — resolved and grant-
@@ -283,7 +283,7 @@ async def get_product_meta(current_user: User = Depends(get_current_user)):
 
 @router.post("/products/bulk-update")
 async def bulk_update_products(data: dict, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     # audit-exempt: found Sep 16, 2026 (scripts/check_audit_log_coverage.py) — real
     # gap, logged in docs/15_ROADMAP.md KNOWN ISSUES, not fixed in this pass
     await _require_inventory_permission(current_user, "edit", db)
@@ -319,7 +319,7 @@ async def bulk_update_products(data: dict, current_user: User = Depends(
 @router.get("/products/search-with-batches")
 async def search_products_with_batches(q: str,
                                        current_user: User = Depends(get_current_user),
-                                       db: AsyncSession = Depends(get_db)):
+                                       db: AsyncSession = DbSession):
     if len(q) < 2:
         return []
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -367,7 +367,7 @@ async def search_products_with_batches(q: str,
 
 @router.get("/products/{product_id}")
 async def get_product(product_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     # get_owned_or_404 already turns a malformed (non-UUID) id into a clean
     # 404 rather than an unhandled crash — same behavior as the old
     # try/except here, plus the pharmacy_id scoping that was missing.
@@ -379,7 +379,7 @@ async def get_product(product_id: str, current_user: User = Depends(
 
 @router.put("/products/{product_id}")
 async def update_product(product_id: str, data: ProductUpdate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     # Was a hardcoded `role != "admin"` check — a magic-string role comparison
     # that bypassed the real permissions catalog entirely and blocked manager/
     # inventory_staff, who are granted "inventory:edit" per constants.py and
@@ -440,7 +440,7 @@ async def update_product(product_id: str, data: ProductUpdate, request: Request,
 
 @router.delete("/products/{product_id}")
 async def delete_product(product_id: str, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     await _require_inventory_permission(current_user, "delete", db)
     product = await get_owned_or_404(
@@ -481,7 +481,7 @@ async def get_product_transactions(
         sku: str,
         transaction_type: str = "all",
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     prod = await db.execute(select(ProductORM).where(
         ProductORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id), ProductORM.sku == sku))
     product = prod.scalar_one_or_none()
@@ -582,7 +582,7 @@ async def get_inventory_with_health(
     gst_filter: Optional[float] = None,
     location_filter: Optional[str] = None,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbSession,
 ):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     ps_result = await db.execute(select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
@@ -690,7 +690,7 @@ async def get_reorder_list(
     page: int = 1,
     page_size: int = 20,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbSession,
 ):
     """The running "short book" / auto-reorder list — every product whose
     summed active-batch stock has fallen to or below its own reorder_level,
@@ -749,7 +749,7 @@ async def get_reorder_list(
 
 @router.get("/inventory/filters")
 async def get_inventory_filters(current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     base = ProductORM.pharmacy_id == pharmacy_id
     brands = await db.execute(select(ProductORM.brand).where(

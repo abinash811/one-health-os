@@ -15,7 +15,7 @@ from sqlalchemy import Integer, cast, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import get_db
+from deps import DbSession
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.purchases import (
     Purchase as PurchaseORM,
@@ -600,7 +600,7 @@ async def _create_stock_for_items(
 async def import_purchase_bill(
         payload: BillImportRequest,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     """One-click distributor bill import (Suppliers v3, named Pharmasoft
     gap) — a pharmacist uploads a distributor's Excel/CSV bill against a
     fixed column template instead of retyping every line item by hand.
@@ -679,7 +679,7 @@ async def get_purchases(
     supplier_id: Optional[str] = None, status: Optional[str] = None,
     purchase_on: Optional[str] = None, payment_status: Optional[str] = None,
     search: Optional[str] = None, page: int = 1, page_size: int = 50,
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
     page_size = min(max(page_size, 1), 100)
     page = max(page, 1)
@@ -742,7 +742,7 @@ async def get_purchases(
 
 @router.post("/purchases")
 async def create_purchase(purchase_data: PurchaseCreate, request: Request, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     pharmacy_id = await resolve_store_override_for_write(
         current_user, purchase_data.pharmacy_id, "purchases:create", db)
     if purchase_data.invoice_attachment_data:
@@ -898,7 +898,7 @@ async def update_purchase(
         purchase_data: PurchaseCreate,
         request: Request,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     await _require_purchases_permission(current_user, "edit", db)
     if purchase_data.invoice_attachment_data:
         _validate_invoice_attachment(purchase_data.invoice_attachment_data)
@@ -1043,7 +1043,7 @@ async def correct_confirmed_purchase(
         correction: PurchaseCorrectionRequest,
         request: Request,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     """The only way to fix a real mistake on an already-confirmed
     purchase — update_purchase() above refuses any edit once
     status != "draft" by design. That refusal was only ever half of
@@ -1219,7 +1219,7 @@ async def delete_purchase(
         purchase_id: str,
         request: Request,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     """Soft-delete only, and only ever a draft — a draft has never touched
     stock or supplier balances (see _create_stock_for_items, only called on
     confirm), so there's nothing to reverse. A confirmed purchase has real
@@ -1250,7 +1250,7 @@ async def delete_purchase(
 @router.get("/purchases/check-duplicate-invoice")
 async def check_duplicate_invoice(
         supplier_id: str, invoice_no: str, exclude_id: Optional[str] = None,
-        current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+        current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     """Warns, does not block — a real distributor invoice can legitimately
     need re-entry (e.g. correcting an earlier mistake), so this is advisory
     only. Case-insensitive exact match, scoped to the same supplier (the
@@ -1289,7 +1289,7 @@ async def check_duplicate_invoice(
 @router.get("/purchases/last-purchase-price")
 async def get_last_purchase_price(
         product_sku: str,
-        current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+        current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     """Advisory (never blocking), Sep 25, 2026 — the Purchase entry screen's
     price-change warning needs to know what this product last cost so a
     real jump ("₹8 -> ₹10") isn't silently missed. Any supplier, most
@@ -1326,7 +1326,7 @@ async def get_last_purchase_price(
 
 @router.get("/purchases/{purchase_id}")
 async def get_purchase(purchase_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+        get_current_user), db: AsyncSession = DbSession):
     purchase = await get_owned_or_404(
         db, PurchaseORM, purchase_id, uuid.UUID(current_user.pharmacy_id),
         not_found_detail="Purchase not found",
@@ -1353,7 +1353,7 @@ async def mark_purchase_paid(
         payment: PurchasePaymentRequest,
         request: Request,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     await _require_purchases_permission(current_user, "edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     pid = uuid.UUID(purchase_id)
@@ -1426,7 +1426,7 @@ async def mark_purchase_paid(
 async def list_purchase_payments(
         purchase_id: str,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     """Individual PurchasePayment rows were recorded by /pay above since
     day one, but nothing ever exposed them — the purchase response only
     ever carried the aggregate amount_paid/last_payment_date, so there
@@ -1465,7 +1465,7 @@ async def reverse_purchase_payment(
         reversal: PaymentReversalRequest,
         request: Request,
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
+        db: AsyncSession = DbSession):
     """UC-P31 (docs/23_PURCHASES_ACCEPTANCE_SPEC.md) — a payment recorded
     with the wrong amount/method/date was permanent forever; there was no
     way to reverse it. Admin-only, mandatory reason. Soft-reverses (sets
