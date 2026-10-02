@@ -37,7 +37,7 @@ export default function MedicineRows({ rows, onChange, suggestions, readOnly }: 
     <div className="space-y-3" data-testid="medicine-rows">
       {rows.map((r, i) => (
         <div key={r.key} className="grid grid-cols-12 gap-3 items-end p-3 rounded-lg border border-gray-200" data-testid={`rx-row-${i}`}>
-          <div className="col-span-12 lg:col-span-4">
+          <div className="col-span-12 lg:col-span-3">
             {readOnly ? (
               <><span className={labelCls}>Medicine</span><p className="text-sm font-medium text-gray-900 py-2">{r.medicine_name}</p></>
             ) : (
@@ -51,7 +51,7 @@ export default function MedicineRows({ rows, onChange, suggestions, readOnly }: 
             <input id={`rx-dose-${i}`} value={r.dosage} disabled={readOnly} placeholder="1 tab" className={fieldCls}
               onChange={(e) => patch(r.key, 'dosage', e.target.value)} data-testid={`rx-dose-${i}`} />
           </div>
-          <div className="col-span-6 lg:col-span-2">
+          <div className="col-span-6 lg:col-span-3">
             <label className={labelCls} htmlFor={`rx-freq-${i}`}>Frequency</label>
             <input id={`rx-freq-${i}`} value={r.frequency} disabled={readOnly} placeholder="1-0-1" className={fieldCls}
               onChange={(e) => patch(r.key, 'frequency', e.target.value)} data-testid={`rx-freq-${i}`} />

@@ -114,3 +114,11 @@ class TestPrescriptions(_EmrBase):
         r = self.session.post(f"{BASE_URL}/api/emr/prescriptions",
                               json={"appointment_id": str(uuid.uuid4())})
         assert r.status_code == 404
+
+    def test_simultaneous_opens_return_the_same_prescription(self):
+        from concurrent.futures import ThreadPoolExecutor
+        _, appt = self._visit()
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results = list(pool.map(lambda _: self._start(appt), range(4)))
+        assert all(r.status_code == 200 for r in results), [r.text for r in results]
+        assert len({r.json()["id"] for r in results}) == 1

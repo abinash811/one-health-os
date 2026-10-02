@@ -147,7 +147,7 @@ export default function Consultation() {
         )}
       />
 
-      <DataCard className="mb-4">
+      <DataCard noPadding={false} className="mb-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
           <span className="font-semibold text-gray-900 text-base" data-testid="consult-patient">{rx.patient_name}</span>
           <span className="text-gray-600">{[p?.age ? `${p.age} yrs` : null, p?.gender, p?.phone].filter(Boolean).join(' · ')}</span>
@@ -162,11 +162,11 @@ export default function Consultation() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="xl:col-span-2 space-y-4">
-          <DataCard>
+          <DataCard noPadding={false}>
             <span className={labelCls}>Vitals</span>
             <VitalsFields value={vitals} onChange={setVitals} readOnly={!isDraft} />
           </DataCard>
-          <DataCard>
+          <DataCard noPadding={false}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="rx-complaints" className={labelCls}>Complaints</label>
@@ -180,11 +180,11 @@ export default function Consultation() {
               </div>
             </div>
           </DataCard>
-          <DataCard>
+          <DataCard noPadding={false}>
             <span className={labelCls}>Medicines</span>
             <MedicineRows rows={rows} onChange={setRows} suggestions={suggestions} readOnly={!isDraft} />
           </DataCard>
-          <DataCard>
+          <DataCard noPadding={false}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2">
                 <label htmlFor="rx-advice" className={labelCls}>Advice / notes</label>
@@ -201,7 +201,7 @@ export default function Consultation() {
           </DataCard>
         </div>
 
-        <DataCard>
+        <DataCard noPadding={false}>
           <span className={labelCls}>Previous visits</span>
           {history.length === 0 ? <p className="text-sm text-gray-400" data-testid="no-history">No earlier prescriptions.</p> : (
             <ul className="divide-y" data-testid="rx-history">

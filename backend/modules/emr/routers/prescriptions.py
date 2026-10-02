@@ -132,15 +132,28 @@ async def start_prescription(data: RxCreate, request: Request,
     if live:
         return await _rx_response(db, live)
     uid = uuid.UUID(current_user.id)
-    rx = EmrPrescription(
-        pharmacy_id=pharmacy_id, appointment_id=appt.id, patient_id=appt.patient_id,
-        doctor_user_id=appt.doctor_user_id, rx_number=await _next_rx_number(db, pharmacy_id),
-        status=RX_DRAFT, created_by=uid)
-    db.add(rx)
-    try:
-        await db.flush()
-    except IntegrityError:
-        raise HTTPException(status_code=409, detail="Another prescription was just created — please retry")
+    # Two simultaneous opens (double-click, dev double-render) race on the same visit:
+    # each attempt runs in a savepoint; the loser re-reads the winner's Rx instead of failing.
+    rx = None
+    for _ in range(3):
+        candidate = EmrPrescription(
+            pharmacy_id=pharmacy_id, appointment_id=appt.id, patient_id=appt.patient_id,
+            doctor_user_id=appt.doctor_user_id, rx_number=await _next_rx_number(db, pharmacy_id),
+            status=RX_DRAFT, created_by=uid)
+        try:
+            async with db.begin_nested():
+                db.add(candidate)
+                await db.flush()
+            rx = candidate
+            break
+        except IntegrityError:
+            live = (await db.execute(select(EmrPrescription).where(
+                EmrPrescription.pharmacy_id == pharmacy_id, EmrPrescription.appointment_id == appt.id,
+                EmrPrescription.status != RX_CANCELLED, EmrPrescription.deleted_at.is_(None)))).scalar_one_or_none()
+            if live:
+                return await _rx_response(db, live)
+    if rx is None:
+        raise HTTPException(status_code=409, detail="Could not create the prescription — please retry")
     await db.refresh(rx)
     await _record_audit(pharmacy_id, uid, "create", "emr_prescription", rx.id,
                         {"rx_number": rx.rx_number, "appointment_id": str(appt.id)}, db,
