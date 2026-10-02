@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.60 | Last updated: October 2, 2026
+# Version: 3.61 | Last updated: October 2, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1540,11 +1540,17 @@ going forward — do not re-propose Sheets without Abinash raising it again.
 |------|--------|
 | 1a. Tables + migration (`emr_patients`, `emr_doctor_schedules`, `emr_appointments`) | ✅ Built Oct 2, 2026 |
 | 1b. Backend API: patients, doctor schedules, slots, appointments, queue status machine (+ 16 pytest tests) | ✅ Built Oct 2, 2026 |
-| 1c. Frontend: Appointments day view + live queue + booking dialog, Patients, Doctor Schedules (18 jest tests) | ✅ Built Oct 2, 2026 — live browser walkthrough pending |
+| 1c. Frontend: Appointments day view + live queue + booking dialog, Patients, Doctor Schedules (18 jest tests) | ✅ Built + live-walked Oct 2, 2026 (receptionist: register → walk-in → check-in → consult; doctor: set hours → book slot → slot locks) |
 | 2. Consultation + Rx editor + printable Rx | ⬜ Not started |
 | 3. Rx → pharmacy incoming list → Fill Rx → dispensed status | ⬜ Not started |
 | 4. WhatsApp send + follow-up reminders | ⬜ Not started |
 | 5. Whole-feature persona audit (receptionist / doctor / pharmacist / patient) | ⬜ Not started |
+
+**Gaps found in the Oct 2 live walkthrough (to resolve before step 5's audit):**
+- Frontend only knows a user's *role*, not their permissions (`/auth/login` + `/auth/me` don't return them), so a receptionist is shown "Add Working Hours" and only gets a clear 403 after filling the form. Proper fix: return `permissions` from the auth endpoints and hide controls the user can't use — a core auth change, needs Abinash's go-ahead.
+- Today's slots in the past (e.g. 9:00 AM when it's already 2 PM) are still bookable — only past *dates* are blocked.
+- Receptionist role can also press Start consult / Complete (it has `appointments:edit`) — decide whether those belong to the doctor only.
+- Dialogs log a Radix "Missing Description" accessibility warning (same as the existing shared dialogs).
 
 Open: patient↔customer phone-match link and "Added in pharmacy/EMR" badge (needs both modules on); clinic with no pharmacy.
 
