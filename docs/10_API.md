@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.28 | Last updated: October 2, 2026
+# Version: 1.29 | Last updated: October 2, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1521,6 +1521,8 @@ curl http://localhost:8000/openapi.json  # OpenAPI spec
 | POST | `/accounts/{patient_id}/collect` | `invoice` + `collect`. The "Collect" button: invoice chosen charges and pay (full unless `amount_paise`) atomically |
 | GET | `/payments?date=&patient_id=` | `view`. Receipts, newest first, paginated |
 | GET | `/summary/today?date=` | `view`. `collected_paise`, `receipts`, `by_mode`, `by_counter` |
+
+**Fee on the queue (B3):** every row of `GET /emr/appointments` carries `fee` — `null` (no fee / withdrawn) or `{charge_id, amount_paise, status: unpaid|part_paid|paid, paid_paise, balance_paise, mode, invoice_id, invoice_number}`. EMR gets this from billing's service (`snapshots_by_key`), never from billing tables. The queue's Collect button calls `POST /patient-billing/accounts/{patient_id}/collect` (no invoice yet) or `POST /patient-billing/invoices/{id}/payments` (part-paid invoice); the printable page reads `GET /patient-billing/invoices/{id}`; the "Collected today" card reads `GET /patient-billing/summary/today`.
 
 **EMR consultation fee (B2):** `PUT /emr/doctor-profiles/{id}` accepts `consultation_fee_paise` (0–₹10 lakh, blank clears). When an appointment moves to `checked_in`, that fee is posted as a charge on the patient's account (`idempotency_key = emr:appointment:<id>:consultation`, so one visit is charged once; no fee set = no charge). Moving the visit to `cancelled`/`no_show` voids the charge **only if still unbilled**; once invoiced, the billing desk decides.
 

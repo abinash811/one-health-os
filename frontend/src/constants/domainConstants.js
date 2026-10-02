@@ -240,6 +240,26 @@ export const APPOINTMENT_STATUS = {
   NO_SHOW:    'no_show',
 };
 
+// ── Patient Billing (backend/modules/patient_billing/constants.py — keep in sync) ──
+export const FEE_STATUS = {
+  UNPAID:    'unpaid',
+  PART_PAID: 'part_paid',
+  PAID:      'paid',
+};
+
+export const PAYMENT_MODE = {
+  CASH: 'cash',
+  UPI:  'upi',
+  CARD: 'card',
+};
+
+export const BILLING_COUNTER = {
+  FRONT_DESK:   'front_desk',
+  BILLING_DESK: 'billing_desk',
+  LAB:          'lab',
+  IPD:          'ipd',
+};
+
 export const PRESCRIPTION_STATUS = {
   DRAFT:     'draft',
   ISSUED:    'issued',

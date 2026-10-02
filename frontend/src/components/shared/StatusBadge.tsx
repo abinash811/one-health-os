@@ -41,6 +41,7 @@ const STATUS_STYLES: Record<string, string> = {
   fully_credited: 'bg-green-50 text-green-700',
   // EMR appointment statuses (completed/cancelled already covered above)
   issued: 'bg-green-50 text-green-700',
+  part_paid: 'bg-amber-50 text-amber-700',
   booked: 'bg-blue-50 text-blue-700',
   checked_in: 'bg-amber-50 text-amber-700',
   in_consult: 'bg-purple-50 text-purple-700',
@@ -66,6 +67,7 @@ const LABEL_MAPPINGS: Record<string, string> = {
   partially_credited: 'Partially Credited',
   fully_credited: 'Fully Credited',
   checked_in: 'Checked In',
+  part_paid: 'Part-paid',
   in_consult: 'In Consult',
   no_show: 'No Show',
   multiple: 'Multi',

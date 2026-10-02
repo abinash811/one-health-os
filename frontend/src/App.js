@@ -53,6 +53,7 @@ const EmrPatients = lazy(() => import('@/modules/emr/pages/Patients'));
 const EmrDoctorSchedules = lazy(() => import('@/modules/emr/pages/DoctorSchedules'));
 const EmrPatientProfile = lazy(() => import('@/modules/emr/pages/PatientProfile'));
 const EmrSettingsPage = lazy(() => import('@/modules/emr/pages/EmrSettings'));
+const PatientBillingInvoicePrint = lazy(() => import('@/modules/patient_billing/pages/InvoicePrint'));
 const EmrConsultation = lazy(() => import('@/modules/emr/pages/Consultation'));
 const EmrPrescriptionPrint = lazy(() => import('@/modules/emr/pages/PrescriptionPrint'));
 
@@ -202,6 +203,7 @@ function AppRoutes({ user }) {
         </Route>
         {/* Printable Rx renders outside Layout so the sheet has no app chrome */}
         <Route path="emr/prescriptions/:id/print" element={<EmrPrescriptionPrint />} />
+        <Route path="patient-billing/invoices/:id/print" element={<PatientBillingInvoicePrint />} />
         <Route path="*" element={<Navigate to={homePathFor(user)} replace />} />
       </Routes>
     </Suspense>

@@ -114,6 +114,37 @@ async def void_unbilled_by_key(db: AsyncSession, pharmacy_id: uuid.UUID, idempot
     return charge
 
 
+async def snapshots_by_key(db: AsyncSession, pharmacy_id: uuid.UUID, keys: list[str]) -> dict[str, dict]:
+    """For other modules: where do the charges they posted (by idempotency key) stand right now?
+    key -> {charge_id, amount_paise, charge_status, invoice_id, invoice_number, invoice_status,
+    paid_paise, balance_paise, mode}. Keys with no charge are simply absent."""
+    if not keys:
+        return {}
+    charges = (await db.execute(select(PbChargeItem).where(
+        PbChargeItem.pharmacy_id == pharmacy_id, PbChargeItem.idempotency_key.in_(keys)))).scalars().all()
+    inv_ids = [c.invoice_id for c in charges if c.invoice_id]
+    invoices = {i.id: i for i in (await db.execute(select(PbInvoice).where(
+        PbInvoice.pharmacy_id == pharmacy_id, PbInvoice.id.in_(inv_ids)))).scalars().all()} if inv_ids else {}
+    mode_of: dict = {}
+    if inv_ids:
+        for p in (await db.execute(select(PbPayment).where(
+                PbPayment.pharmacy_id == pharmacy_id, PbPayment.invoice_id.in_(inv_ids))
+                .order_by(PbPayment.created_at))).scalars().all():
+            mode_of[p.invoice_id] = p.mode          # the latest payment's mode wins
+    out = {}
+    for c in charges:
+        inv = invoices.get(c.invoice_id)
+        out[c.idempotency_key] = {
+            "charge_id": str(c.id), "amount_paise": c.total_paise, "charge_status": c.status,
+            "invoice_id": str(inv.id) if inv else None,
+            "invoice_number": inv.invoice_number if inv else None,
+            "invoice_status": inv.status if inv else None,
+            "paid_paise": inv.paid_paise if inv else 0,
+            "balance_paise": (inv.net_paise - inv.paid_paise) if inv else c.total_paise,
+            "mode": mode_of.get(c.invoice_id) if inv else None}
+    return out
+
+
 # ── Invoices ─────────────────────────────────────────────────────────────────
 
 def _line(c: PbChargeItem) -> dict:

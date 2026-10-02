@@ -3,16 +3,17 @@
  * Route: /emr/appointments (docs/28_EMR_SCOPE.md). Refreshes itself every
  * 30s so a check-in at the front desk shows up at the doctor's screen.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   PageHeader, PageTabs, DataCard, TableSkeleton, AppButton, EmptyState, FilterPills, StatusBadge,
 } from '@/components/shared';
+import { AuthContext } from '@/App';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
-import { APPOINTMENT_STATUS, APPOINTMENT_TYPE } from '@/constants/domainConstants';
+import { APPOINTMENT_STATUS, APPOINTMENT_TYPE, USER_ROLE } from '@/constants/domainConstants';
 import { formatDate, today } from '@/utils/dates';
 import { ROUTES } from '@/constants/routes';
 import { EMR_TABS, emrTabRoute } from '../emrTabs';
@@ -21,6 +22,10 @@ import BookAppointmentModal from '../components/BookAppointmentModal';
 import CancelAppointmentDialog from '../components/CancelAppointmentDialog';
 import DoctorSelect, { ALL_DOCTORS } from '../components/DoctorSelect';
 import QueueActions from '../components/QueueActions';
+import QueueSummary from '../components/QueueSummary';
+import FeeChip from '../components/FeeChip';
+import CollectPaymentDialog from '@/modules/patient_billing/components/CollectPaymentDialog';
+import type { DaySummary } from '@/modules/patient_billing/types';
 import type { EmrAppointment, EmrDoctor } from '../types';
 
 const REFRESH_MS = 30_000;
@@ -52,6 +57,11 @@ export default function Appointments() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bookOpen, setBookOpen] = useState(false);
   const [cancelling, setCancelling] = useState<EmrAppointment | null>(null);
+  const [collecting, setCollecting] = useState<EmrAppointment | null>(null);
+  const [collected, setCollected] = useState<DaySummary | null>(null);
+  const auth = useContext(AuthContext) as unknown as { user: { role: string } | null } | null;
+  // Doctors only view billing; the backend enforces it, this just hides a button that would be refused.
+  const canCollect = auth?.user?.role !== USER_ROLE.DOCTOR;
 
   useEffect(() => {
     api.get(apiUrl.emrDoctors()).then((res: { data: EmrDoctor[] }) => setDoctors(res.data || []))
@@ -67,6 +77,9 @@ export default function Appointments() {
         status: status === 'all' ? undefined : status,
       }));
       setRows(res.data || []);
+      // Money collected today (all counters); hidden for users without billing access.
+      api.get(apiUrl.pbSummaryToday()).then((r: { data: DaySummary }) => setCollected(typeof r.data?.collected_paise === 'number' ? r.data : null))
+        .catch(() => setCollected(null));
     } catch (err) {
       if (showSkeleton) toast.error((err as Error).message);
     } finally {
@@ -121,6 +134,8 @@ export default function Appointments() {
         <FilterPills options={STATUS_FILTERS} active={status} onChange={setStatus} />
       </div>
 
+      <QueueSummary rows={rows} collected={collected} />
+
       <DataCard noPadding>
         <div className="overflow-x-auto">
           <table className="w-full text-sm" data-testid="queue-table">
@@ -132,14 +147,15 @@ export default function Appointments() {
                 <th className={TH}>Doctor</th>
                 <th className={TH}>Reason</th>
                 <th className={TH}>Status</th>
+                <th className={TH}>Fee</th>
                 <th className={`${TH} text-right`}>Next step</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {loading ? (
-                <tr><td colSpan={7} className="p-0"><TableSkeleton rows={6} columns={7} /></td></tr>
+                <tr><td colSpan={8} className="p-0"><TableSkeleton rows={6} columns={8} /></td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={7}>
+                <tr><td colSpan={8}>
                   <EmptyState icon={CalendarDays}
                     title={`No appointments on ${formatDate(date)}`}
                     description="Book one, or issue a walk-in token for today."
@@ -157,9 +173,12 @@ export default function Appointments() {
                     {a.cancel_reason ? `Cancelled: ${a.cancel_reason}` : a.reason || '—'}
                   </td>
                   <td className="px-4 py-3"><StatusBadge status={a.status} /></td>
+                  <td className="px-4 py-3"><FeeChip fee={a.fee} /></td>
                   <td className="px-4 py-3">
                     <QueueActions appointment={a} busy={busyId === a.id} onMove={move} onCancel={setCancelling}
-                      onOpenRx={(x) => navigate(ROUTES.EMR.CONSULT(x.id))} />
+                      onOpenRx={(x) => navigate(ROUTES.EMR.CONSULT(x.id))}
+                      onCollect={canCollect ? setCollecting : undefined}
+                      onPrintReceipt={(x) => x.fee?.invoice_id && navigate(ROUTES.PATIENT_BILLING.INVOICE_PRINT(x.fee.invoice_id))} />
                   </td>
                 </tr>
               ))}
@@ -171,6 +190,14 @@ export default function Appointments() {
       <BookAppointmentModal open={bookOpen} doctors={doctors}
         defaultDoctorId={doctorId === ALL_DOCTORS ? undefined : doctorId}
         onClose={() => setBookOpen(false)} onBooked={() => fetchQueue(false)} />
+      {collecting?.fee && (
+        <CollectPaymentDialog open patientId={collecting.patient_id} patientName={collecting.patient_name || 'Patient'}
+          charges={collecting.fee.invoice_id ? [] : [{ id: collecting.fee.charge_id, total_paise: collecting.fee.amount_paise,
+            description: `Consultation — ${collecting.doctor_name || 'Doctor'}` }]}
+          existingInvoice={collecting.fee.invoice_id ? { id: collecting.fee.invoice_id,
+            invoice_number: collecting.fee.invoice_number || '', balance_paise: collecting.fee.balance_paise } : null}
+          onClose={() => setCollecting(null)} onCollected={() => fetchQueue(false)} />
+      )}
       <CancelAppointmentDialog appointment={cancelling} onClose={() => setCancelling(null)}
         onCancelled={() => fetchQueue(false)} />
     </div>

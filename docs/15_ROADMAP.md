@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.66 | Last updated: October 2, 2026
+# Version: 3.67 | Last updated: October 2, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1544,7 +1544,7 @@ going forward — do not re-propose Sheets without Abinash raising it again.
 | 2. Consultation + Rx editor + printable Rx — ONE prescription record per visit (`emr_prescriptions` + items), own-history medicine suggestions, issue/cancel lifecycle, browser print page (7 pytest + 9 jest tests) | ✅ Built Oct 2, 2026 (live walkthrough pending) |
 | 2b. Patient profile page `/emr/patients/:id` — details, allergy banner, visit history with each Rx (reprint/view), book from profile; issuing an Rx now auto-completes the visit (6 jest tests) | ✅ Built + live-walked Oct 2, 2026 |
 | 2c. Clinic Settings `/emr/settings` — clinic profile + registration no. + Rx footer, UHID & Rx number formats, default slot length, configurable patient form (hide/require fields, enforced server-side), doctor profiles (specialty/qualification/registration printed on Rx); EMR actions labelled in the Audit Log (13 pytest + 10 jest tests) | ✅ Built Oct 2, 2026 |
-| 2d. Patient Billing — plan + 8-screen mock-up in `docs/29_BILLING_SCOPE.md`. **B1** ✅ tables, charges/invoices/payments/pending API, permissions (16 pytest) · **B2** ✅ doctor consultation fee + auto-charge at check-in, withdrawn on cancel if unbilled (9 pytest + 1 jest) · **B3** ⬜ queue fee chip + Collect + invoice/receipt print · **B4** ⬜ patient Billing tab + billing desk (Pending / All bills / Receipts / Day closing) · **B5** ⬜ whole-feature audit | 🚧 B1+B2 built Oct 2, 2026 |
+| 2d. Patient Billing — plan + 8-screen mock-up in `docs/29_BILLING_SCOPE.md`. **B1** ✅ tables, charges/invoices/payments/pending API, permissions (16 pytest) · **B2** ✅ doctor consultation fee + auto-charge at check-in, withdrawn on cancel if unbilled (9 pytest + 1 jest) · **B3** ✅ queue Fee column (Unpaid / Part-paid / Paid (UPI)), Collect dialog (discount, part-payment, cash/UPI/card, pay the rest of a part-paid invoice), "Collected today" card, printable invoice + receipt (2 pytest + 20 jest) · **B4** ⬜ patient Billing tab + billing desk (Pending / All bills / Receipts / Day closing) · **B5** ⬜ whole-feature audit | 🚧 B1–B3 built Oct 2, 2026 |
 | 3. Rx → pharmacy incoming list → Fill Rx → dispensed status | ⏸ On hold (Abinash, Oct 2) — agreed design when resumed: pharmacy exposes its own `rx-inbox` API (per-pharmacy API key, status returned to sender); our EMR calls that same API so any external EMR can plug in. Needs tables `pharmacy_api_keys`, `incoming_prescriptions(+items)` — not yet approved. |
 | 4. WhatsApp send + follow-up reminders | ⬜ Not started |
 | 5. Whole-feature persona audit (receptionist / doctor / pharmacist / patient) | ⬜ Not started |

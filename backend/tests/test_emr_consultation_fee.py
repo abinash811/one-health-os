@@ -120,3 +120,44 @@ class TestConsultationFee(_Fee):
         body = logs.json()
         rows = body["data"] if isinstance(body, dict) and "data" in body else body
         assert any(r.get("entity_id") == charge_id and r.get("action") == "create" for r in rows)
+
+
+class TestFeeOnTheQueue(_Fee):
+    """B3: the appointment list tells the front desk where each visit's fee stands."""
+
+    def _row(self, appt):
+        rows = self.session.get(f"{BASE_URL}/api/emr/appointments",
+                                params={"date": date.today().isoformat()}).json()
+        return next(r for r in rows if r["id"] == appt["id"])
+
+    def test_fee_state_follows_the_money(self):
+        patient, appt = self._walk_in(self._doctor(50000))
+        assert self._row(appt)["fee"] is None                           # booked: nothing owed yet
+        self._move(appt, "checked_in")
+        fee = self._row(appt)["fee"]
+        assert (fee["status"], fee["amount_paise"], fee["balance_paise"]) == ("unpaid", 50000, 50000)
+        assert fee["mode"] is None and fee["invoice_id"] is None
+
+        part = self.session.post(f"{API}/accounts/{patient['id']}/collect", json={
+            "charge_item_ids": [fee["charge_id"]], "amount_paise": 20000, "mode": "upi", "counter": "front_desk"})
+        assert part.status_code == 200
+        fee = self._row(appt)["fee"]
+        assert (fee["status"], fee["paid_paise"], fee["balance_paise"], fee["mode"]) == (
+            "part_paid", 20000, 30000, "upi")
+        assert fee["invoice_id"] == part.json()["invoice"]["id"]
+
+        rest = self.session.post(f"{API}/invoices/{fee['invoice_id']}/payments",
+                                 json={"amount_paise": 30000, "mode": "cash"})
+        assert rest.status_code == 200
+        fee = self._row(appt)["fee"]
+        assert (fee["status"], fee["balance_paise"], fee["mode"]) == ("paid", 0, "cash")
+        assert fee["invoice_number"].startswith("INV-")
+
+    def test_withdrawn_or_absent_fee_is_not_shown(self):
+        _, appt = self._walk_in(self._doctor(50000))
+        self._move(appt, "checked_in")
+        self._move(appt, "cancelled", cancel_reason="Left")
+        assert self._row(appt)["fee"] is None                           # voided fee disappears from the queue
+        _, no_fee = self._walk_in(self._doctor(fee_paise=None))
+        self._move(no_fee, "checked_in")
+        assert self._row(no_fee)["fee"] is None

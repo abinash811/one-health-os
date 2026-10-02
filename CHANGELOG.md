@@ -11,6 +11,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **Patient Billing B3 — fees on the queue.** The appointments queue now shows each visit's fee (Unpaid / Part-paid /
+  Paid with the payment mode), a **Collect** button (discount, part-payment, cash / UPI / card; pays the rest of a
+  part-paid invoice), and a "Collected today" card with the day's receipts. Every collection can be printed as an
+  invoice with receipt. Doctors can see fees but are not offered Collect.
 - **Patient Billing, steps B1–B2 (backend).** A separate module: one account per patient, where every
   service posts a *charge*; each counter invoices and collects its own; the billing desk gets a Pending
   list and a complete bill per patient. Includes invoices (frozen copies), part-payments, receipts,

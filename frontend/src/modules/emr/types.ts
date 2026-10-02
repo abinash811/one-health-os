@@ -42,6 +42,19 @@ export interface EmrAppointment {
   status: string;
   reason: string | null;
   cancel_reason: string | null;
+  /** The visit's consultation fee from Patient Billing; null = no fee. */
+  fee?: EmrFee | null;
+}
+
+export interface EmrFee {
+  charge_id: string;
+  amount_paise: number;
+  status: 'unpaid' | 'part_paid' | 'paid';
+  paid_paise: number;
+  balance_paise: number;
+  mode: string | null;
+  invoice_id: string | null;
+  invoice_number: string | null;
 }
 
 export interface EmrScheduleBlock {

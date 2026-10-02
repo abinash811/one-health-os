@@ -4,28 +4,27 @@ take the next token for today."""
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import DbSession
 from models.users import User as UserORM
-from modules.emr.billing_hooks import post_consultation_fee, withdraw_consultation_fee
+from modules.emr.billing_hooks import fee_for_appointments, post_consultation_fee, withdraw_consultation_fee
 from modules.emr.common import _client_ip, _record_audit, _require_emr_permission
 from modules.emr.constants import (
     APPOINTMENT_TRANSITIONS, APPT_BOOKED, APPT_CANCELLED, APPT_CHECKED_IN, APPT_COMPLETED,
     APPT_IN_CONSULT, APPT_NO_SHOW, APPT_TYPE_SCHEDULED, APPT_TYPE_WALK_IN)
-from modules.emr.models import EmrAppointment, EmrDoctorSchedule, EmrPatient
+from modules.emr.models import EmrAppointment, EmrPatient
+from modules.emr.slots import _booked_starts, _check_patient_doctor, _next_token, _resolve_slot, _slot_grid
 from routers.auth_helpers import User, get_current_user, get_owned_or_404
 
 router = APIRouter(prefix="/api/emr", tags=["emr-appointments"])
-
-_LIVE = (APPT_BOOKED, APPT_CHECKED_IN, APPT_IN_CONSULT, APPT_COMPLETED)
 
 
 class AppointmentCreate(BaseModel):
@@ -41,7 +40,7 @@ class StatusChange(BaseModel):
     cancel_reason: Optional[str] = None
 
 
-def _appt_response(a: EmrAppointment, patient_name=None, doctor_name=None) -> dict:
+def _appt_response(a: EmrAppointment, patient_name=None, doctor_name=None, fee=None) -> dict:
     fmt = lambda t: t.strftime("%H:%M") if t else None  # noqa: E731
     return {
         "id": str(a.id), "patient_id": str(a.patient_id), "patient_name": patient_name,
@@ -53,6 +52,7 @@ def _appt_response(a: EmrAppointment, patient_name=None, doctor_name=None) -> di
         "checked_in_at": a.checked_in_at.isoformat() if a.checked_in_at else None,
         "started_at": a.started_at.isoformat() if a.started_at else None,
         "completed_at": a.completed_at.isoformat() if a.completed_at else None,
+        "fee": fee,
     }
 
 
@@ -63,65 +63,6 @@ async def _names(db, a: EmrAppointment):
     d = (await db.execute(select(UserORM.name).where(
         UserORM.id == a.doctor_user_id, UserORM.pharmacy_id == a.pharmacy_id))).scalar()
     return p, d
-
-
-async def _slot_grid(db, pharmacy_id, doctor_user_id, day: date) -> list[tuple[time, time]]:
-    """Every (start, end) slot the doctor works on `day`, from their live schedule blocks."""
-    blocks = (await db.execute(select(EmrDoctorSchedule).where(
-        EmrDoctorSchedule.pharmacy_id == pharmacy_id,
-        EmrDoctorSchedule.doctor_user_id == doctor_user_id,
-        EmrDoctorSchedule.weekday == day.weekday(),
-        EmrDoctorSchedule.is_active.is_(True),
-        EmrDoctorSchedule.deleted_at.is_(None)))).scalars().all()
-    slots = []
-    for b in blocks:
-        cur = datetime.combine(day, b.start_time)
-        stop = datetime.combine(day, b.end_time)
-        step = timedelta(minutes=b.slot_minutes)
-        while cur + step <= stop:
-            slots.append((cur.time(), (cur + step).time()))
-            cur += step
-    return sorted(slots)
-
-
-async def _booked_starts(db, pharmacy_id, doctor_user_id, day, ignore_id=None) -> set:
-    rows = (await db.execute(select(EmrAppointment).where(
-        EmrAppointment.pharmacy_id == pharmacy_id,
-        EmrAppointment.doctor_user_id == doctor_user_id,
-        EmrAppointment.appointment_date == day,
-        EmrAppointment.start_time.is_not(None),
-        EmrAppointment.deleted_at.is_(None),
-        EmrAppointment.status.in_(_LIVE)))).scalars().all()
-    return {r.start_time for r in rows if r.id != ignore_id}
-
-
-async def _next_token(db, pharmacy_id, doctor_user_id, day) -> int:
-    top = (await db.execute(select(func.max(EmrAppointment.token_number)).where(
-        EmrAppointment.pharmacy_id == pharmacy_id,
-        EmrAppointment.doctor_user_id == doctor_user_id,
-        EmrAppointment.appointment_date == day))).scalar()
-    return (top or 0) + 1
-
-
-async def _check_patient_doctor(db, pharmacy_id, patient_id, doctor_user_id):
-    await get_owned_or_404(
-        db, EmrPatient, patient_id, pharmacy_id, not_found_detail="Patient not found",
-        extra_conditions=[EmrPatient.deleted_at.is_(None)])
-    await get_owned_or_404(
-        db, UserORM, doctor_user_id, pharmacy_id, not_found_detail="Doctor not found",
-        extra_conditions=[UserORM.is_active.is_(True)])
-
-
-async def _resolve_slot(db, pharmacy_id, doctor_user_id, day, start, ignore_id=None):
-    """Validates a requested start time against the schedule grid; returns its end time."""
-    grid = dict(await _slot_grid(db, pharmacy_id, doctor_user_id, day))
-    if start not in grid:
-        raise HTTPException(
-            status_code=422,
-            detail="That time is not an open slot in the doctor's schedule for that day")
-    if start in await _booked_starts(db, pharmacy_id, doctor_user_id, day, ignore_id):
-        raise HTTPException(status_code=409, detail="That slot is already booked")
-    return grid[start]
 
 
 @router.get("/slots")
@@ -200,7 +141,8 @@ async def list_appointments(
         query = query.where(EmrAppointment.status == status)
     rows = (await db.execute(query.order_by(
         EmrAppointment.appointment_date.desc(), EmrAppointment.token_number))).all()
-    return [_appt_response(a, pn, dn) for a, pn, dn in rows]
+    fees = await fee_for_appointments(db, uuid.UUID(current_user.pharmacy_id), [a for a, _, _ in rows])
+    return [_appt_response(a, pn, dn, fees.get(a.id)) for a, pn, dn in rows]
 
 
 @router.get("/appointments/{appointment_id}")

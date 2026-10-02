@@ -15,7 +15,7 @@ from models.users import User as UserORM
 from modules.emr.common import _record_audit
 from modules.emr.models import EmrAppointment, EmrDoctorProfile, EmrPatient
 from modules.patient_billing import service as billing
-from modules.patient_billing.constants import SRC_EMR
+from modules.patient_billing.constants import CHG_PAID, CHG_VOID, INV_PART_PAID, SRC_EMR
 
 
 def _fee_key(appt: EmrAppointment) -> str:
@@ -59,3 +59,31 @@ async def withdraw_consultation_fee(db: AsyncSession, appt: EmrAppointment, user
             appt.pharmacy_id, user_id, "void", "pb_charge_item", charge.id,
             {"reason": reason, "total_paise": charge.total_paise, "appointment_id": str(appt.id)},
             db, ip_address=ip_address)
+
+
+# What the queue shows next to each visit
+FEE_UNPAID, FEE_PART_PAID, FEE_PAID = "unpaid", "part_paid", "paid"
+
+
+async def fee_for_appointments(db: AsyncSession, pharmacy_id: uuid.UUID,
+                               appts: list[EmrAppointment]) -> dict[uuid.UUID, dict]:
+    """appointment id -> its consultation fee as the front desk sees it (amount, unpaid / part-paid /
+    paid, who/how it was paid, and the invoice to collect against). Visits with no fee, or whose fee
+    was withdrawn, are absent."""
+    snaps = await billing.snapshots_by_key(db, pharmacy_id, [_fee_key(a) for a in appts])
+    out = {}
+    for a in appts:
+        s = snaps.get(_fee_key(a))
+        if not s or s["charge_status"] == CHG_VOID:
+            continue
+        if s["charge_status"] == CHG_PAID:
+            status = FEE_PAID
+        elif s["invoice_status"] == INV_PART_PAID:
+            status = FEE_PART_PAID
+        else:
+            status = FEE_UNPAID
+        out[a.id] = {
+            "charge_id": s["charge_id"], "amount_paise": s["amount_paise"], "status": status,
+            "paid_paise": s["paid_paise"], "balance_paise": 0 if status == FEE_PAID else s["balance_paise"],
+            "mode": s["mode"], "invoice_id": s["invoice_id"], "invoice_number": s["invoice_number"]}
+    return out
