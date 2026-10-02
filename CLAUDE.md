@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.28 | Last updated: October 2, 2026
+# Version: 2.29 | Last updated: October 2, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -7,7 +7,7 @@
 
 ## THE PHARMACARE MANIFESTO
 
-> **Scope (Oct 2, 2026):** every rule, skill, design token, and gate in this file applies to ALL modules of the platform — Pharmacy and EMR alike — not only pharmacy screens. See `docs/27_PLATFORM_MODULE_MAP.md`, `docs/28_EMR_SCOPE.md`.
+> **Scope (Oct 2, 2026):** every rule, skill, design token, and gate in this file applies to ALL modules of the platform — Pharmacy and EMR alike — not only pharmacy screens. See `docs/27_PLATFORM_MODULE_MAP.md`, `docs/28_EMR_SCOPE.md`. **Product principle:** open-core platform (like Open Healthcare Network) — Pharmacy is a module that plugs into Core, EMR is a separate module, and modules connect only through documented APIs, never shared tables (docs/27 → Product principle).
 
 1. **One component, one way.** Every button is `<AppButton>`. Every page header is `<PageHeader>`. Every tab bar is `<PageTabs>`. Every "More options" dropdown is `<MoreMenu>`. No raw `<button>` tags, no inline title `<div>`, no custom tab UI, no hand-rolled `top-full mt-1` popover anywhere.
 2. **Design tokens, not hex.** `bg-brand`, `hover:bg-brand-dark`, `text-brand`, `border-brand`. Never `#4682B4`, never `#3a6fa0`, never `bg-[#anything]` in component code.

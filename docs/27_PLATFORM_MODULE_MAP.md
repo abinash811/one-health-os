@@ -1,11 +1,22 @@
 # Platform vs. Module Map — Core vs. Pharmacy
-# Version: 0.2 | Last updated: October 2, 2026
+# Version: 0.3 | Last updated: October 2, 2026
 # Type: Explanation
 # Status: Draft — mapping only, nothing built or moved yet.
 
 Goal: one core platform (like Open Healthcare Network / CARE) + add-on
 modules. Pharmacy = module #1, EMR = module #2.
 Scope: mapping only. 🚫 Nothing here is built or moved yet.
+
+## Product principle (Abinash, Oct 2, 2026 — standing rule)
+We are building an **open-core health platform, like Open Healthcare Network (CARE)**:
+- **Core** is the shared base (auth, users/roles, tenancy, audit, settings, design system).
+- **Pharmacy is a module that plugs into Core.** It is not the product itself.
+- **EMR is a separate module**, independent of Pharmacy. Each works alone; either can be switched off.
+- Modules never reach into each other's tables or code. Where two modules connect (e.g. EMR → Pharmacy
+  prescriptions), they do it through a **documented API** — so a pharmacy can plug into someone else's
+  EMR, or an EMR into someone else's pharmacy, with no change to either side.
+- Every new feature starts with the question: "which module owns this — Core, Pharmacy or EMR?"
+  Anything both modules need goes to Core, not copied.
 
 ## Core (shared by every module)
 
