@@ -15,6 +15,7 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import usePagination from '@/hooks/usePagination';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
+import { ROUTES } from '@/constants/routes';
 import { EMR_TABS, emrTabRoute } from '../emrTabs';
 import PatientFormModal from '../components/PatientFormModal';
 import type { EmrPatient } from '../types';
@@ -115,7 +116,10 @@ export default function Patients() {
                 </td></tr>
               ) : patients.map((p) => (
                 <tr key={p.id} className="hover:bg-brand-tint transition-colors" data-testid={`patient-row-${p.id}`}>
-                  <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
+                  <td className="px-4 py-3">
+                    <AppButton variant="chip" onClick={() => navigate(ROUTES.EMR.PATIENT(p.id))}
+                      data-testid={`open-patient-${p.id}`}>{p.name}</AppButton>
+                  </td>
                   <td className="px-4 py-3 text-gray-700">{p.phone || '—'}</td>
                   <td className="px-4 py-3 text-gray-700">
                     {[p.age != null ? `${p.age} y` : null, p.gender].filter(Boolean).join(' · ') || '—'}

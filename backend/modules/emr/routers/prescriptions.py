@@ -18,7 +18,7 @@ from models.pharmacy import Pharmacy
 from models.users import User as UserORM
 from modules.emr.common import _client_ip, _record_audit, _require_emr_permission
 from modules.emr.constants import (
-    APPT_CANCELLED, RX_CANCELLED, RX_DRAFT, RX_ISSUED, RX_NUMBER_PREFIX)
+    APPT_CANCELLED, APPT_COMPLETED, APPT_IN_CONSULT, RX_CANCELLED, RX_DRAFT, RX_ISSUED, RX_NUMBER_PREFIX)
 from modules.emr.models import EmrAppointment, EmrPatient, EmrPrescription, EmrPrescriptionItem
 from routers.auth_helpers import User, get_current_user, get_owned_or_404
 
@@ -237,6 +237,11 @@ async def issue_prescription(rx_id: uuid.UUID, request: Request,
     if not await _items(db, rx.id):
         raise HTTPException(status_code=422, detail="Add at least one medicine before issuing")
     rx.status, rx.issued_at = RX_ISSUED, datetime.now(timezone.utc)
+    # Issuing the Rx ends the consult — the doctor shouldn't need a second click to close the visit.
+    appt = await get_owned_or_404(db, EmrAppointment, rx.appointment_id, pharmacy_id,
+                                  not_found_detail="Appointment not found")
+    if appt.status == APPT_IN_CONSULT:
+        appt.status, appt.completed_at = APPT_COMPLETED, rx.issued_at
     await db.flush()
     await db.refresh(rx)
     await _record_audit(pharmacy_id, uuid.UUID(current_user.id), "issue", "emr_prescription", rx.id,

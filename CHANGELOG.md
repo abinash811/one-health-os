@@ -11,6 +11,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **EMR patient profile.** Click a patient to see details, allergy warning and every visit with its
+  prescription (view / print), and book a new appointment from there. Issuing a prescription now also
+  completes the visit, so the queue no longer leaves finished visits "In Consult".
 - **EMR step 2: consultation + prescription + printable Rx.** One prescription record per
   visit carries the whole consultation (vitals, complaints, diagnosis, advice, follow-up) plus
   its medicine lines — requested by Abinash so a visit is a single document, not two linked ones.

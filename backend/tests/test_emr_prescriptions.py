@@ -25,6 +25,8 @@ class TestPrescriptions(_EmrBase):
 
     def test_full_lifecycle_in_one_record(self):
         patient, appt = self._visit()
+        for st in ("checked_in", "in_consult"):
+            self.session.post(f"{BASE_URL}/api/emr/appointments/{appt['id']}/status", json={"status": st})
         rx = self._start(appt).json()
         assert rx["status"] == "draft" and rx["rx_number"].startswith("RX-")
         assert rx["patient_name"] == patient["name"] and rx["clinic"]["name"]
@@ -48,6 +50,9 @@ class TestPrescriptions(_EmrBase):
         assert issued.json()["issued_at"]
         locked = self.session.put(f"{BASE_URL}/api/emr/prescriptions/{rx['id']}", json=body)
         assert locked.status_code == 409
+
+        visit = self.session.get(f"{BASE_URL}/api/emr/appointments/{appt['id']}").json()
+        assert visit["status"] == "completed" and visit["completed_at"]  # issuing closes the visit
 
         hist = self.session.get(f"{BASE_URL}/api/emr/patients/{patient['id']}/prescriptions").json()
         assert [h["id"] for h in hist] == [rx["id"]]

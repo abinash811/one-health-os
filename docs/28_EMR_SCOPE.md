@@ -1,5 +1,5 @@
 # EMR Module — v1 Scope (clinic-day flow)
-# Version: 0.3 | Last updated: October 2, 2026
+# Version: 0.4 | Last updated: October 2, 2026
 # Type: Explanation
 # Status: Steps 1–2 built (Oct 2, 2026); steps 3–5 not started. Schema decisions live in docs/09_DATABASE.md
 
@@ -55,7 +55,7 @@
    - Medicines are free text, with suggestions from the clinic's own prescribing history (no drug catalog yet).
    - Rx lifecycle: draft (editable) → issued (locked, printable) / cancelled (reason required; frees the visit for a new Rx).
    - Print = browser print page (clean A4, Print / Save as PDF). Doctor-only writes; receptionist can view.
-3. Rx → pharmacy incoming list → Fill Rx into a bill → dispensed status back.
+3. Rx → pharmacy incoming list → Fill Rx into a bill → dispensed status back. **On hold.** Design when resumed: pharmacy owns a public `rx-inbox` API (per-pharmacy API key); EMR is just one client of it, so a pharmacy can use any external EMR.
 4. Whatsapp send + follow-up reminders.
 5. Fresh whole-feature audit as receptionist / doctor / pharmacist / patient (Manifesto rule 11).
 

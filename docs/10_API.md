@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.25 | Last updated: October 2, 2026
+# Version: 1.26 | Last updated: October 2, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1512,7 +1512,7 @@ One prescription per visit = consultation record + medicine lines. Audit `entity
 | POST | `/emr/prescriptions` | Body: `appointment_id`. Starts the visit's draft Rx; idempotent — returns the live one if it exists. 409 on a cancelled appointment |
 | GET | `/emr/prescriptions/{id}` | Full record incl. `items`, `patient` (age, gender, phone, allergies) and `clinic` (name, address, phone) for printing |
 | PUT | `/emr/prescriptions/{id}` | Draft only (409 otherwise). Body: `vitals`, `complaints`, `diagnosis`, `advice`, `follow_up_date`, `items[]` (replaces all lines). Negative vitals → 422 |
-| POST | `/emr/prescriptions/{id}/issue` | Draft → issued (locks it). 422 with no medicines |
+| POST | `/emr/prescriptions/{id}/issue` | Draft → issued (locks it) and, if the visit is `in_consult`, completes the appointment. 422 with no medicines |
 | POST | `/emr/prescriptions/{id}/cancel` | Body: `reason` (required). Frees the appointment for a replacement Rx |
 | GET | `/emr/prescriptions/suggestions?q=&limit=` | Medicine names this clinic prescribed before, most-used first |
 | GET | `/emr/patients/{patient_id}/prescriptions` | The patient's prescription history, newest first |

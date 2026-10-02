@@ -24,11 +24,13 @@ export interface BookAppointmentModalProps {
   doctors: EmrDoctor[];
   /** Pre-selects this doctor (the day view's current filter). */
   defaultDoctorId?: string;
+  /** Opens with this patient already chosen (e.g. from their profile). */
+  defaultPatient?: EmrPatient | null;
   onClose: () => void;
   onBooked: () => void;
 }
 
-export default function BookAppointmentModal({ open, doctors, defaultDoctorId, onClose, onBooked }: BookAppointmentModalProps) {
+export default function BookAppointmentModal({ open, doctors, defaultDoctorId, defaultPatient, onClose, onBooked }: BookAppointmentModalProps) {
   const [patientQuery, setPatientQuery] = useState('');
   const [matches, setMatches] = useState<EmrPatient[]>([]);
   const [patient, setPatient] = useState<EmrPatient | null>(null);
@@ -44,10 +46,10 @@ export default function BookAppointmentModal({ open, doctors, defaultDoctorId, o
 
   useEffect(() => {
     if (!open) return;
-    setPatientQuery(''); setMatches([]); setPatient(null); setDate(today()); setMode('slot');
+    setPatientQuery(''); setMatches([]); setPatient(defaultPatient ?? null); setDate(today()); setMode('slot');
     setStartTime(''); setReason('');
     setDoctorId(defaultDoctorId || doctors[0]?.id || '');
-  }, [open, defaultDoctorId, doctors]);
+  }, [open, defaultDoctorId, defaultPatient, doctors]);
 
   const searchPatients = useDebouncedCallback(async (q: string) => {
     if (!q.trim()) { setMatches([]); return; }
