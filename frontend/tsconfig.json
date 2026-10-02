@@ -11,12 +11,11 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "ignoreDeprecations": "5.0",
 
     /* ── Path aliases (mirrors craco.config.js webpack alias) ───────── */
-    "baseUrl": "src",
+    /* No baseUrl: deprecated in TS 6; paths resolve from this file.     */
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./src/*"]
     },
 
     /* ── Gradual migration — allow .js/.jsx files alongside .ts/.tsx ── */
