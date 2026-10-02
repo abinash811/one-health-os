@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.64 | Last updated: October 2, 2026
+# Version: 3.65 | Last updated: October 2, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1544,6 +1544,7 @@ going forward — do not re-propose Sheets without Abinash raising it again.
 | 2. Consultation + Rx editor + printable Rx — ONE prescription record per visit (`emr_prescriptions` + items), own-history medicine suggestions, issue/cancel lifecycle, browser print page (7 pytest + 9 jest tests) | ✅ Built Oct 2, 2026 (live walkthrough pending) |
 | 2b. Patient profile page `/emr/patients/:id` — details, allergy banner, visit history with each Rx (reprint/view), book from profile; issuing an Rx now auto-completes the visit (6 jest tests) | ✅ Built + live-walked Oct 2, 2026 |
 | 2c. Clinic Settings `/emr/settings` — clinic profile + registration no. + Rx footer, UHID & Rx number formats, default slot length, configurable patient form (hide/require fields, enforced server-side), doctor profiles (specialty/qualification/registration printed on Rx); EMR actions labelled in the Audit Log (13 pytest + 10 jest tests) | ✅ Built Oct 2, 2026 |
+| 2d. Patient Billing (consultation fee, one account per patient, each counter bills its own, billing-desk Pending list) — plan + 8-screen mock-up in `docs/29_BILLING_SCOPE.md` | 📝 Planned — awaiting table approval (3 tables + 1 column) |
 | 3. Rx → pharmacy incoming list → Fill Rx → dispensed status | ⏸ On hold (Abinash, Oct 2) — agreed design when resumed: pharmacy exposes its own `rx-inbox` API (per-pharmacy API key, status returned to sender); our EMR calls that same API so any external EMR can plug in. Needs tables `pharmacy_api_keys`, `incoming_prescriptions(+items)` — not yet approved. |
 | 4. WhatsApp send + follow-up reminders | ⬜ Not started |
 | 5. Whole-feature persona audit (receptionist / doctor / pharmacist / patient) | ⬜ Not started |
