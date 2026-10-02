@@ -1,5 +1,5 @@
 # Platform vs. Module Map — Core vs. Pharmacy
-# Version: 0.1 | Last updated: October 2, 2026
+# Version: 0.2 | Last updated: October 2, 2026
 # Type: Explanation
 # Status: Draft — mapping only, nothing built or moved yet.
 
@@ -44,6 +44,13 @@ Scope: mapping only. 🚫 Nothing here is built or moved yet.
 3. **Permissions, roles, settings, audit are pharmacy-flavoured** — core cannot ship without them being generic.
 4. **Billing and reports are huge files** (`reports.py` 2042, `billing.py` 1567 lines) mixing pharmacy rules — extract after the boundary exists.
 5. **CLAUDE.md rules are PharmaCare-specific** (paise, H1, design guard) — need core vs. module rule split.
+
+## Decision — keep `pharmacy_id` (Oct 2, 2026, Abinash)
+
+- No rename. Blocker 1 above is cosmetic, not functional.
+- Hospital = a `chains` row. Each clinic is linked to one pharmacy (Clinic 1 ↔ Pharmacy 1, Clinic 2 ↔ Pharmacy 2), all under one chain.
+- Pharmacy tables keep `pharmacy_id`; EMR tables will reference their clinic and its linked pharmacy.
+- Open gap: a clinic with no pharmacy — decide when EMR is built.
 
 ## Proposed order (needs approval)
 
