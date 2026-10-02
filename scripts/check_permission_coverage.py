@@ -48,6 +48,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ROUTERS_DIR = REPO_ROOT / "backend" / "routers"
+# Platform modules (docs/27) keep their own routers under backend/modules/<name>/routers/ —
+# they get the same endpoint-safety gates as the core routers (added Oct 2, 2026 with EMR).
+MODULE_ROUTERS_GLOB = (REPO_ROOT / "backend" / "modules").glob("*/routers/*.py")
 
 # Pre-authentication / self-only identity primitives — a role/permission
 # concept does not apply to any endpoint in this file. See module docstring.
@@ -125,7 +128,7 @@ def main() -> int:
         return 0
 
     all_violations = []
-    for path in sorted(ROUTERS_DIR.glob("*.py")):
+    for path in sorted(list(ROUTERS_DIR.glob("*.py")) + list(MODULE_ROUTERS_GLOB)):
         if path.name in EXEMPT_FILES:
             continue
         all_violations.extend(check_file(path))

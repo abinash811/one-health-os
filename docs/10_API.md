@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.23 | Last updated: September 28, 2026
+# Version: 1.24 | Last updated: October 2, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1435,6 +1435,41 @@ not `settings.py`, alongside the rest of the role endpoints above — look
 there first if these seem to be missing.
 
 ---
+
+## EMR (module #2 — added Oct 2, 2026)
+
+> Routers: `backend/modules/emr/routers/`. Scope: `docs/28_EMR_SCOPE.md`. All endpoints are
+> pharmacy-scoped (the caller's own `pharmacy_id`), permission-checked, and audit-logged
+> (`entity_type` = `emr_patient` / `emr_schedule` / `emr_appointment`). Deletes are soft.
+> Status/type values live in `backend/modules/emr/constants.py`.
+
+### Patients — `patients:view|create|edit|delete`
+| Method | Path | Notes |
+|--------|------|-------|
+| POST | `/emr/patients` | Body: `name` (required), `phone`, `alternate_phone` (≤10 chars), `email`, `date_of_birth`, `age`, `gender`, `blood_group`, `address`, `city`, `allergies`, `notes` |
+| GET | `/emr/patients?search=&page=&page_size=` | Search by name/phone. Always paginated: `{data, pagination}` |
+| GET | `/emr/patients/{id}` | 404 if deleted or another pharmacy's |
+| PUT | `/emr/patients/{id}` | Partial update of the fields above; returns the patient |
+| DELETE | `/emr/patients/{id}` | Soft delete |
+
+### Doctors & schedules — `schedules:view|edit`
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/emr/doctors` | Active users with role `doctor`, or who have a schedule block. Needs `appointments:view` |
+| GET | `/emr/schedules?doctor_user_id=` | Working-hours blocks, ordered weekday/start |
+| POST | `/emr/schedules` | `doctor_user_id`, `weekday` (Mon=0..Sun=6), `start_time`/`end_time` (`HH:MM`), `slot_minutes` (5–120, default 15). 409 on overlap with an existing block |
+| PUT | `/emr/schedules/{id}` | Partial update; same validation |
+| DELETE | `/emr/schedules/{id}` | Soft delete |
+
+### Appointments — `appointments:view|create|edit|cancel`
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/emr/slots?doctor_user_id=&date=` | Slot grid from the doctor's schedule: `[{start_time, end_time, available}]` |
+| POST | `/emr/appointments` | `patient_id`, `doctor_user_id`, `appointment_date`, optional `start_time`, `reason`. With `start_time` = scheduled (must be an open slot, 422 if off-grid/outside hours, 409 if taken). Without = walk-in (today only). Past dates 422. Token number is per doctor per day |
+| GET | `/emr/appointments?date=&doctor_user_id=&patient_id=&status=` | Day view / live queue. Defaults to today (all dates when `patient_id` is given). Ordered by token. Includes `patient_name`, `doctor_name` |
+| GET | `/emr/appointments/{id}` | |
+| PUT | `/emr/appointments/{id}` | Reschedule (`appointment_date`, `start_time`, `doctor_user_id`) or edit `reason`. Only while `booked` (else 409) |
+| POST | `/emr/appointments/{id}/status` | Body `{status, cancel_reason?}`. Moves: `booked→checked_in→in_consult→completed`; `booked/checked_in→cancelled` (reason required, needs `appointments:cancel`); `booked→no_show`. Invalid move = 409 |
 
 ## AUDIT LOGS
 

@@ -11,6 +11,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **EMR module, step 1 backend (patients, doctor schedules, appointments, live queue).**
+  Second platform module after pharmacy (`docs/27`, `docs/28`). EMR has its own
+  patients table so it works without the pharmacy module; a doctor is a login user.
+  Scheduled visits must land on an open slot in the doctor's working hours (no
+  double-booking, enforced by the database too); walk-ins get a per-doctor daily
+  token; the queue follows booked → checked in → in consult → completed, with
+  cancel (reason required) and no-show. New `receptionist` and `doctor` default
+  roles. The endpoint-safety gates (permission, audit, tenant, chain-scope) now
+  also scan module routers. No screens yet.
 - **New guardrail: doc content can't change without its 'Last updated'
   line changing too.** Audited every doc's header date against real edit
   history and found the same silent-drift pattern as the token bug, three

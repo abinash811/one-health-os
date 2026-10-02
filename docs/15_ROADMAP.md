@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.58 | Last updated: September 28, 2026
+# Version: 3.59 | Last updated: October 2, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1527,6 +1527,26 @@ going forward — do not re-propose Sheets without Abinash raising it again.
   checking the code directly: the backend genuinely exists, but grep found
   zero frontend callers — no button/modal on Team → Members wires it up.
   Remaining work is frontend-only: a "Reset password" action per member row.
+
+---
+
+## EMR MODULE (platform module #2) `🚧 In progress — started Oct 2, 2026`
+
+> Scope + persona flow: `docs/28_EMR_SCOPE.md`. Core-vs-module split: `docs/27_PLATFORM_MODULE_MAP.md`.
+> Decisions (Abinash, Oct 2): EMR has its own patients table (works with pharmacy off, linked
+> by phone when both are on); `pharmacy_id` stays the tenant key; hospital = a chain; a doctor is a login user.
+
+| Step | Status |
+|------|--------|
+| 1a. Tables + migration (`emr_patients`, `emr_doctor_schedules`, `emr_appointments`) | ✅ Built Oct 2, 2026 |
+| 1b. Backend API: patients, doctor schedules, slots, appointments, queue status machine (+ 16 pytest tests) | ✅ Built Oct 2, 2026 |
+| 1c. Frontend: patients, appointments day view, queue, doctor schedule screens | ⬜ Not started |
+| 2. Consultation + Rx editor + printable Rx | ⬜ Not started |
+| 3. Rx → pharmacy incoming list → Fill Rx → dispensed status | ⬜ Not started |
+| 4. WhatsApp send + follow-up reminders | ⬜ Not started |
+| 5. Whole-feature persona audit (receptionist / doctor / pharmacist / patient) | ⬜ Not started |
+
+Open: patient↔customer phone-match link and "Added in pharmacy/EMR" badge (needs both modules on); clinic with no pharmacy.
 
 ---
 

@@ -48,6 +48,28 @@ DEFAULT_ROLES = [
         "is_default": True,
         "is_super_admin": False,
     },
+    {
+        "name": "receptionist",
+        "display_name": "Receptionist (EMR)",
+        "permissions": [
+            "patients:view", "patients:create", "patients:edit",
+            "appointments:view", "appointments:create", "appointments:edit", "appointments:cancel",
+            "schedules:view",
+        ],
+        "is_default": True,
+        "is_super_admin": False,
+    },
+    {
+        "name": "doctor",
+        "display_name": "Doctor (EMR)",
+        "permissions": [
+            "patients:view", "patients:create", "patients:edit",
+            "appointments:view", "appointments:create", "appointments:edit",
+            "schedules:view", "schedules:edit",
+        ],
+        "is_default": True,
+        "is_super_admin": False,
+    },
 ]
 
 # ── All permission definitions (used by /permissions endpoint and UI) ─────────
@@ -111,6 +133,22 @@ ALL_PERMISSIONS = {
         {"id": "roles:create", "name": "Create Roles"},
         {"id": "roles:edit", "name": "Edit Roles"},
         {"id": "roles:delete", "name": "Delete Roles"},
+    ]},
+    "patients": {"display_name": "Patients (EMR)", "permissions": [
+        {"id": "patients:view", "name": "View Patients"},
+        {"id": "patients:create", "name": "Register Patients"},
+        {"id": "patients:edit", "name": "Edit Patients"},
+        {"id": "patients:delete", "name": "Delete Patients"},
+    ]},
+    "appointments": {"display_name": "Appointments (EMR)", "permissions": [
+        {"id": "appointments:view", "name": "View Appointments & Queue"},
+        {"id": "appointments:create", "name": "Book Appointments"},
+        {"id": "appointments:edit", "name": "Reschedule / Update Appointments"},
+        {"id": "appointments:cancel", "name": "Cancel Appointments"},
+    ]},
+    "schedules": {"display_name": "Doctor Schedules (EMR)", "permissions": [
+        {"id": "schedules:view", "name": "View Doctor Schedules"},
+        {"id": "schedules:edit", "name": "Edit Doctor Schedules"},
     ]},
     "suppliers": {"display_name": "Suppliers", "permissions": [
         {"id": "suppliers:view", "name": "View Suppliers"},

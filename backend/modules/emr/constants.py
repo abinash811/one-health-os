@@ -23,3 +23,20 @@ APPOINTMENT_TYPES = (APPT_TYPE_SCHEDULED, APPT_TYPE_WALK_IN)
 PATIENT_SOURCE_EMR = "emr"
 PATIENT_SOURCE_PHARMACY = "pharmacy"
 PATIENT_SOURCES = (PATIENT_SOURCE_EMR, PATIENT_SOURCE_PHARMACY)
+
+# Allowed status moves. Cancelling needs a reason; completed/cancelled/no_show are final.
+APPOINTMENT_TRANSITIONS = {
+    APPT_BOOKED: (APPT_CHECKED_IN, APPT_CANCELLED, APPT_NO_SHOW),
+    APPT_CHECKED_IN: (APPT_IN_CONSULT, APPT_CANCELLED),
+    APPT_IN_CONSULT: (APPT_COMPLETED,),
+    APPT_COMPLETED: (),
+    APPT_CANCELLED: (),
+    APPT_NO_SHOW: (),
+}
+
+# A "doctor" is a login user; this default role name marks them in the doctor list.
+ROLE_DOCTOR = "doctor"
+ROLE_RECEPTIONIST = "receptionist"
+
+MIN_SLOT_MINUTES = 5
+MAX_SLOT_MINUTES = 120

@@ -15,6 +15,9 @@ from routers import (
     purchase_returns, purchases, reports, sales_returns,
     settings, stock_transfers, suppliers, users,
 )
+from modules.emr.routers import appointments as emr_appointments
+from modules.emr.routers import patients as emr_patients
+from modules.emr.routers import schedules as emr_schedules
 from services.provisioning import create_pharmacy_with_defaults
 from utils import excel
 
@@ -68,6 +71,9 @@ app.include_router(purchase_returns.router)
 app.include_router(sales_returns.router)
 app.include_router(stock_transfers.router)
 app.include_router(excel.router)
+app.include_router(emr_patients.router)
+app.include_router(emr_schedules.router)
+app.include_router(emr_appointments.router)
 
 
 # ── Startup seeder ────────────────────────────────────────────────────────────
