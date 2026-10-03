@@ -73,14 +73,17 @@ class EmrDoctorSchedule(Base):
     A doctor with morning + evening clinic has two rows for the same day."""
     __tablename__ = "emr_doctor_schedules"
     __table_args__ = (
-        Index("idx_emr_doctor_schedules_doctor", "pharmacy_id", "doctor_user_id", "weekday"),
+        Index("idx_emr_doctor_schedules_practitioner", "pharmacy_id", "practitioner_id", "weekday"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     pharmacy_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
-    doctor_user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    # Legacy login id from before doctors became their own records (docs/31, P2). No longer written;
+    # kept readable for history until phase 4 drops it.
+    doctor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    practitioner_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("practitioners.id"), nullable=False)
     weekday: Mapped[int] = mapped_column(Integer, nullable=False)
     start_time: Mapped[time] = mapped_column(Time, nullable=False)
     end_time: Mapped[time] = mapped_column(Time, nullable=False)
@@ -99,10 +102,10 @@ class EmrAppointment(Base):
     two receptionists being handed the same token."""
     __tablename__ = "emr_appointments"
     __table_args__ = (
-        UniqueConstraint("pharmacy_id", "doctor_user_id", "appointment_date", "token_number",
+        UniqueConstraint("pharmacy_id", "practitioner_id", "appointment_date", "token_number",
                          name="uq_emr_appointments_token"),
         # No two live bookings for the same doctor/day/time slot.
-        Index("uq_emr_appointments_slot", "pharmacy_id", "doctor_user_id", "appointment_date",
+        Index("uq_emr_appointments_slot", "pharmacy_id", "practitioner_id", "appointment_date",
               "start_time", unique=True,
               postgresql_where=text("deleted_at IS NULL AND start_time IS NOT NULL "
                                     "AND status NOT IN ('cancelled', 'no_show')")),
@@ -115,8 +118,11 @@ class EmrAppointment(Base):
         UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
     patient_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("emr_patients.id"), nullable=False)
-    doctor_user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    # Legacy login id from before doctors became their own records (docs/31, P2). No longer written;
+    # kept readable for history until phase 4 drops it.
+    doctor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    practitioner_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("practitioners.id"), nullable=False)
     appointment_date: Mapped[date] = mapped_column(Date, nullable=False)
     start_time: Mapped[Optional[time]] = mapped_column(Time)
     end_time: Mapped[Optional[time]] = mapped_column(Time)
@@ -161,8 +167,11 @@ class EmrPrescription(Base):
         UUID(as_uuid=True), ForeignKey("emr_appointments.id"), nullable=False)
     patient_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("emr_patients.id"), nullable=False)
-    doctor_user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    # Legacy login id from before doctors became their own records (docs/31, P2). No longer written;
+    # kept readable for history until phase 4 drops it.
+    doctor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    practitioner_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("practitioners.id"), nullable=False)
     rx_number: Mapped[str] = mapped_column(String(30), nullable=False)
     status: Mapped[str] = mapped_column(
         String(20), default=RX_DRAFT, server_default=RX_DRAFT, nullable=False)

@@ -1,6 +1,8 @@
-"""EMR clinic settings + doctor profiles (docs/28_EMR_SCOPE.md → Settings).
+"""EMR clinic settings + this clinic's doctors and their fees (docs/28_EMR_SCOPE.md → Settings).
 Any clinic user can READ settings (the patient form and printouts need them);
-only roles with `emr_settings:edit` can change them."""
+only roles with `emr_settings:edit` can change them. Doctor PROFILES (name, registration…) belong to the
+hospital and are edited under Settings → Organisation → Doctors (docs/31_CORE_DOCTOR_SCOPE.md); here a
+clinic only sets its own consultation fee for each doctor mapped to it."""
 from __future__ import annotations
 
 import re
@@ -11,18 +13,17 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from deps import DbSession
 from models.pharmacy import Pharmacy
-from models.users import User as UserORM
+from models.practitioners import PractitionerClinic
 from modules.emr.common import _client_ip, _record_audit, _require_emr_permission
-from modules.emr.constants import (
-    FIELD_STATES, MAX_SLOT_MINUTES, MIN_SLOT_MINUTES, PATIENT_FORM_DEFAULTS, ROLE_DOCTOR)
-from modules.emr.models import EmrDoctorProfile, EmrSettings
+from modules.emr.constants import FIELD_STATES, MAX_SLOT_MINUTES, MIN_SLOT_MINUTES, PATIENT_FORM_DEFAULTS
+from modules.emr.doctors import clinic_doctors, get_clinic_doctor
+from modules.emr.models import EmrSettings
 from modules.emr.settings_service import effective_patient_form, get_or_create_settings
 from modules.patient_billing.constants import MAX_AMOUNT_PAISE
-from routers.auth_helpers import User, get_current_user, get_owned_or_404
+from routers.auth_helpers import User, get_current_user
 
 router = APIRouter(prefix="/api/emr", tags=["emr-settings"])
 
@@ -43,11 +44,8 @@ class SettingsUpdate(BaseModel):
     patient_form: Optional[dict] = None
 
 
-class DoctorProfileUpdate(BaseModel):
+class ClinicDoctorFee(BaseModel):
     consultation_fee_paise: Optional[int] = Field(None, ge=0, le=MAX_AMOUNT_PAISE)
-    specialty: Optional[str] = Field(None, max_length=100)
-    qualification: Optional[str] = Field(None, max_length=200)
-    registration_no: Optional[str] = Field(None, max_length=100)
 
 
 async def _settings_response(db, s: EmrSettings) -> dict:
@@ -107,54 +105,35 @@ async def update_settings(data: SettingsUpdate, request: Request,
     return await _settings_response(db, s)
 
 
-async def _profile(db, pharmacy_id, user_id) -> Optional[EmrDoctorProfile]:
-    return (await db.execute(select(EmrDoctorProfile).where(
-        EmrDoctorProfile.pharmacy_id == pharmacy_id, EmrDoctorProfile.user_id == user_id))).scalar_one_or_none()
+def _clinic_doctor_dict(p, fee: Optional[int]) -> dict:
+    return {"id": str(p.id), "name": p.name, "specialty": p.specialty, "qualification": p.qualification,
+            "registration_no": p.registration_no, "consultation_fee_paise": fee}
 
 
-def _profile_dict(u: UserORM, p: Optional[EmrDoctorProfile]) -> dict:
-    return {"user_id": str(u.id), "name": u.name,
-            "specialty": p.specialty if p else None, "qualification": p.qualification if p else None,
-            "registration_no": p.registration_no if p else None,
-            "consultation_fee_paise": p.consultation_fee_paise if p else None}
-
-
-@router.get("/doctor-profiles")
-async def list_doctor_profiles(current_user: User = Depends(get_current_user),
-                               db: AsyncSession = DbSession):
+@router.get("/clinic-doctors")
+async def list_clinic_doctors(current_user: User = Depends(get_current_user),
+                              db: AsyncSession = DbSession):
+    """The doctors mapped to this clinic, with this clinic's consultation fee for each."""
     await _require_emr_permission(current_user, "patients:view", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    users = (await db.execute(
-        select(UserORM).options(joinedload(UserORM.role)).where(
-            UserORM.pharmacy_id == pharmacy_id, UserORM.is_active.is_(True)).order_by(UserORM.name))).scalars().all()
-    profiles = {p.user_id: p for p in (await db.execute(select(EmrDoctorProfile).where(
-        EmrDoctorProfile.pharmacy_id == pharmacy_id))).scalars().all()}
-    return [_profile_dict(u, profiles.get(u.id)) for u in users if u.role.name == ROLE_DOCTOR or u.id in profiles]
+    return [_clinic_doctor_dict(p, fee) for p, fee in await clinic_doctors(db, pharmacy_id)]
 
 
-@router.put("/doctor-profiles/{user_id}")
-async def update_doctor_profile(user_id: uuid.UUID, data: DoctorProfileUpdate, request: Request,
-                                current_user: User = Depends(get_current_user),
-                                db: AsyncSession = DbSession):
+@router.put("/clinic-doctors/{practitioner_id}")
+async def update_clinic_doctor_fee(practitioner_id: uuid.UUID, data: ClinicDoctorFee, request: Request,
+                                   current_user: User = Depends(get_current_user),
+                                   db: AsyncSession = DbSession):
+    """Set THIS clinic's consultation fee for a doctor mapped here (blank / 0 = no fee at check-in)."""
     await _require_emr_permission(current_user, "emr_settings:edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    user = await get_owned_or_404(db, UserORM, user_id, pharmacy_id, not_found_detail="Doctor not found",
-                                  extra_conditions=[UserORM.is_active.is_(True)])
-    profile = await _profile(db, pharmacy_id, user.id)
-    old = {}
-    if profile is None:
-        profile = EmrDoctorProfile(pharmacy_id=pharmacy_id, user_id=user.id)
-        db.add(profile)
-    else:
-        old = {"specialty": profile.specialty, "qualification": profile.qualification,
-               "registration_no": profile.registration_no,
-               "consultation_fee_paise": profile.consultation_fee_paise}
-    changes = {k: (v.strip() or None if isinstance(v, str) else v)
-               for k, v in data.model_dump(exclude_unset=True).items()}
-    for k, v in changes.items():
-        setattr(profile, k, v)
+    doctor = await get_clinic_doctor(db, pharmacy_id, practitioner_id)
+    link = (await db.execute(select(PractitionerClinic).where(
+        PractitionerClinic.practitioner_id == doctor.id, PractitionerClinic.pharmacy_id == pharmacy_id,
+        PractitionerClinic.deleted_at.is_(None)))).scalar_one()
+    old = {"consultation_fee_paise": link.consultation_fee_paise}
+    link.consultation_fee_paise = data.consultation_fee_paise
     await db.flush()
-    await db.refresh(profile)
-    await _record_audit(pharmacy_id, uuid.UUID(current_user.id), "update", "emr_doctor_profile", profile.id,
-                        changes, db, old_values=old or None, ip_address=_client_ip(request))
-    return _profile_dict(user, profile)
+    await _record_audit(pharmacy_id, uuid.UUID(current_user.id), "update", "practitioner_clinic", link.id,
+                        {"consultation_fee_paise": link.consultation_fee_paise, "practitioner_id": str(doctor.id)},
+                        db, old_values=old, ip_address=_client_ip(request))
+    return _clinic_doctor_dict(doctor, link.consultation_fee_paise)

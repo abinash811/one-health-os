@@ -16,12 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import DbSession
 from models.pharmacy import Pharmacy
-from models.users import User as UserORM
+from modules.emr.doctors import doctor_for_record
 from modules.emr.common import _client_ip, _record_audit, _require_emr_permission
 from modules.emr.constants import (
     APPT_CANCELLED, APPT_COMPLETED, APPT_IN_CONSULT, RX_CANCELLED, RX_DRAFT, RX_ISSUED)
 from modules.emr.models import (
-    EmrAppointment, EmrDoctorProfile, EmrPatient, EmrPrescription, EmrPrescriptionItem)
+    EmrAppointment, EmrPatient, EmrPrescription, EmrPrescriptionItem)
 from modules.emr.settings_service import get_or_create_settings
 from routers.auth_helpers import User, get_current_user, get_owned_or_404
 
@@ -87,13 +87,12 @@ async def _items(db, rx_id) -> list[EmrPrescriptionItem]:
 async def _rx_response(db, rx: EmrPrescription, full: bool = True) -> dict:
     p = (await db.execute(select(EmrPatient).where(
         EmrPatient.id == rx.patient_id, EmrPatient.pharmacy_id == rx.pharmacy_id))).scalar_one_or_none()
-    doc = (await db.execute(select(UserORM.name).where(
-        UserORM.id == rx.doctor_user_id, UserORM.pharmacy_id == rx.pharmacy_id))).scalar()
+    doc = await doctor_for_record(db, rx.practitioner_id)
     out = {
         "id": str(rx.id), "rx_number": rx.rx_number, "status": rx.status,
         "appointment_id": str(rx.appointment_id), "patient_id": str(rx.patient_id),
-        "patient_name": p.name if p else None, "doctor_user_id": str(rx.doctor_user_id),
-        "doctor_name": doc, "vitals": rx.vitals or {}, "complaints": rx.complaints,
+        "patient_name": p.name if p else None, "doctor_id": str(rx.practitioner_id),
+        "doctor_name": doc.name if doc else None, "vitals": rx.vitals or {}, "complaints": rx.complaints,
         "diagnosis": rx.diagnosis, "advice": rx.advice,
         "follow_up_date": rx.follow_up_date.isoformat() if rx.follow_up_date else None,
         "issued_at": rx.issued_at.isoformat() if rx.issued_at else None,
@@ -102,9 +101,6 @@ async def _rx_response(db, rx: EmrPrescription, full: bool = True) -> dict:
     if full:
         ph = (await db.execute(select(Pharmacy).where(Pharmacy.id == rx.pharmacy_id))).scalar_one()
         cfg = await get_or_create_settings(db, rx.pharmacy_id)
-        prof = (await db.execute(select(EmrDoctorProfile).where(
-            EmrDoctorProfile.pharmacy_id == rx.pharmacy_id,
-            EmrDoctorProfile.user_id == rx.doctor_user_id))).scalar_one_or_none()
         out["items"] = [{
             "id": str(i.id), "medicine_name": i.medicine_name, "dosage": i.dosage,
             "frequency": i.frequency, "duration_days": i.duration_days,
@@ -119,8 +115,8 @@ async def _rx_response(db, rx: EmrPrescription, full: bool = True) -> dict:
             "phone": cfg.clinic_phone or ph.phone, "email": cfg.clinic_email,
             "registration_no": cfg.registration_no, "footer": cfg.rx_footer}
         out["doctor"] = {
-            "specialty": prof.specialty if prof else None, "qualification": prof.qualification if prof else None,
-            "registration_no": prof.registration_no if prof else None}
+            "specialty": doc.specialty if doc else None, "qualification": doc.qualification if doc else None,
+            "registration_no": doc.registration_no if doc else None}
         out["patient_uhid"] = p.uhid if p else None
     return out
 
@@ -156,7 +152,7 @@ async def start_prescription(data: RxCreate, request: Request,
     for _ in range(3):
         candidate = EmrPrescription(
             pharmacy_id=pharmacy_id, appointment_id=appt.id, patient_id=appt.patient_id,
-            doctor_user_id=appt.doctor_user_id, rx_number=await _next_rx_number(db, pharmacy_id),
+            practitioner_id=appt.practitioner_id, rx_number=await _next_rx_number(db, pharmacy_id),
             status=RX_DRAFT, created_by=uid)
         try:
             async with db.begin_nested():

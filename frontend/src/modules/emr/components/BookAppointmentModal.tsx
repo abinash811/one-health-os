@@ -71,7 +71,7 @@ export default function BookAppointmentModal({ open, doctors, defaultDoctorId, d
     let cancelled = false;
     setSlotsLoading(true);
     setStartTime('');
-    api.get(apiUrl.emrSlots({ doctor_user_id: doctorId, date }))
+    api.get(apiUrl.emrSlots({ doctor_id: doctorId, date }))
       .then((res) => {
         if (cancelled) return;
         setSlots(res.data || []);
@@ -92,7 +92,7 @@ export default function BookAppointmentModal({ open, doctors, defaultDoctorId, d
     setBusy(true);
     try {
       const res = await api.post(apiUrl.emrAppointments(), {
-        patient_id: patient.id, doctor_user_id: doctorId,
+        patient_id: patient.id, doctor_id: doctorId,
         appointment_date: walkIn ? today() : date,
         start_time: walkIn ? undefined : startTime,
         reason: reason.trim() || undefined,

@@ -10,7 +10,7 @@ jest.mock('@/lib/axios', () => ({
 }));
 jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 
-const DOCTORS = [{ id: 'd1', name: 'Dr Rao', role: 'doctor' }];
+const DOCTORS = [{ id: 'd1', name: 'Dr Rao' }];
 const PATIENT = { id: 'p1', name: 'Asha Menon', phone: '9876543210' };
 const SLOTS = [
   { start_time: '09:00', end_time: '09:30', available: false },
@@ -46,7 +46,7 @@ describe('BookAppointmentModal', () => {
     await userEvent.click(screen.getByTestId('submit-appointment-btn'));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('emr/appointments', expect.objectContaining({
-      patient_id: 'p1', doctor_user_id: 'd1', start_time: '09:30',
+      patient_id: 'p1', doctor_id: 'd1', start_time: '09:30',
     })));
     expect(onBooked).toHaveBeenCalled();
   });

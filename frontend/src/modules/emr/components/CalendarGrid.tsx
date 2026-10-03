@@ -30,7 +30,7 @@ export default function CalendarGrid({ columns, schedules, appointments, range, 
   const hours: number[] = [];
   for (let m = range.start; m < range.end; m += 60) hours.push(m);
   const hasWalkIns = appointments.some((a) => a.appointment_type === APPOINTMENT_TYPE.WALK_IN);
-  const forColumn = (c: CalColumn) => appointments.filter((a) => a.doctor_user_id === c.doctorId && a.appointment_date === c.date);
+  const forColumn = (c: CalColumn) => appointments.filter((a) => a.doctor_id === c.doctorId && a.appointment_date === c.date);
 
   return (
     <div className="overflow-auto border border-gray-200 rounded-xl bg-white" style={{ maxHeight: 'calc(100vh - 280px)' }} data-testid="calendar-grid">

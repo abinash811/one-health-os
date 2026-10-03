@@ -47,7 +47,7 @@ export default function ScheduleBlockModal({ open, doctorId, block, defaultWeekd
     try {
       const body = { weekday: Number(weekday), start_time: start, end_time: end, slot_minutes: Number(slot) };
       if (block) await api.put(apiUrl.emrSchedule(block.id), body);
-      else await api.post(apiUrl.emrSchedules(), { ...body, doctor_user_id: doctorId });
+      else await api.post(apiUrl.emrSchedules(), { ...body, doctor_id: doctorId });
       toast.success(block ? 'Working hours updated' : 'Working hours added');
       onSaved();
       onClose();

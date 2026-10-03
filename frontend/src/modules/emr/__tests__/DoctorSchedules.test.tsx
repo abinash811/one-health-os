@@ -10,7 +10,7 @@ jest.mock('@/lib/axios', () => ({
 }));
 jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 
-const BLOCK = { id: 'b1', doctor_user_id: 'd1', weekday: 0, start_time: '09:00', end_time: '13:00',
+const BLOCK = { id: 'b1', doctor_id: 'd1', weekday: 0, start_time: '09:00', end_time: '13:00',
   slot_minutes: 15, is_active: true };
 
 function mockApi(doctors: unknown[], blocks: unknown[]) {
@@ -23,12 +23,12 @@ describe('Doctor Schedules', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('lays out the week with working hours and "Not working" days', async () => {
-    mockApi([{ id: 'd1', name: 'Dr Rao', role: 'doctor' }], [BLOCK]);
+    mockApi([{ id: 'd1', name: 'Dr Rao' }], [BLOCK]);
     renderPage();
 
     await waitFor(() => expect(screen.getByTestId('block-b1')).toHaveTextContent('9:00 AM – 1:00 PM · 15 min'));
     expect(screen.getByTestId('schedule-day-1')).toHaveTextContent('Not working');
-    expect(api.get).toHaveBeenCalledWith('emr/schedules?doctor_user_id=d1');
+    expect(api.get).toHaveBeenCalledWith('emr/schedules?doctor_id=d1');
   });
 
   it('points a clinic with no doctors to Team', async () => {
@@ -39,7 +39,7 @@ describe('Doctor Schedules', () => {
   });
 
   it('adds working hours for the chosen doctor', async () => {
-    mockApi([{ id: 'd1', name: 'Dr Rao', role: 'doctor' }], []);
+    mockApi([{ id: 'd1', name: 'Dr Rao' }], []);
     (api.post as jest.Mock).mockResolvedValue({ data: BLOCK });
     renderPage();
 
@@ -48,12 +48,12 @@ describe('Doctor Schedules', () => {
     await userEvent.click(await screen.findByTestId('submit-block-btn'));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('emr/schedules', {
-      doctor_user_id: 'd1', weekday: 0, start_time: '09:00', end_time: '13:00', slot_minutes: 15,
+      doctor_id: 'd1', weekday: 0, start_time: '09:00', end_time: '13:00', slot_minutes: 15,
     }));
   });
 
   it('removes a block only after confirming', async () => {
-    mockApi([{ id: 'd1', name: 'Dr Rao', role: 'doctor' }], [BLOCK]);
+    mockApi([{ id: 'd1', name: 'Dr Rao' }], [BLOCK]);
     (api.delete as jest.Mock).mockResolvedValue({ data: {} });
     renderPage();
 

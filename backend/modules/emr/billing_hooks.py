@@ -11,9 +11,9 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.users import User as UserORM
 from modules.emr.common import _record_audit
-from modules.emr.models import EmrAppointment, EmrDoctorProfile, EmrPatient
+from modules.emr.doctors import clinic_fee_paise, doctor_for_record
+from modules.emr.models import EmrAppointment, EmrPatient
 from modules.patient_billing import service as billing
 from modules.patient_billing.constants import CHG_PAID, CHG_VOID, INV_PART_PAID, SRC_EMR
 
@@ -26,16 +26,12 @@ async def post_consultation_fee(db: AsyncSession, appt: EmrAppointment, user_id:
                                 ip_address: str | None = None) -> None:
     """Posts the doctor's consultation fee for this visit. No fee set (or ₹0) = nothing posted.
     Safe to call twice: the idempotency key means one visit is only ever charged once."""
-    profile = (await db.execute(select(EmrDoctorProfile).where(
-        EmrDoctorProfile.pharmacy_id == appt.pharmacy_id,
-        EmrDoctorProfile.user_id == appt.doctor_user_id))).scalar_one_or_none()
-    fee = profile.consultation_fee_paise if profile else None
+    fee = await clinic_fee_paise(db, appt.pharmacy_id, appt.practitioner_id)   # this clinic's fee for this doctor
     if not fee:
         return
     patient = (await db.execute(select(EmrPatient).where(
         EmrPatient.id == appt.patient_id, EmrPatient.pharmacy_id == appt.pharmacy_id))).scalar_one()
-    doctor = (await db.execute(select(UserORM.name).where(
-        UserORM.id == appt.doctor_user_id, UserORM.pharmacy_id == appt.pharmacy_id))).scalar()
+    doctor = getattr(await doctor_for_record(db, appt.practitioner_id), "name", None)
     charge, created = await billing.post_charge(
         db, pharmacy_id=appt.pharmacy_id, user_id=user_id, patient_id=patient.id,
         patient_name=patient.name, patient_uhid=patient.uhid, source_module=SRC_EMR,

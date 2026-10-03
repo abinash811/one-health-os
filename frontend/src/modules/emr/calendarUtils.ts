@@ -48,7 +48,7 @@ export const isLive = (a: EmrAppointment): boolean =>
   a.status !== APPOINTMENT_STATUS.CANCELLED && a.status !== APPOINTMENT_STATUS.NO_SHOW;
 
 const blocksFor = (schedules: EmrScheduleBlock[], doctorId: string, date: string) =>
-  schedules.filter((b) => b.doctor_user_id === doctorId && b.is_active && b.weekday === weekdayOf(date));
+  schedules.filter((b) => b.doctor_id === doctorId && b.is_active && b.weekday === weekdayOf(date));
 
 /** Every bookable slot the doctor works on `date`, in minutes from midnight. */
 export const slotsFor = (schedules: EmrScheduleBlock[], doctorId: string, date: string): Slot[] => {

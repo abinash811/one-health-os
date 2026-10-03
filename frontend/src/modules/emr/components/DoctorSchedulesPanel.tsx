@@ -40,7 +40,7 @@ export default function DoctorSchedulesPanel() {
     if (!doctorId) return;
     setLoading(true);
     try {
-      const res = await api.get(apiUrl.emrSchedules({ doctor_user_id: doctorId }));
+      const res = await api.get(apiUrl.emrSchedules({ doctor_id: doctorId }));
       setBlocks(res.data || []);
     } catch (err) {
       toast.error((err as Error).message);

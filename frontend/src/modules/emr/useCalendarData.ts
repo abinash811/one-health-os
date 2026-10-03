@@ -23,7 +23,7 @@ export function useCalendarData(from: string, to: string, doctorId?: string) {
   const reload = useCallback(async (showSkeleton: boolean) => {
     if (showSkeleton) setLoading(true);
     try {
-      const res = await api.get(apiUrl.emrAppointments({ date_from: from, date_to: to, doctor_user_id: doctorId }));
+      const res = await api.get(apiUrl.emrAppointments({ date_from: from, date_to: to, doctor_id: doctorId }));
       setAppointments(res.data || []);
     } catch (err) {
       if (showSkeleton) toast.error((err as Error).message);

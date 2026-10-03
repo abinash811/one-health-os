@@ -22,7 +22,7 @@ const EMR_SETTINGS = { clinic_name: null, clinic_address: null, clinic_phone: nu
 function mockApi() {
   (api.get as jest.Mock).mockImplementation((url: string) => {
     if (url.startsWith('emr/settings')) return Promise.resolve({ data: EMR_SETTINGS });
-    if (url.startsWith('emr/doctors')) return Promise.resolve({ data: [{ id: 'd1', name: 'Dr Rao', role: 'doctor' }] });
+    if (url.startsWith('emr/doctors')) return Promise.resolve({ data: [{ id: 'd1', name: 'Dr Rao' }] });
     if (url.startsWith('emr/schedules')) return Promise.resolve({ data: [] });
     return Promise.resolve({ data: [] });
   });

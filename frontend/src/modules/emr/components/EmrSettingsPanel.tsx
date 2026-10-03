@@ -16,9 +16,9 @@ import ClinicProfileCard from './ClinicProfileCard';
 import IdFormatsCard from './IdFormatsCard';
 import PatientFormCard from './PatientFormCard';
 import DoctorsCard from './DoctorsCard';
-import DoctorProfileModal from './DoctorProfileModal';
+import DoctorFeeModal from './DoctorFeeModal';
 import { SettingsDraft, toDraft, toPayload } from '../settingsDraft';
-import type { EmrDoctorProfile, EmrSettings } from '../types';
+import type { EmrClinicDoctor, EmrSettings } from '../types';
 
 export type EmrSettingsSection = 'clinic-profile' | 'id-formats' | 'patient-form' | 'doctors';
 
@@ -31,9 +31,9 @@ export default function EmrSettingsPanel({ section }: { section?: EmrSettingsSec
   const [settings, setSettings] = useState<EmrSettings | null>(null);
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
   const [error, setError] = useState('');
-  const [doctors, setDoctors] = useState<EmrDoctorProfile[]>([]);
+  const [doctors, setDoctors] = useState<EmrClinicDoctor[]>([]);
   const [doctorsLoading, setDoctorsLoading] = useState(true);
-  const [editing, setEditing] = useState<EmrDoctorProfile | null>(null);
+  const [editing, setEditing] = useState<EmrClinicDoctor | null>(null);
   const [saving, setSaving] = useState(false);
   const [tick, setTick] = useState(0);
 
@@ -44,8 +44,8 @@ export default function EmrSettingsPanel({ section }: { section?: EmrSettingsSec
   }, [tick]);
 
   useEffect(() => {
-    api.get(apiUrl.emrDoctorProfiles())
-      .then((res: { data: EmrDoctorProfile[] }) => setDoctors(res.data || []))
+    api.get(apiUrl.emrClinicDoctors())
+      .then((res: { data: EmrClinicDoctor[] }) => setDoctors(res.data || []))
       .catch((err: Error) => toast.error(err.message))
       .finally(() => setDoctorsLoading(false));
   }, [tick]);
@@ -90,7 +90,7 @@ export default function EmrSettingsPanel({ section }: { section?: EmrSettingsSec
       {show('id-formats') && <IdFormatsCard draft={draft} uhidNext={settings.uhid_next} readOnly={!canEdit} onChange={patch} />}
       {show('patient-form') && <PatientFormCard value={draft.patient_form} readOnly={!canEdit} onChange={(v) => patch({ patient_form: v })} />}
       {show('doctors') && <DoctorsCard doctors={doctors} loading={doctorsLoading} readOnly={!canEdit} onEdit={setEditing} />}
-      <DoctorProfileModal doctor={editing} onClose={() => setEditing(null)} onSaved={() => setTick((t) => t + 1)} />
+      <DoctorFeeModal doctor={editing} onClose={() => setEditing(null)} onSaved={() => setTick((t) => t + 1)} />
     </div>
   );
 }

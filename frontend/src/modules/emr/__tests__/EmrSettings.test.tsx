@@ -7,7 +7,7 @@ import PatientFormModal from '../components/PatientFormModal';
 import { AuthContext } from '@/App';
 import api from '@/lib/axios';
 
-// EMR Settings: clinic profile, UHID/Rx formats, patient-form layout, doctor profiles.
+// EMR Settings: clinic profile, UHID/Rx formats, patient-form layout, this clinic's doctors and their fees.
 
 jest.mock('@/lib/axios', () => ({
   __esModule: true,
@@ -21,11 +21,11 @@ const SETTINGS = { clinic_name: null, clinic_address: null, clinic_phone: null, 
   registration_no: null, rx_footer: null, rx_prefix: 'RX-', uhid_prefix: 'UH-', uhid_digits: 6, uhid_next: 8,
   default_slot_minutes: 15, patient_form: FORM,
   fallback: { clinic_name: 'Sunrise Pharmacy', clinic_address: '12 MG Road', clinic_phone: '9876543210' } };
-const DOCTORS = [{ user_id: 'd1', name: 'Dr Rao', specialty: null, qualification: null, registration_no: null, consultation_fee_paise: 50000 }];
+const DOCTORS = [{ id: 'd1', name: 'Dr Rao', specialty: null, qualification: null, registration_no: null, consultation_fee_paise: 50000 }];
 
 function mockApi(settings = SETTINGS) {
   (api.get as jest.Mock).mockImplementation((url: string) =>
-    Promise.resolve({ data: url.startsWith('emr/doctor-profiles') ? DOCTORS : settings }));
+    Promise.resolve({ data: url.startsWith('emr/clinic-doctors') ? DOCTORS : settings }));
   (api.put as jest.Mock).mockImplementation((_u: string, body: object) => Promise.resolve({ data: { ...settings, ...body } }));
 }
 
@@ -85,15 +85,16 @@ describe('EMR Settings page', () => {
     expect(screen.queryByTestId('edit-doctor-d1')).not.toBeInTheDocument();
   });
 
-  it('edits a doctor profile', async () => {
+  it('edits only this clinic\'s fee for a doctor — profile details live under Organisation', async () => {
     mockApi();
     renderPage();
     await userEvent.click(await screen.findByTestId('edit-doctor-d1'));
-    await userEvent.type(screen.getByTestId('dp-specialty'), 'Paediatrics');
-    await userEvent.type(screen.getByTestId('dp-registration'), 'KMC-9981');
+    expect(screen.queryByTestId('dp-specialty')).not.toBeInTheDocument();
+    expect(screen.getByText(/To change the doctor's name, registration number/)).toBeInTheDocument();
+    await userEvent.clear(screen.getByTestId('dp-fee'));
+    await userEvent.type(screen.getByTestId('dp-fee'), '700');
     await userEvent.click(screen.getByTestId('dp-save-btn'));
-    await waitFor(() => expect(api.put).toHaveBeenCalledWith('emr/doctor-profiles/d1',
-      { specialty: 'Paediatrics', qualification: '', registration_no: 'KMC-9981', consultation_fee_paise: 50000 }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('emr/clinic-doctors/d1', { consultation_fee_paise: 70000 }));
   });
 
   it('shows the consultation fee in rupees, saves it as paise, and blank means no fee', async () => {

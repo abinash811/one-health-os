@@ -71,7 +71,7 @@ export default function Appointments() {
     try {
       const res = await api.get(apiUrl.emrAppointments({
         date,
-        doctor_user_id: doctorId === ALL_DOCTORS ? undefined : doctorId,
+        doctor_id: doctorId === ALL_DOCTORS ? undefined : doctorId,
         status: status === 'all' ? undefined : status,
       }));
       setRows(res.data || []);

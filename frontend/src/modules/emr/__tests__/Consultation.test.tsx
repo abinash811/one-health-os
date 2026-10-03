@@ -17,7 +17,7 @@ jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }))
 
 const RX = {
   id: 'rx1', rx_number: 'RX-000001', status: 'draft', appointment_id: 'a1', patient_id: 'p1',
-  patient_name: 'Asha Menon', doctor_user_id: 'd1', doctor_name: 'Dr Rao', vitals: { pulse: 72 },
+  patient_name: 'Asha Menon', doctor_id: 'd1', doctor_name: 'Dr Rao', vitals: { pulse: 72 },
   complaints: 'Fever', diagnosis: null, advice: null, follow_up_date: null, issued_at: null,
   cancel_reason: null, created_at: '2026-10-05T09:00:00Z', items: [],
   patient: { gender: 'female', phone: '9000000001', age: 41, allergies: 'Penicillin', date_of_birth: null },

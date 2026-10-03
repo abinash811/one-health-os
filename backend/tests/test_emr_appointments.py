@@ -56,16 +56,30 @@ class _EmrBase:
         assert resp.status_code == 200, resp.text
         return resp.json()
 
+    def _clinic_id(self):
+        stores = self.session.get(f"{BASE_URL}/api/users/me/stores").json()
+        return next(s["pharmacy_id"] for s in stores if s["is_active"])
+
+    def _doctor(self, fee_paise=None, session=None, clinic_id=None, **extra):
+        """A doctor profile (not a login) mapped to this clinic — docs/31_CORE_DOCTOR_SCOPE.md."""
+        s = session or self.session
+        clinic = clinic_id or self._clinic_id()
+        r = s.post(f"{BASE_URL}/api/practitioners", json={
+            "name": f"Dr Test {uuid.uuid4().hex[:6]}",
+            "clinics": [{"pharmacy_id": clinic, "consultation_fee_paise": fee_paise}], **extra})
+        assert r.status_code == 200, r.text
+        return r.json()["id"]
+
     def _doctor_with_schedule(self, weekday, start="09:00", end="10:00", slot=30):
-        doctor_id, _ = self._user("doctor")
+        doctor_id = self._doctor()
         resp = self.session.post(f"{BASE_URL}/api/emr/schedules", json={
-            "doctor_user_id": doctor_id, "weekday": weekday,
+            "doctor_id": doctor_id, "weekday": weekday,
             "start_time": start, "end_time": end, "slot_minutes": slot})
         assert resp.status_code == 200, resp.text
         return doctor_id
 
     def _book(self, patient_id, doctor_id, day, start=None, session=None):
-        body = {"patient_id": patient_id, "doctor_user_id": doctor_id,
+        body = {"patient_id": patient_id, "doctor_id": doctor_id,
                 "appointment_date": day.isoformat()}
         if start:
             body["start_time"] = start
@@ -126,15 +140,16 @@ class TestPermissions(_EmrBase):
         _, rec = self._user("receptionist")
         assert self._patient(session=rec)["id"]
         r = rec.post(f"{BASE_URL}/api/emr/schedules", json={
-            "doctor_user_id": str(uuid.uuid4()), "weekday": 0,
+            "doctor_id": str(uuid.uuid4()), "weekday": 0,
             "start_time": "09:00", "end_time": "10:00"})
         assert r.status_code == 403
         assert rec.delete(f"{BASE_URL}/api/emr/patients/{uuid.uuid4()}").status_code == 403
 
-    def test_doctor_can_edit_own_schedule(self):
-        doctor_id, doc = self._user("doctor")
+    def test_doctor_login_can_edit_schedules(self):
+        doctor_id = self._doctor()
+        _, doc = self._user("doctor")
         r = doc.post(f"{BASE_URL}/api/emr/schedules", json={
-            "doctor_user_id": doctor_id, "weekday": 2, "start_time": "10:00", "end_time": "12:00"})
+            "doctor_id": doctor_id, "weekday": 2, "start_time": "10:00", "end_time": "12:00"})
         assert r.status_code == 200, r.text
 
 
@@ -144,7 +159,7 @@ class TestSchedulesAndSlots(_EmrBase):
         docs = self.session.get(f"{BASE_URL}/api/emr/doctors").json()
         assert any(d["id"] == doctor_id for d in docs)
 
-        base = {"doctor_user_id": doctor_id, "weekday": 0, "start_time": "09:30", "end_time": "10:30"}
+        base = {"doctor_id": doctor_id, "weekday": 0, "start_time": "09:30", "end_time": "10:30"}
         assert self.session.post(f"{BASE_URL}/api/emr/schedules", json=base).status_code == 409  # overlap
         assert self.session.post(f"{BASE_URL}/api/emr/schedules",
                                  json={**base, "weekday": 7}).status_code == 422
@@ -158,25 +173,25 @@ class TestSchedulesAndSlots(_EmrBase):
     def test_schedule_update_and_soft_delete(self):
         doctor_id = self._doctor_with_schedule(1)
         block = self.session.get(f"{BASE_URL}/api/emr/schedules",
-                                 params={"doctor_user_id": doctor_id}).json()[0]
+                                 params={"doctor_id": doctor_id}).json()[0]
         r = self.session.put(f"{BASE_URL}/api/emr/schedules/{block['id']}", json={"end_time": "11:00"})
         assert r.status_code == 200 and r.json()["end_time"] == "11:00"
         assert self.session.delete(f"{BASE_URL}/api/emr/schedules/{block['id']}").status_code == 200
         assert self.session.get(f"{BASE_URL}/api/emr/schedules",
-                                params={"doctor_user_id": doctor_id}).json() == []
+                                params={"doctor_id": doctor_id}).json() == []
 
     def test_slots_generated_and_marked_taken(self):
         day = _next_weekday_date(3)
         doctor_id = self._doctor_with_schedule(3, "09:00", "10:00", 30)
         patient = self._patient()
         slots = self.session.get(f"{BASE_URL}/api/emr/slots",
-                                 params={"doctor_user_id": doctor_id, "date": day.isoformat()}).json()
+                                 params={"doctor_id": doctor_id, "date": day.isoformat()}).json()
         assert [s["start_time"] for s in slots] == ["09:00", "09:30"]
         assert all(s["available"] for s in slots)
 
         assert self._book(patient["id"], doctor_id, day, "09:00").status_code == 200
         slots = self.session.get(f"{BASE_URL}/api/emr/slots",
-                                 params={"doctor_user_id": doctor_id, "date": day.isoformat()}).json()
+                                 params={"doctor_id": doctor_id, "date": day.isoformat()}).json()
         assert [s["available"] for s in slots] == [False, True]
 
 
@@ -221,7 +236,7 @@ class TestAppointments(_EmrBase):
         assert self.session.post(url, json={"status": "cancelled", "cancel_reason": "x"}).status_code == 409
 
         queue = self.session.get(f"{BASE_URL}/api/emr/appointments",
-                                 params={"doctor_user_id": doctor_id}).json()
+                                 params={"doctor_id": doctor_id}).json()
         assert [q["id"] for q in queue] == [appt["id"]] and queue[0]["patient_name"] == p["name"]
 
     def test_cancel_needs_reason_and_frees_slot(self):
@@ -282,12 +297,12 @@ class TestCalendarRange(_EmrBase):
         url = f"{BASE_URL}/api/emr/appointments"
         rng = {"date_from": d1.isoformat(), "date_to": d2.isoformat()}
         both = self.session.get(url, params=rng).json()
-        assert {a["doctor_user_id"] for a in both} >= {doctor_id, other_id}
-        only = self.session.get(url, params={**rng, "doctor_user_id": doctor_id}).json()
-        assert [a["doctor_user_id"] for a in only] == [doctor_id]
+        assert {a["doctor_id"] for a in both} >= {doctor_id, other_id}
+        only = self.session.get(url, params={**rng, "doctor_id": doctor_id}).json()
+        assert [a["doctor_id"] for a in only] == [doctor_id]
         later = self.session.get(url, params={
             "date_from": (d1 + timedelta(days=1)).isoformat(), "date_to": d2.isoformat(),
-            "doctor_user_id": doctor_id}).json()
+            "doctor_id": doctor_id}).json()
         assert later == []
 
     def test_range_validation(self):
@@ -300,3 +315,60 @@ class TestCalendarRange(_EmrBase):
             "date_from": today.isoformat(), "date_to": (today + timedelta(days=31)).isoformat()}).status_code == 422
         assert self.session.get(url, params={
             "date_from": today.isoformat(), "date_to": (today + timedelta(days=30)).isoformat()}).status_code == 200
+
+
+class TestDoctorRecords(_EmrBase):
+    """EMR works with doctor PROFILES mapped to this clinic (docs/31_CORE_DOCTOR_SCOPE.md), not with logins."""
+
+    def _other_pharmacy(self):
+        suffix = uuid.uuid4().hex[:8]
+        r = requests.post(f"{BASE_URL}/api/auth/register", json={
+            "email": f"emr_other_{suffix}@pharmacy.com", "name": "Other Admin", "password": "OtherAdmin1",
+            "phone": "9877700003", "pharmacy_name": f"Other Clinic {suffix}", "address": "1 St", "city": "Pune",
+            "state": "MH", "pincode": "411001"})
+        assert r.status_code == 200, r.text
+        s = requests.Session()
+        s.headers.update({"Content-Type": "application/json", "Authorization": f"Bearer {r.json()['token']}"})
+        return s
+
+    def test_a_doctor_with_no_login_can_be_scheduled_and_booked(self):
+        doctor_id = self._doctor_with_schedule(2)           # a profile only — no user behind it
+        patient = self._patient()
+        r = self._book(patient["id"], doctor_id, _next_weekday_date(2), "09:00")
+        assert r.status_code == 200, r.text
+        assert r.json()["doctor_id"] == doctor_id and r.json()["doctor_name"].startswith("Dr Test")
+
+    def test_doctor_list_has_only_this_clinics_active_doctors(self):
+        mine = self._doctor()
+        elsewhere_clinic = self._other_pharmacy()
+        theirs = self._doctor(session=elsewhere_clinic, clinic_id=elsewhere_clinic.get(
+            f"{BASE_URL}/api/users/me/stores").json()[0]["pharmacy_id"])
+        listed = {d["id"] for d in self.session.get(f"{BASE_URL}/api/emr/doctors").json()}
+        assert mine in listed and theirs not in listed
+        assert self.session.put(f"{BASE_URL}/api/practitioners/{mine}", json={"is_active": False}).status_code == 200
+        assert mine not in {d["id"] for d in self.session.get(f"{BASE_URL}/api/emr/doctors").json()}
+
+    def test_cannot_schedule_or_book_a_doctor_not_mapped_to_this_clinic(self):
+        other = self._other_pharmacy()
+        their_clinic = other.get(f"{BASE_URL}/api/users/me/stores").json()[0]["pharmacy_id"]
+        foreign = self._doctor(session=other, clinic_id=their_clinic)
+        r = self.session.post(f"{BASE_URL}/api/emr/schedules", json={
+            "doctor_id": foreign, "weekday": 0, "start_time": "09:00", "end_time": "10:00"})
+        assert r.status_code == 404
+        assert self._book(self._patient()["id"], foreign, date.today()).status_code == 404
+
+    def test_a_deactivated_doctor_cannot_take_new_bookings_but_history_keeps_the_name(self):
+        doctor_id = self._doctor_with_schedule(4)
+        patient = self._patient()
+        appt = self._book(patient["id"], doctor_id, _next_weekday_date(4), "09:00").json()
+        name = appt["doctor_name"]
+        self.session.put(f"{BASE_URL}/api/practitioners/{doctor_id}", json={"is_active": False})
+        assert self._book(patient["id"], doctor_id, _next_weekday_date(4), "09:30").status_code == 404
+        again = self.session.get(f"{BASE_URL}/api/emr/appointments/{appt['id']}").json()
+        assert again["doctor_name"] == name and again["doctor_id"] == doctor_id
+
+    def test_unmapping_a_doctor_from_this_clinic_removes_them_from_booking(self):
+        doctor_id = self._doctor_with_schedule(5)
+        self.session.put(f"{BASE_URL}/api/practitioners/{doctor_id}", json={"clinics": []})
+        assert doctor_id not in {d["id"] for d in self.session.get(f"{BASE_URL}/api/emr/doctors").json()}
+        assert self._book(self._patient()["id"], doctor_id, _next_weekday_date(5), "09:00").status_code == 404

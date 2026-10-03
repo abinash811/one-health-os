@@ -10,6 +10,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 
 ## [Unreleased]
 
+### Changed
+- **EMR now uses the doctor records.** Appointments, the calendar, booking, working hours, prescriptions and the consultation fee all
+  point at a doctor profile mapped to the clinic — no longer at a login. A doctor with no login can be scheduled, booked and can
+  prescribe. Settings → EMR → Doctors & fees now sets only this clinic's fee; name, registration number and the clinics a doctor
+  works at are edited under Settings → Organisation → Doctors.
+
 ### Added
 - **Doctors are now their own records (Settings → Organisation → Doctors).** A doctor is a profile owned by the hospital — name,
   specialty, qualification, registration number, phone — mapped to the clinics where they practise, with a consultation fee for

@@ -1,8 +1,8 @@
 # Doctors as their own records — Build Plan (owned by the hospital, mapped to clinics, separate from logins)
-# Version: 0.2 | Last updated: October 3, 2026
+# Version: 0.3 | Last updated: October 3, 2026
 # Type: Explanation
-# Status: ✅ APPROVED by Abinash Oct 3, 2026 with all five recommendations. 🚧 P1 (new tables, backfill, API, permissions, Organisation → Doctors screen) BUILT Oct 3, 2026. P2 (EMR switches to the new records) in progress; P3 (pharmacy prescribers) and P4 (contract + audit) not started.
-# Build notes: the `practitioner_id` columns on schedules / appointments / prescriptions land in P2's migration (not P1's) so they are never left half-filled while EMR still writes the login id.
+# Status: ✅ APPROVED by Abinash Oct 3, 2026 with all five recommendations. ✅ P1 (new tables, backfill, API, permissions, Organisation → Doctors screen) and ✅ P2 (EMR schedules / appointments / prescriptions / fee hook / calendar / booking use the new records; per-clinic fee) BUILT Oct 3, 2026. P3 (pharmacy prescribers) and P4 (contract + whole-feature audit) not started.
+# Build notes: the `practitioner_id` columns on schedules / appointments / prescriptions landed in P2's migration (`f6c3d0b8e425`, not P1's) so they were never half-filled. `doctor_user_id` is now nullable and unwritten; `emr_doctor_profiles` is unused — both are dropped in P4. EMR 'Doctors & fees' now edits only this clinic's fee (`PUT /emr/clinic-doctors/{id}`); profile details are edited under Organisation → Doctors.
 
 ## Why (product view)
 - Abinash's requirement (Oct 3, 2026): "doctors should be mapped under an entity, while users and doctors are different"; creation lives in **Settings → Organisation → Doctors**.

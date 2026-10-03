@@ -17,12 +17,12 @@ jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }))
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({ ...jest.requireActual('react-router-dom'), useNavigate: () => mockNavigate }));
 
-const DOCTORS = [{ id: 'd1', name: 'Dr Rao', role: 'doctor' }, { id: 'd2', name: 'Dr Iyer', role: 'doctor' }];
+const DOCTORS = [{ id: 'd1', name: 'Dr Rao' }, { id: 'd2', name: 'Dr Iyer' }];
 const SCHEDULES = ['d1', 'd2'].map((d) => ({
-  id: `s-${d}`, doctor_user_id: d, weekday: weekdayOf(today()), start_time: '09:00', end_time: '10:00', slot_minutes: 30, is_active: true,
+  id: `s-${d}`, doctor_id: d, weekday: weekdayOf(today()), start_time: '09:00', end_time: '10:00', slot_minutes: 30, is_active: true,
 }));
 const APPT = {
-  id: 'a1', patient_id: 'p1', patient_name: 'Asha Menon', doctor_user_id: 'd1', doctor_name: 'Dr Rao',
+  id: 'a1', patient_id: 'p1', patient_name: 'Asha Menon', doctor_id: 'd1', doctor_name: 'Dr Rao',
   appointment_date: today(), start_time: '09:00', end_time: '09:30', token_number: 1,
   appointment_type: 'scheduled', status: 'booked', reason: 'Fever', cancel_reason: null,
 };
@@ -82,7 +82,7 @@ describe('Calendar', () => {
     renderPage();
     userEvent.click(await screen.findByTestId('cal-slot-d2-09:30'));
     expect(await screen.findByRole('heading', { name: 'Book appointment' })).toBeInTheDocument();
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith(`emr/slots?doctor_user_id=d2&date=${today()}`));
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(`emr/slots?doctor_id=d2&date=${today()}`));
     await waitFor(() => expect(screen.getByTestId('slot-09:30')).toHaveClass('bg-brand'));
   });
 
@@ -105,7 +105,7 @@ describe('Calendar', () => {
     fireEvent.dragStart(card, { dataTransfer: { setData: jest.fn() } });
     fireEvent.drop(screen.getByTestId('cal-slot-d2-09:30'));
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('emr/appointments/a1', {
-      appointment_date: today(), start_time: '09:30', doctor_user_id: 'd2' }));
+      appointment_date: today(), start_time: '09:30', doctor_id: 'd2' }));
     expect(toast.success).toHaveBeenCalled();
   });
 

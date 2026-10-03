@@ -62,7 +62,7 @@ export default function Calendar() {
     view, date, view === 'day' && doctorId !== ALL_DOCTORS ? doctors.filter((d) => d.id === doctorId) : doctors, doctorId,
   ), [view, date, doctors, doctorId]);
   const live = useMemo(() => appointments.filter(isLive)
-    .filter((a) => view === 'day' || a.doctor_user_id === doctorId), [appointments, view, doctorId]);
+    .filter((a) => view === 'day' || a.doctor_id === doctorId), [appointments, view, doctorId]);
   const range = useMemo(() => visibleRange(columns, schedules, live), [columns, schedules, live]);
 
   const step = view === 'week' ? 7 : 1;
@@ -75,9 +75,9 @@ export default function Calendar() {
 
   const moveVisit = async (a: EmrAppointment, col: CalColumn, slot: Slot) => {
     const start = toHHMM(slot.start);
-    if (a.doctor_user_id === col.doctorId && a.appointment_date === col.date && a.start_time === start) return;
+    if (a.doctor_id === col.doctorId && a.appointment_date === col.date && a.start_time === start) return;
     try {
-      await api.put(apiUrl.emrAppointment(a.id), { appointment_date: col.date, start_time: start, doctor_user_id: col.doctorId });
+      await api.put(apiUrl.emrAppointment(a.id), { appointment_date: col.date, start_time: start, doctor_id: col.doctorId });
       toast.success(`${a.patient_name || 'Visit'} moved to ${to12h(start)}`);
     } catch (err) {
       toast.error((err as Error).message);

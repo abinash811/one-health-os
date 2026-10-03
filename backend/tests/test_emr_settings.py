@@ -125,7 +125,7 @@ class TestPrescriptionIdentity(_Clinic):
         doctor_id, rx = self._issued_rx()
         assert rx["clinic"]["name"] == self.name                      # blank settings → pharmacy record
         self._put({"clinic_name": "Sunrise Family Clinic", "registration_no": "KMC-123", "rx_footer": "Get well soon"})
-        prof = self.session.put(f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}", json={
+        prof = self.session.put(f"{BASE_URL}/api/practitioners/{doctor_id}", json={
             "specialty": "Paediatrics", "qualification": "MBBS, MD", "registration_no": "KMC-9981"})
         assert prof.status_code == 200 and prof.json()["specialty"] == "Paediatrics"
         got = self.session.get(f"{BASE_URL}/api/emr/prescriptions/{rx['id']}").json()
@@ -144,27 +144,36 @@ class TestPrescriptionIdentity(_Clinic):
         assert second["rx_number"] == "SUN-RX-000002"
 
 
-class TestDoctorProfiles(_Clinic):
-    def test_list_update_and_permissions(self):
-        doctor_id, _ = self._user("doctor")
-        listed = self.session.get(f"{BASE_URL}/api/emr/doctor-profiles").json()
-        row = next(d for d in listed if d["user_id"] == doctor_id)
-        assert row["specialty"] is None
+class TestClinicDoctors(_Clinic):
+    """A clinic sees the doctors mapped to it and sets only its own fee; profiles live under Organisation."""
+
+    def test_list_fee_update_and_permissions(self):
+        doctor_id = self._doctor(fee_paise=40000)
+        listed = self.session.get(f"{BASE_URL}/api/emr/clinic-doctors").json()
+        row = next(d for d in listed if d["id"] == doctor_id)
+        assert row["specialty"] is None and row["consultation_fee_paise"] == 40000
         _, doc = self._user("doctor")
-        assert doc.put(f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}", json={"specialty": "X"}).status_code == 403
-        url = f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}"
-        r = self.session.put(url, json={"specialty": "ENT", "registration_no": "  "})
-        assert r.json()["specialty"] == "ENT" and r.json()["registration_no"] is None
-        again = self.session.put(f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}", json={"qualification": "MS"}).json()
-        assert again["specialty"] == "ENT" and again["qualification"] == "MS"   # update keeps other fields
+        url = f"{BASE_URL}/api/emr/clinic-doctors/{doctor_id}"
+        assert doc.put(url, json={"consultation_fee_paise": 1}).status_code == 403
+        assert self.session.put(url, json={"consultation_fee_paise": 55000}).json()["consultation_fee_paise"] == 55000
+        # profile details are NOT editable from the clinic any more — only the fee
+        assert self.session.put(url, json={"specialty": "ENT"}).json()["specialty"] is None
+
+    def test_profile_changes_made_under_organisation_show_up_here(self):
+        doctor_id = self._doctor()
+        self.session.put(f"{BASE_URL}/api/practitioners/{doctor_id}",
+                         json={"specialty": "ENT", "registration_no": "  "})
+        row = next(d for d in self.session.get(f"{BASE_URL}/api/emr/clinic-doctors").json() if d["id"] == doctor_id)
+        assert row["specialty"] == "ENT" and row["registration_no"] is None
 
     def test_cannot_edit_another_clinics_doctor(self):
-        doctor_id, _ = self._user("doctor")
+        doctor_id = self._doctor()
         other = requests.post(f"{BASE_URL}/api/auth/register", json={
             "email": f"emr_dp_o_{self.suffix}@pharmacy.com", "name": "Other", "password": "OtherDoc12345",
             "phone": "9855555585", "pharmacy_name": f"Other Doc {self.suffix}", "address": "1 St",
             "city": "Testville", "state": "Karnataka", "pincode": "560005",
             "drug_license_number": f"DL-EMRDP-{self.suffix}"})
         h = {"Authorization": f"Bearer {other.json()['token']}"}
-        r = requests.put(f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}", json={"specialty": "Hacked"}, headers=h)
+        r = requests.put(f"{BASE_URL}/api/emr/clinic-doctors/{doctor_id}",
+                         json={"consultation_fee_paise": 1}, headers=h)
         assert r.status_code == 404

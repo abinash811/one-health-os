@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.35 | Last updated: October 3, 2026
+# Version: 1.36 | Last updated: October 3, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1442,6 +1442,8 @@ there first if these seem to be missing.
 
 ## EMR (module #2 — added Oct 2, 2026)
 
+> **Oct 3, 2026 (docs/31, phase 2):** every `doctor_user_id` below became `doctor_id` — the id of a core doctor record (`/api/practitioners`), not a login. Responses carry `doctor_id` + `doctor_name`.
+
 > Routers: `backend/modules/emr/routers/`. Scope: `docs/28_EMR_SCOPE.md`. All endpoints are
 > pharmacy-scoped (the caller's own `pharmacy_id`), permission-checked, and audit-logged
 > (`entity_type` = `emr_patient` / `emr_schedule` / `emr_appointment`). Deletes are soft.
@@ -1459,20 +1461,20 @@ there first if these seem to be missing.
 ### Doctors & schedules — `schedules:view|edit`
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/emr/doctors` | Active users with role `doctor`, or who have a schedule block. Needs `appointments:view` |
-| GET | `/emr/schedules?doctor_user_id=` | Working-hours blocks, ordered weekday/start |
-| POST | `/emr/schedules` | `doctor_user_id`, `weekday` (Mon=0..Sun=6), `start_time`/`end_time` (`HH:MM`), `slot_minutes` (5–120, default 15). 409 on overlap with an existing block |
+| GET | `/emr/doctors` | Doctors (core `practitioners` records) actively mapped to THIS clinic: `[{id, name, specialty}]`. Needs `appointments:view` |
+| GET | `/emr/schedules?doctor_id=` | Working-hours blocks, ordered weekday/start |
+| POST | `/emr/schedules` | `doctor_id`, `weekday` (Mon=0..Sun=6), `start_time`/`end_time` (`HH:MM`), `slot_minutes` (5–120, default 15). 409 on overlap with an existing block |
 | PUT | `/emr/schedules/{id}` | Partial update; same validation |
 | DELETE | `/emr/schedules/{id}` | Soft delete |
 
 ### Appointments — `appointments:view|create|edit|cancel`
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/emr/slots?doctor_user_id=&date=` | Slot grid from the doctor's schedule: `[{start_time, end_time, available}]` |
-| POST | `/emr/appointments` | `patient_id`, `doctor_user_id`, `appointment_date`, optional `start_time`, `reason`. With `start_time` = scheduled (must be an open slot, 422 if off-grid/outside hours, 409 if taken). Without = walk-in (today only). Past dates 422. Token number is per doctor per day |
-| GET | `/emr/appointments?date=&date_from=&date_to=&doctor_user_id=&patient_id=&status=` | Day view / live queue. Defaults to today (all dates when `patient_id` is given). Ordered by token. Includes `patient_name`, `doctor_name`. `date_from`+`date_to` (both required together, inclusive, max 31 days, else 422) return a whole range — the calendar's week view |
+| GET | `/emr/slots?doctor_id=&date=` | Slot grid from the doctor's schedule: `[{start_time, end_time, available}]` |
+| POST | `/emr/appointments` | `patient_id`, `doctor_id`, `appointment_date`, optional `start_time`, `reason`. With `start_time` = scheduled (must be an open slot, 422 if off-grid/outside hours, 409 if taken). Without = walk-in (today only). Past dates 422. Token number is per doctor per day |
+| GET | `/emr/appointments?date=&date_from=&date_to=&doctor_id=&patient_id=&status=` | Day view / live queue. Defaults to today (all dates when `patient_id` is given). Ordered by token. Includes `patient_name`, `doctor_name`. `date_from`+`date_to` (both required together, inclusive, max 31 days, else 422) return a whole range — the calendar's week view |
 | GET | `/emr/appointments/{id}` | |
-| PUT | `/emr/appointments/{id}` | Reschedule (`appointment_date`, `start_time`, `doctor_user_id`) or edit `reason`. Only while `booked` (else 409) |
+| PUT | `/emr/appointments/{id}` | Reschedule (`appointment_date`, `start_time`, `doctor_id`) or edit `reason`. Only while `booked` (else 409) |
 | POST | `/emr/appointments/{id}/status` | Body `{status, cancel_reason?}`. Moves: `booked→checked_in→in_consult→completed`; `booked/checked_in→cancelled` (reason required, needs `appointments:cancel`); `booked→no_show`. Invalid move = 409 |
 
 ### Doctors — `/api/practitioners` (Oct 3, 2026 · permissions `doctors:view|edit` · docs/31_CORE_DOCTOR_SCOPE.md)
@@ -1538,7 +1540,7 @@ curl http://localhost:8000/openapi.json  # OpenAPI spec
 
 **Fee on the queue (B3):** every row of `GET /emr/appointments` carries `fee` — `null` (no fee / withdrawn) or `{charge_id, amount_paise, status: unpaid|part_paid|paid, paid_paise, balance_paise, mode, invoice_id, invoice_number}`. EMR gets this from billing's service (`snapshots_by_key`), never from billing tables. The queue's Collect button calls `POST /patient-billing/accounts/{patient_id}/collect` (no invoice yet) or `POST /patient-billing/invoices/{id}/payments` (part-paid invoice); the printable page reads `GET /patient-billing/invoices/{id}`; the "Collected today" card reads `GET /patient-billing/summary/today`.
 
-**EMR consultation fee (B2):** `PUT /emr/doctor-profiles/{id}` accepts `consultation_fee_paise` (0–₹10 lakh, blank clears). When an appointment moves to `checked_in`, that fee is posted as a charge on the patient's account (`idempotency_key = emr:appointment:<id>:consultation`, so one visit is charged once; no fee set = no charge). Moving the visit to `cancelled`/`no_show` voids the charge **only if still unbilled**; once invoiced, the billing desk decides.
+**EMR consultation fee (B2):** `PUT /emr/clinic-doctors/{doctor_id}` sets THIS clinic's `consultation_fee_paise` for a doctor (0–₹10 lakh, blank clears; `emr_settings:edit`). When an appointment moves to `checked_in`, that fee is posted as a charge on the patient's account (`idempotency_key = emr:appointment:<id>:consultation`, so one visit is charged once; no fee set = no charge). Moving the visit to `cancelled`/`no_show` voids the charge **only if still unbilled**; once invoiced, the billing desk decides.
 
 ### Clinic settings — read: `patients:view` (any clinic user) · write: `emr_settings:edit` (admin)
 Audit `entity_type` = `emr_settings` / `emr_doctor_profile`.
@@ -1546,8 +1548,8 @@ Audit `entity_type` = `emr_settings` / `emr_doctor_profile`.
 |--------|------|-------|
 | GET | `/emr/settings` | Created with defaults on first read. Returns clinic profile, `rx_prefix`, `uhid_prefix/digits/next`, `default_slot_minutes`, `patient_form` (field → hidden/optional/required) and `fallback` (pharmacy name/address/phone used while clinic fields are blank) |
 | PUT | `/emr/settings` | Partial update. 422 on bad prefix (1-10 letters/numbers/dashes), `uhid_digits` outside 3-10, slot length outside 5-120, unknown form field or state. `patient_form` merges into the existing layout |
-| GET | `/emr/doctor-profiles` | Active doctors with `specialty`, `qualification`, `registration_no` |
-| PUT | `/emr/doctor-profiles/{user_id}` | Upsert; blank text stored as null. 404 for a user in another clinic |
+| GET | `/emr/clinic-doctors` | Doctors mapped to this clinic: `{id, name, specialty, qualification, registration_no, consultation_fee_paise}` (fee = this clinic's). Profile details are edited via `PUT /practitioners/{id}` |
+| PUT | `/emr/clinic-doctors/{doctor_id}` | Body `{consultation_fee_paise}` only. 404 for a doctor not mapped to this clinic. (Replaces `/emr/doctor-profiles`, removed Oct 3, 2026) |
 
 Patients: every patient gets a `uhid` (clinic prefix + zero-padded counter) at registration; `GET /emr/patients?search=` also matches UHID. Fields set to `required` in the patient-form settings are enforced here (422 "Allergies is required") on create, and on edit for any field being sent.
 Prescriptions: the `clinic` block now uses EMR settings (+ `registration_no`, `email`, `footer`), and the response adds `doctor` (specialty/qualification/registration) and `patient_uhid`. `rx_number` uses the clinic's `rx_prefix`; numbering continues across prefix changes.

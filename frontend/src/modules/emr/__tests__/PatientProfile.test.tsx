@@ -16,7 +16,7 @@ jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }))
 const PATIENT = { id: 'p1', name: 'Asha Menon', phone: '9000012345', age: 41, gender: 'female', allergies: 'Penicillin',
   blood_group: 'B+', city: 'Pune', email: null, address: null, notes: null, alternate_phone: null,
   date_of_birth: null, source: 'emr', customer_id: null, is_active: true };
-const appt = (id: string, over = {}) => ({ id, patient_id: 'p1', patient_name: 'Asha Menon', doctor_user_id: 'd1',
+const appt = (id: string, over = {}) => ({ id, patient_id: 'p1', patient_name: 'Asha Menon', doctor_id: 'd1',
   doctor_name: 'Dr Rao', appointment_date: '2026-09-20', start_time: '10:00', end_time: '10:30', token_number: 1,
   appointment_type: 'scheduled', status: 'completed', reason: 'Fever', cancel_reason: null, ...over });
 const rx = (id: string, apptId: string, over = {}) => ({ id, rx_number: 'RX-000001', status: 'issued', appointment_id: apptId,
@@ -28,7 +28,7 @@ function mockApi({ visits = [appt('a1'), appt('a2', { status: 'cancelled', cance
     if (url.startsWith('emr/patients/p1/prescriptions')) return Promise.resolve({ data: rxs });
     if (url.startsWith('emr/patients/p1')) return Promise.resolve({ data: PATIENT });
     if (url.startsWith('emr/appointments')) return Promise.resolve({ data: visits });
-    if (url.startsWith('emr/doctors')) return Promise.resolve({ data: [{ id: 'd1', name: 'Dr Rao', role: 'doctor' }] });
+    if (url.startsWith('emr/doctors')) return Promise.resolve({ data: [{ id: 'd1', name: 'Dr Rao' }] });
     if (url.startsWith('patient-billing/accounts/')) return Promise.resolve({ data: {
       patient: { id: 'p1', name: 'Asha Menon', uhid: 'UH-1' },
       totals: { total_charges_paise: 50000, paid_paise: 0, not_invoiced_paise: 50000, invoiced_unpaid_paise: 0, balance_paise: 50000 },

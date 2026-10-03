@@ -14,8 +14,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import DbSession
-from models.users import User as UserORM
+from models.practitioners import Practitioner
 from modules.emr.billing_hooks import fee_for_appointments, post_consultation_fee, withdraw_consultation_fee
+from modules.emr.doctors import doctor_for_record
 from modules.emr.common import _client_ip, _record_audit, _require_emr_permission
 from modules.emr.constants import (
     APPOINTMENT_TRANSITIONS, APPT_BOOKED, APPT_CANCELLED, APPT_CHECKED_IN, APPT_COMPLETED,
@@ -29,7 +30,7 @@ router = APIRouter(prefix="/api/emr", tags=["emr-appointments"])
 
 class AppointmentCreate(BaseModel):
     patient_id: uuid.UUID
-    doctor_user_id: uuid.UUID
+    doctor_id: uuid.UUID
     appointment_date: date
     start_time: Optional[time] = None   # omitted = walk-in
     reason: Optional[str] = None
@@ -44,7 +45,7 @@ def _appt_response(a: EmrAppointment, patient_name=None, doctor_name=None, fee=N
     fmt = lambda t: t.strftime("%H:%M") if t else None  # noqa: E731
     return {
         "id": str(a.id), "patient_id": str(a.patient_id), "patient_name": patient_name,
-        "doctor_user_id": str(a.doctor_user_id), "doctor_name": doctor_name,
+        "doctor_id": str(a.practitioner_id), "doctor_name": doctor_name,
         "appointment_date": a.appointment_date.isoformat(),
         "start_time": fmt(a.start_time), "end_time": fmt(a.end_time),
         "token_number": a.token_number, "appointment_type": a.appointment_type,
@@ -60,19 +61,18 @@ async def _names(db, a: EmrAppointment):
     """Patient and doctor display names, both re-scoped to the appointment's own pharmacy."""
     p = (await db.execute(select(EmrPatient.name).where(
         EmrPatient.id == a.patient_id, EmrPatient.pharmacy_id == a.pharmacy_id))).scalar()
-    d = (await db.execute(select(UserORM.name).where(
-        UserORM.id == a.doctor_user_id, UserORM.pharmacy_id == a.pharmacy_id))).scalar()
+    d = getattr(await doctor_for_record(db, a.practitioner_id), "name", None)
     return p, d
 
 
 @router.get("/slots")
-async def available_slots(doctor_user_id: uuid.UUID, on_date: date = Query(..., alias="date"),
+async def available_slots(doctor_id: uuid.UUID, on_date: date = Query(..., alias="date"),
                           current_user: User = Depends(get_current_user),
                           db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "appointments:view", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    grid = await _slot_grid(db, pharmacy_id, doctor_user_id, on_date)
-    taken = await _booked_starts(db, pharmacy_id, doctor_user_id, on_date)
+    grid = await _slot_grid(db, pharmacy_id, doctor_id, on_date)
+    taken = await _booked_starts(db, pharmacy_id, doctor_id, on_date)
     return [{"start_time": s.strftime("%H:%M"), "end_time": e.strftime("%H:%M"),
              "available": s not in taken} for s, e in grid]
 
@@ -85,7 +85,7 @@ async def create_appointment(data: AppointmentCreate, request: Request,
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     if data.appointment_date < date.today():
         raise HTTPException(status_code=422, detail="Cannot book an appointment in the past")
-    await _check_patient_doctor(db, pharmacy_id, data.patient_id, data.doctor_user_id)
+    await _check_patient_doctor(db, pharmacy_id, data.patient_id, data.doctor_id)
 
     end_time = None
     if data.start_time is None:
@@ -95,13 +95,13 @@ async def create_appointment(data: AppointmentCreate, request: Request,
     else:
         appt_type = APPT_TYPE_SCHEDULED
         end_time = await _resolve_slot(
-            db, pharmacy_id, data.doctor_user_id, data.appointment_date, data.start_time)
+            db, pharmacy_id, data.doctor_id, data.appointment_date, data.start_time)
 
     appt = EmrAppointment(
-        pharmacy_id=pharmacy_id, patient_id=data.patient_id, doctor_user_id=data.doctor_user_id,
+        pharmacy_id=pharmacy_id, patient_id=data.patient_id, practitioner_id=data.doctor_id,
         appointment_date=data.appointment_date, start_time=data.start_time, end_time=end_time,
         token_number=await _next_token(
-            db, pharmacy_id, data.doctor_user_id, data.appointment_date),
+            db, pharmacy_id, data.doctor_id, data.appointment_date),
         appointment_type=appt_type, reason=data.reason, created_by=uuid.UUID(current_user.id))
     db.add(appt)
     try:
@@ -119,7 +119,7 @@ async def create_appointment(data: AppointmentCreate, request: Request,
 async def list_appointments(
     on_date: Optional[date] = Query(None, alias="date"),
     date_from: Optional[date] = None, date_to: Optional[date] = None,
-    doctor_user_id: Optional[uuid.UUID] = None,
+    doctor_id: Optional[uuid.UUID] = None,
     patient_id: Optional[uuid.UUID] = None, status: Optional[str] = None,
     current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
@@ -131,9 +131,9 @@ async def list_appointments(
     if date_from and date_to and (date_to < date_from or (date_to - date_from).days > 30):
         raise HTTPException(status_code=422, detail="Date range must be 1 to 31 days, start before end")
     query = (
-        select(EmrAppointment, EmrPatient.name, UserORM.name)
+        select(EmrAppointment, EmrPatient.name, Practitioner.name)
         .join(EmrPatient, EmrPatient.id == EmrAppointment.patient_id)
-        .join(UserORM, UserORM.id == EmrAppointment.doctor_user_id)
+        .join(Practitioner, Practitioner.id == EmrAppointment.practitioner_id)
         .where(EmrAppointment.pharmacy_id == uuid.UUID(current_user.pharmacy_id),
                EmrAppointment.deleted_at.is_(None)))
     if date_from and date_to:
@@ -144,8 +144,8 @@ async def list_appointments(
         query = query.where(EmrAppointment.appointment_date == date.today())
     if patient_id:
         query = query.where(EmrAppointment.patient_id == patient_id)
-    if doctor_user_id:
-        query = query.where(EmrAppointment.doctor_user_id == doctor_user_id)
+    if doctor_id:
+        query = query.where(EmrAppointment.practitioner_id == doctor_id)
     if status:
         query = query.where(EmrAppointment.status == status)
     rows = (await db.execute(query.order_by(
@@ -182,19 +182,19 @@ async def reschedule_appointment(appointment_id: str, data: dict, request: Reque
     try:
         day = date.fromisoformat(data["appointment_date"]) if "appointment_date" in data else appt.appointment_date
         start = time.fromisoformat(data["start_time"]) if "start_time" in data else appt.start_time
-        doctor_id = uuid.UUID(data["doctor_user_id"]) if "doctor_user_id" in data else appt.doctor_user_id
+        doctor_id = uuid.UUID(data["doctor_id"]) if "doctor_id" in data else appt.practitioner_id
     except (TypeError, ValueError):
         raise HTTPException(status_code=422, detail="Invalid date, time or doctor id")
     if day < date.today():
         raise HTTPException(status_code=422, detail="Cannot move an appointment into the past")
     await _check_patient_doctor(db, pharmacy_id, appt.patient_id, doctor_id)
-    moved = (day, start, doctor_id) != (appt.appointment_date, appt.start_time, appt.doctor_user_id)
+    moved = (day, start, doctor_id) != (appt.appointment_date, appt.start_time, appt.practitioner_id)
     if moved:
         if start is None:
             raise HTTPException(status_code=422, detail="Pick a time slot to reschedule")
         appt.end_time = await _resolve_slot(db, pharmacy_id, doctor_id, day, start, appt.id)
         appt.token_number = await _next_token(db, pharmacy_id, doctor_id, day)
-        appt.appointment_date, appt.start_time, appt.doctor_user_id = day, start, doctor_id
+        appt.appointment_date, appt.start_time, appt.practitioner_id = day, start, doctor_id
         appt.appointment_type = APPT_TYPE_SCHEDULED
     if "reason" in data:
         appt.reason = data["reason"]

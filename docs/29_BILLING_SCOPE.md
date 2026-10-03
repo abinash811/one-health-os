@@ -1,5 +1,5 @@
 # Patient Billing — Build Plan (clinic, pharmacy, lab, IPD on one account)
-# Version: 0.6 | Last updated: October 3, 2026
+# Version: 0.7 | Last updated: October 3, 2026
 # Type: Explanation
 # Status: ✅ B1–B5 ALL BUILT (Oct 2–3, 2026, approved by Abinash). B5 audit done — findings below. Remaining items are listed under "Not built yet". Decisions taken while building are in "Decisions made in B1/B2" below. Visual mock-up: `docs/mockups/29_billing_mock.html` (8 screens, open in a browser).
 
@@ -40,7 +40,7 @@ The mock-up (screen 4) shows medicines on the clinic invoice. For GST, stock and
 | `pb_charge_items` | pharmacy_id, patient_id, `source_module` (emr/pharmacy/lab/ipd/manual), `source_ref`, `encounter_ref` (+type: appointment/admission), description, quantity, unit_price_paise, total_paise, status (unbilled/invoiced/paid/void), invoice_id, `idempotency_key` (unique per pharmacy — a retried post never double-charges), void_reason, created_by, deleted_at |
 | `pb_invoices` | pharmacy_id, patient_id, `invoice_number` (`INV-000001`), `counter` (front_desk/lab/billing_desk…), status (issued/part_paid/paid/cancelled), gross/discount/net/paid paise, frozen `lines` JSONB, cancel_reason, deleted_at |
 | `pb_payments` | pharmacy_id, patient_id, invoice_id (null = advance deposit, for IPD), amount_paise, mode (cash/upi/card), reference, `receipt_number` (`RCT-000001`), received_by, deleted_at |
-| column `emr_doctor_profiles.consultation_fee_paise` | The doctor's default fee (set in Settings → Doctors) |
+| column `practitioner_clinics.consultation_fee_paise` | The doctor's fee at THIS clinic (set in Settings → EMR → Doctors & fees; was `emr_doctor_profiles` until Oct 3, 2026) |
 - No `accounts` table in v1: the account is the patient; balances are computed from charges and payments. If IPD needs per-admission accounts, add one then (CARE's shape) — charges already carry `encounter_ref`.
 - Invoice/receipt prefixes fixed in v1 (`INV-`, `RCT-`); configurable later like Rx numbers.
 

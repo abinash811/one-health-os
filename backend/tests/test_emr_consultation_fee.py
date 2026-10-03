@@ -3,6 +3,7 @@ Patient Billing B2 (docs/29_BILLING_SCOPE.md): the doctor's consultation fee is 
 patient's account at check-in, once per visit, and withdrawn if the visit is cancelled before
 it is billed. P0: no double charge, no silent loss of a billed charge, clinic isolation.
 """
+import uuid
 from datetime import date
 
 import requests
@@ -13,12 +14,7 @@ from test_patient_billing import API, _Billing
 
 class _Fee(_Billing):
     def _doctor(self, fee_paise=50000):
-        doctor_id, _ = self._user("doctor")
-        if fee_paise is not None:
-            r = self.session.put(f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}",
-                                 json={"consultation_fee_paise": fee_paise})
-            assert r.status_code == 200, r.text
-        return doctor_id
+        return super()._doctor(fee_paise=fee_paise)
 
     def _walk_in(self, doctor_id):
         patient = self._patient()
@@ -35,15 +31,18 @@ class _Fee(_Billing):
 
 
 class TestConsultationFee(_Fee):
-    def test_fee_is_part_of_the_doctor_profile(self):
+    def test_fee_belongs_to_the_clinic_and_is_set_from_the_clinic_doctors_list(self):
         doctor_id = self._doctor(fee_paise=45000)
-        listed = self.session.get(f"{BASE_URL}/api/emr/doctor-profiles").json()
-        assert next(d for d in listed if d["user_id"] == doctor_id)["consultation_fee_paise"] == 45000
-        bad = self.session.put(f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}", json={"consultation_fee_paise": -1})
-        assert bad.status_code == 422
+        listed = self.session.get(f"{BASE_URL}/api/emr/clinic-doctors").json()
+        assert next(d for d in listed if d["id"] == doctor_id)["consultation_fee_paise"] == 45000
+        url = f"{BASE_URL}/api/emr/clinic-doctors/{doctor_id}"
+        assert self.session.put(url, json={"consultation_fee_paise": 60000}).json()["consultation_fee_paise"] == 60000
+        assert self.session.put(url, json={"consultation_fee_paise": -1}).status_code == 422
+        assert self.session.put(url, json={"consultation_fee_paise": None}).json()["consultation_fee_paise"] is None
         _, rec = self._user("receptionist")
-        r = rec.put(f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}", json={"consultation_fee_paise": 1})
-        assert r.status_code == 403
+        assert rec.put(url, json={"consultation_fee_paise": 1}).status_code == 403
+        assert self.session.put(f"{BASE_URL}/api/emr/clinic-doctors/{uuid.uuid4()}",
+                                json={"consultation_fee_paise": 1}).status_code == 404
 
     def test_check_in_posts_the_fee_once(self):
         doctor_id = self._doctor(50000)
@@ -72,7 +71,7 @@ class TestConsultationFee(_Fee):
         doctor_id = self._doctor(50000)
         patient, appt = self._walk_in(doctor_id)
         self._move(appt, "checked_in")
-        self.session.put(f"{BASE_URL}/api/emr/doctor-profiles/{doctor_id}", json={"consultation_fee_paise": 90000})
+        self.session.put(f"{BASE_URL}/api/emr/clinic-doctors/{doctor_id}", json={"consultation_fee_paise": 90000})
         assert self._account(patient["id"]).json()["charges"][0]["total_paise"] == 50000
 
     def test_cancel_before_billing_withdraws_the_fee(self):

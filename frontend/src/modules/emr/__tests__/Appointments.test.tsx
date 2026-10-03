@@ -18,9 +18,9 @@ jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }))
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({ ...jest.requireActual('react-router-dom'), useNavigate: () => mockNavigate }));
 
-const DOCTORS = [{ id: 'd1', name: 'Dr Rao', role: 'doctor' }];
+const DOCTORS = [{ id: 'd1', name: 'Dr Rao' }];
 const row = (over: Record<string, unknown>) => ({
-  id: 'a1', patient_id: 'p1', patient_name: 'Asha Menon', doctor_user_id: 'd1', doctor_name: 'Dr Rao',
+  id: 'a1', patient_id: 'p1', patient_name: 'Asha Menon', doctor_id: 'd1', doctor_name: 'Dr Rao',
   appointment_date: '2026-10-05', start_time: '09:30', end_time: '10:00', token_number: 1,
   appointment_type: 'scheduled', status: 'booked', reason: 'Fever', cancel_reason: null, ...over,
 });

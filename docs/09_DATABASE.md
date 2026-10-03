@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.20 | Last updated: October 3, 2026
+# Version: 1.21 | Last updated: October 3, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -828,7 +828,7 @@ Prescribing doctors. Required for Schedule H1 billing.
 Indexes: pharmacy; (pharmacy, phone); (pharmacy, name); customer_id.
 
 ### `emr_doctor_schedules`
-- One working-hours block per row: `doctor_user_id` (FK → users), `weekday` (Mon=0..Sun=6), `start_time`, `end_time`, `slot_minutes` (default 15).
+- One working-hours block per row: `practitioner_id` (FK → practitioners; the legacy `doctor_user_id` is nullable, no longer written, dropped in docs/31 phase 4), `weekday` (Mon=0..Sun=6), `start_time`, `end_time`, `slot_minutes` (default 15).
 - A doctor with morning + evening clinic has two rows for the same weekday.
 - A doctor is a `users` row, not the pharmacy-module `doctors` directory.
 
@@ -836,7 +836,7 @@ Indexes: pharmacy; (pharmacy, phone); (pharmacy, name); customer_id.
 | Column | Type | Notes |
 |--------|------|-------|
 | `patient_id` | UUID FK → emr_patients | |
-| `doctor_user_id` | UUID FK → users | |
+| `practitioner_id` | UUID FK → practitioners | The doctor (a record, not a login). Legacy `doctor_user_id` stays nullable/unwritten until docs/31 phase 4 |
 | `appointment_date` | Date | |
 | `start_time`, `end_time` | Time, nullable | NULL start_time = walk-in (token only) |
 | `token_number` | Integer | Per doctor per day |
@@ -861,7 +861,7 @@ One row per clinic, created with defaults on first read (`modules/emr/settings_s
 | `default_slot_minutes` | Integer | Default 15 |
 | `patient_form` | JSONB | `{field: hidden\|optional\|required}`; missing keys use `PATIENT_FORM_DEFAULTS`. `name` is not configurable |
 
-### `emr_doctor_profiles`
+### `emr_doctor_profiles` — DEPRECATED (Oct 3, 2026: superseded by `practitioners` + `practitioner_clinics`; no longer read or written; dropped in docs/31 phase 4)
 | Column | Type | Notes |
 |--------|------|-------|
 | `user_id` | UUID FK → users | Unique per pharmacy |
@@ -935,7 +935,7 @@ consultation table (Abinash, Oct 2, 2026: "all these details should be part of o
 |--------|------|-------|
 | `appointment_id` | UUID FK → emr_appointments | One live (non-cancelled) Rx per appointment — partial unique index |
 | `patient_id` | UUID FK → emr_patients | |
-| `doctor_user_id` | UUID FK → users | |
+| `practitioner_id` | UUID FK → practitioners | The doctor (a record, not a login). Legacy `doctor_user_id` stays nullable/unwritten until docs/31 phase 4 |
 | `rx_number` | String(30) | `RX-000001`, unique per pharmacy |
 | `status` | String | `draft` (editable) → `issued` (locked, printable) or `cancelled` |
 | `vitals` | JSONB, nullable | Optional keys: `bp_systolic`, `bp_diastolic`, `pulse`, `temperature_c`, `spo2`, `weight_kg` |

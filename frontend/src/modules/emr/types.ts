@@ -22,17 +22,18 @@ export interface EmrPatient {
   is_active: boolean;
 }
 
+/** A doctor (a core `practitioners` record) mapped to this clinic — not a login. */
 export interface EmrDoctor {
   id: string;
   name: string;
-  role: string;
+  specialty?: string | null;
 }
 
 export interface EmrAppointment {
   id: string;
   patient_id: string;
   patient_name: string | null;
-  doctor_user_id: string;
+  doctor_id: string;
   doctor_name: string | null;
   appointment_date: string;
   start_time: string | null;
@@ -59,7 +60,7 @@ export interface EmrFee {
 
 export interface EmrScheduleBlock {
   id: string;
-  doctor_user_id: string;
+  doctor_id: string;
   weekday: number;
   start_time: string;
   end_time: string;
@@ -100,7 +101,7 @@ export interface EmrPrescription {
   appointment_id: string;
   patient_id: string;
   patient_name: string | null;
-  doctor_user_id: string;
+  doctor_id: string;
   doctor_name: string | null;
   vitals: EmrVitals;
   complaints: string | null;
@@ -143,12 +144,13 @@ export interface EmrSettings {
   fallback: { clinic_name: string; clinic_address: string; clinic_phone: string };
 }
 
-export interface EmrDoctorProfile {
-  user_id: string;
+/** A doctor as this clinic sees them: profile from Organisation → Doctors, fee for THIS clinic. */
+export interface EmrClinicDoctor {
+  id: string;
   name: string;
   specialty: string | null;
   qualification: string | null;
   registration_no: string | null;
-  /** Default consultation fee in paise; null or 0 = no fee is charged at check-in. */
+  /** This clinic's consultation fee in paise; null or 0 = no fee is charged at check-in. */
   consultation_fee_paise: number | null;
 }
