@@ -36,9 +36,8 @@ const PurchaseReturnDetail = lazy(() => import('@/pages/PurchaseReturnDetail'));
 const PurchaseReturnsList = lazy(() => import('@/pages/PurchaseReturnsList'));
 const Customers = lazy(() => import('@/pages/Customers'));
 const Reports = lazy(() => import('@/pages/Reports'));
-const Settings = lazy(() => import('@/pages/Settings'));
-// Team page — merges Users + Roles into a single tabbed page
-const Team = lazy(() => import('@/pages/Team'));
+// Settings hub — a tab per module (Organisation / EMR / Pharmacy); Team + Roles + Stores live in it
+const SettingsHub = lazy(() => import('@/pages/SettingsHub'));
 const Suppliers = lazy(() => import('@/pages/Suppliers'));
 const GSTReport = lazy(() => import('@/pages/GSTReport'));
 const DayEndClosing = lazy(() => import('@/pages/DayEndClosing'));
@@ -51,9 +50,7 @@ const TransferHistory = lazy(() => import('@/pages/TransferHistory'));
 const EmrAppointments = lazy(() => import('@/modules/emr/pages/Appointments'));
 const EmrCalendar = lazy(() => import('@/modules/emr/pages/Calendar'));
 const EmrPatients = lazy(() => import('@/modules/emr/pages/Patients'));
-const EmrDoctorSchedules = lazy(() => import('@/modules/emr/pages/DoctorSchedules'));
 const EmrPatientProfile = lazy(() => import('@/modules/emr/pages/PatientProfile'));
-const EmrSettingsPage = lazy(() => import('@/modules/emr/pages/EmrSettings'));
 const PatientBillingInvoicePrint = lazy(() => import('@/modules/patient_billing/pages/InvoicePrint'));
 const PatientBillingDesk = lazy(() => import('@/modules/patient_billing/pages/BillingDesk'));
 const PatientBillingAccount = lazy(() => import('@/modules/patient_billing/pages/AccountPage'));
@@ -169,8 +166,8 @@ function AppRoutes({ user }) {
           <Route path="emr/calendar" element={<EmrCalendar />} />
           <Route path="emr/patients" element={<EmrPatients />} />
           <Route path="emr/patients/:patientId" element={<EmrPatientProfile />} />
-          <Route path="emr/schedules" element={<EmrDoctorSchedules />} />
-          <Route path="emr/settings" element={<EmrSettingsPage />} />
+          <Route path="emr/schedules" element={<Navigate to="/settings/emr/schedules" replace />} />
+          <Route path="emr/settings" element={<Navigate to="/settings/emr/clinic-profile" replace />} />
           <Route path="emr/consult/:appointmentId" element={<EmrConsultation />} />
           <Route path="patient-billing" element={<Navigate to={ROUTES.PATIENT_BILLING.PENDING} replace />} />
           <Route path="patient-billing/pending" element={<PatientBillingDesk tab="pending" />} />
@@ -208,8 +205,10 @@ function AppRoutes({ user }) {
           <Route path="reports/day-end" element={<DayEndClosing />} />
           <Route path="compliance/schedule-h1" element={<ScheduleH1Register />} />
           <Route path="audit-log" element={<AuditLog />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="team" element={<Team />} />
+          <Route path="settings" element={<SettingsHub />} />
+          <Route path="settings/:module" element={<SettingsHub />} />
+          <Route path="settings/:module/:section" element={<SettingsHub />} />
+          <Route path="team" element={<Navigate to="/settings/organisation/team" replace />} />
         </Route>
         {/* Printable Rx renders outside Layout so the sheet has no app chrome */}
         <Route path="emr/prescriptions/:id/print" element={<EmrPrescriptionPrint />} />

@@ -1,8 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
-import DoctorSchedules from '../pages/DoctorSchedules';
+import DoctorSchedules from '../components/DoctorSchedulesPanel';
 import api from '@/lib/axios';
 
 jest.mock('@/lib/axios', () => ({
@@ -18,7 +17,7 @@ function mockApi(doctors: unknown[], blocks: unknown[]) {
   (api.get as jest.Mock).mockImplementation((url: string) =>
     Promise.resolve({ data: url.startsWith('emr/doctors') ? doctors : blocks }));
 }
-const renderPage = () => render(<MemoryRouter><DoctorSchedules /></MemoryRouter>);
+const renderPage = () => render(<DoctorSchedules />);
 
 describe('Doctor Schedules', () => {
   beforeEach(() => jest.clearAllMocks());

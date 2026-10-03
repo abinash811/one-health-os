@@ -17,6 +17,7 @@ const TooltipContentAny = TooltipContent as unknown as React.FC<{ children?: Rea
 interface NavItem {
   name: string;
   path: string;
+  testId?: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 interface NavModule {
@@ -41,7 +42,7 @@ export default function SidebarNav({ modules, collapsed }: Props) {
   const linkFor = (item: NavItem) => (
     <NavLink
       to={item.path}
-      data-testid={`nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
+      data-testid={item.testId ?? `nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
       className={({ isActive }) =>
         `flex items-center gap-2.5 h-9 [@media(pointer:coarse)]:h-11 rounded-lg transition-colors text-[13px] font-medium mb-0.5 ${
           collapsed ? 'justify-center px-0' : 'px-3'

@@ -7,7 +7,7 @@ const names = (user: unknown) => mods(user).flatMap((m) => m.items.map((i) => i.
 describe('visibleNavModules', () => {
   it('a doctor sees only the EMR module — no Pharmacy, no Admin', () => {
     expect(mods({ role: 'doctor' }).map((m) => m.id)).toEqual(['emr']);
-    expect(names({ role: 'doctor' })).toEqual(['Appointments', 'Calendar', 'Patients', 'Clinic Billing']);
+    expect(names({ role: 'doctor' })).toEqual(['Appointments', 'Calendar', 'Patients', 'Clinic Billing', 'Settings']);
   });
 
   it('a cashier sees only Pharmacy, and only what a cashier may open', () => {
@@ -18,20 +18,21 @@ describe('visibleNavModules', () => {
 
   it('a doctor who is also an administrator sees all three modules', () => {
     expect(mods({ role: 'doctor', is_admin: true }).map((m) => m.id)).toEqual(['emr', 'pharmacy', 'admin']);
-    expect(names({ role: 'doctor', is_admin: true })).toEqual(expect.arrayContaining(['Calendar', 'Team', 'Settings', 'Billing']));
+    expect(names({ role: 'doctor', is_admin: true })).toEqual(expect.arrayContaining(['Calendar', 'Settings', 'Billing', 'Audit Log']));
   });
 
   it('a wildcard "Super Admin" role sees everything', () => {
-    expect(names({ role: 'custom', is_super_admin: true })).toContain('Team');
+    expect(names({ role: 'custom', is_super_admin: true })).toContain('Audit Log');
   });
 
   it('drops modules with nothing to show', () => {
     expect(visibleNavModules({ role: 'unknown-role' })).toEqual([]);
   });
 
-  it('keeps Audit Log under Admin, Sch H1 Register under Pharmacy', () => {
+  it('keeps Audit Log under Admin, Sch H1 Register under Pharmacy; every module has its own Settings shortcut', () => {
     const all = mods({ role: 'admin', is_admin: true });
-    expect(all.find((m) => m.id === 'admin')!.items.map((i) => i.name)).toEqual(['Audit Log', 'Settings', 'Team']);
+    expect(all.find((m) => m.id === 'admin')!.items.map((i) => i.name)).toEqual(['Audit Log', 'Settings']);
+    expect(all.map((m) => m.items.map((i) => i.name).includes('Settings'))).toEqual([true, true, true]);
     expect(all.find((m) => m.id === 'pharmacy')!.items.map((i) => i.name)).toContain('Sch H1 Register');
   });
 });
@@ -45,6 +46,9 @@ describe('moduleForPath', () => {
     expect(moduleForPath('/inventory/product/SKU1')).toBe('pharmacy');
     expect(moduleForPath('/compliance/schedule-h1')).toBe('pharmacy');
     expect(moduleForPath('/team')).toBe('admin');
+    expect(moduleForPath('/settings/organisation/team')).toBe('admin');
+    expect(moduleForPath('/settings/emr/clinic-profile')).toBe('emr');
+    expect(moduleForPath('/settings/pharmacy/gst')).toBe('pharmacy');
   });
   it('does not confuse similar prefixes, and returns null for unknown pages', () => {
     expect(moduleForPath('/billing-other')).toBeNull();

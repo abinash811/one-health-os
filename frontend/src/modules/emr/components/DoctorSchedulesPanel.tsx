@@ -1,26 +1,21 @@
 /**
- * EMR Doctor Schedules — each doctor's weekly working hours.
- * Route: /emr/schedules (docs/28_EMR_SCOPE.md). These blocks are what the
- * booking dialog turns into bookable slots.
+ * Doctor Schedules — each doctor's weekly working hours, a section of Settings → EMR
+ * (docs/28_EMR_SCOPE.md). These blocks are what the booking dialog and the calendar turn
+ * into bookable slots.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CalendarClock, Pencil, Plus, Trash2 } from 'lucide-react';
-import {
-  PageHeader, PageTabs, DataCard, AppButton, EmptyState, TableSkeleton, DeleteConfirmDialog,
-} from '@/components/shared';
+import { DataCard, AppButton, EmptyState, TableSkeleton, DeleteConfirmDialog } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { WEEKDAY_LABELS } from '@/constants/domainConstants';
-import { EMR_TABS, emrTabRoute } from '../emrTabs';
 import { to12h } from '../timeFormat';
-import DoctorSelect from '../components/DoctorSelect';
-import ScheduleBlockModal from '../components/ScheduleBlockModal';
+import DoctorSelect from './DoctorSelect';
+import ScheduleBlockModal from './ScheduleBlockModal';
 import type { EmrDoctor, EmrScheduleBlock } from '../types';
 
-export default function DoctorSchedules() {
-  const navigate = useNavigate();
+export default function DoctorSchedulesPanel() {
   const [doctors, setDoctors] = useState<EmrDoctor[]>([]);
   const [doctorId, setDoctorId] = useState('');
   const [blocks, setBlocks] = useState<EmrScheduleBlock[]>([]);
@@ -76,20 +71,13 @@ export default function DoctorSchedules() {
   };
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-page" data-testid="emr-schedules-page">
-      <PageHeader
-        title="Clinic"
-        actions={(
-          <AppButton icon={<Plus className="w-4 h-4" />} disabled={!doctorId} onClick={() => openModal(null)}
-            data-testid="add-hours-btn">
-            Add Working Hours
-          </AppButton>
-        )}
-      />
-      <PageTabs tabs={EMR_TABS} activeTab="schedules" onChange={(k) => navigate(emrTabRoute(k))} />
-
-      <div className="mb-4">
+    <div data-testid="emr-schedules-page">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <DoctorSelect doctors={doctors} value={doctorId} onChange={setDoctorId} testId="schedule-doctor-select" />
+        <AppButton icon={<Plus className="w-4 h-4" />} disabled={!doctorId} onClick={() => openModal(null)}
+          data-testid="add-hours-btn">
+          Add Working Hours
+        </AppButton>
       </div>
 
       {doctors.length === 0 && !loading ? (

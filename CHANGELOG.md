@@ -11,6 +11,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Changed
+- **One Settings hub, a tab per module.** Settings now has tabs **Organisation** (Team, Roles & Permissions, Stores & chain),
+  **EMR** (Clinic profile, Patient ID formats, Patient form, Doctors & fees, Doctor schedules) and **Pharmacy** (the nine
+  pharmacy pages), with that module's sections down the left. Each module in the sidebar has its own **Settings** shortcut
+  that opens its tab. People only see the tabs and sections they have access to (a clinic manager ticked for EMR settings sees
+  only EMR). Unsaved clinic edits survive a visit to Doctor schedules. Old links `/team`, `/emr/settings` and `/emr/schedules`
+  forward to the new places; the EMR page tabs are now just Appointments / Calendar / Patients. Mock-up:
+  `docs/mockups/31_settings_hub_mock.html` (layout B).
 - **Sidebar is now grouped by module.** Three folding sections — **EMR** (Appointments, Calendar, Patients, Clinic Billing),
   **Pharmacy** (Dashboard, Billing, Inventory, Purchases, Customers, Suppliers, Reports, Sch H1 Register) and **Admin** (Audit
   Log, Settings, Team). The module you are in opens by itself; click another heading to open that one instead. A module with

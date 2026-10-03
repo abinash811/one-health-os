@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import EmrSettingsPage from '../pages/EmrSettings';
+import EmrSettingsPage from '../components/EmrSettingsPanel';
 import PatientFormModal from '../components/PatientFormModal';
 import { AuthContext } from '@/App';
 import api from '@/lib/axios';

@@ -66,8 +66,8 @@ export const ROUTES = {
     CALENDAR:     '/emr/calendar',
     PATIENTS:     '/emr/patients',
     PATIENT:      (id) => `/emr/patients/${id}`,
-    SCHEDULES:    '/emr/schedules',
-    SETTINGS:     '/emr/settings',
+    SCHEDULES:    '/settings/emr/schedules',     // lives in the Settings hub (old /emr/schedules redirects here)
+    SETTINGS:     '/settings/emr/clinic-profile', // old /emr/settings redirects here
     CONSULT:      (appointmentId) => `/emr/consult/${appointmentId}`,
     RX_PRINT:     (rxId) => `/emr/prescriptions/${rxId}/print`,
   },

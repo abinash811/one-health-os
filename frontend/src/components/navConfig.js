@@ -14,17 +14,18 @@ import {
 export const NAV_MODULES = [
   {
     id: 'emr', label: 'EMR', dot: 'bg-teal-600',
-    prefixes: ['/emr', '/patient-billing'],
+    prefixes: ['/emr', '/patient-billing', '/settings/emr'],
     items: [
       { name: 'Appointments', path: '/emr/appointments', icon: CalendarDays, roles: ['admin', 'receptionist', 'doctor'] },
       { name: 'Calendar',     path: '/emr/calendar',     icon: CalendarRange, roles: ['admin', 'receptionist', 'doctor'] },
       { name: 'Patients',     path: '/emr/patients',     icon: Stethoscope,  roles: ['admin', 'receptionist', 'doctor'] },
       { name: 'Clinic Billing', path: '/patient-billing', icon: Receipt,     roles: ['admin', 'receptionist', 'doctor'] },
+      { name: 'Settings', testId: 'nav-emr-settings', path: '/settings/emr', icon: Settings, roles: ['admin', 'doctor'] },
     ],
   },
   {
     id: 'pharmacy', label: 'Pharmacy', dot: 'bg-brand',
-    prefixes: ['/dashboard', '/billing', '/inventory', '/purchases', '/customers', '/suppliers', '/reports', '/compliance'],
+    prefixes: ['/dashboard', '/billing', '/inventory', '/purchases', '/customers', '/suppliers', '/reports', '/compliance', '/settings/pharmacy'],
     items: [
       { name: 'Dashboard',  path: '/dashboard',  icon: LayoutDashboard, roles: ['admin', 'manager', 'cashier', 'inventory_staff'] },
       { name: 'Billing',    path: '/billing',    icon: ShoppingCart,    roles: ['admin', 'manager', 'cashier'] },
@@ -34,6 +35,7 @@ export const NAV_MODULES = [
       { name: 'Suppliers',  path: '/suppliers',  icon: ShoppingBag,     roles: ['admin', 'manager', 'inventory_staff'] },
       { name: 'Reports',    path: '/reports',    icon: FileText,        roles: ['admin', 'manager'] },
       { name: 'Sch H1 Register', path: '/compliance/schedule-h1', icon: FileText, roles: ['admin', 'manager'] },
+      { name: 'Settings', testId: 'nav-pharmacy-settings', path: '/settings/pharmacy', icon: Settings, roles: ['admin'] },
     ],
   },
   {
@@ -41,8 +43,7 @@ export const NAV_MODULES = [
     prefixes: ['/settings', '/team', '/audit-log'],
     items: [
       { name: 'Audit Log', path: '/audit-log', icon: FileText, roles: ['admin'] },
-      { name: 'Settings',  path: '/settings',  icon: Settings, roles: ['admin'] },
-      { name: 'Team',      path: '/team',      icon: UserCog,  roles: ['admin'] },
+      { name: 'Settings',  testId: 'nav-admin-settings', path: '/settings/organisation', icon: UserCog, roles: ['admin'] },
     ],
   },
 ];

@@ -1,5 +1,5 @@
 # EMR Module — v1 Scope (clinic-day flow)
-# Version: 0.6 | Last updated: October 3, 2026
+# Version: 0.7 | Last updated: October 3, 2026
 # Type: Explanation
 # Status: Steps 1–2 built (Oct 2, 2026); steps 3–5 not started. Schema decisions live in docs/09_DATABASE.md
 
@@ -61,6 +61,7 @@
 5. Fresh whole-feature audit as receptionist / doctor / pharmacist / patient (Manifesto rule 11).
 
 ## Settings (built Oct 2, 2026 — Abinash: "doctors, clinics, UHID configuration, patient form and other things")
+- **Where it lives (Oct 3, 2026):** Settings → **EMR** tab (`/settings/emr/...`), reached from the sidebar's EMR → Settings. Sections: Clinic profile, Patient ID formats, Patient form, Doctors & fees, Doctor schedules. Old `/emr/settings` and `/emr/schedules` redirect there.
 - Clinic profile (name, address, phone, registration no., Rx footer) — blank fields fall back to the pharmacy record.
 - UHID prefix/length and Rx prefix — formats change for new records only; numbers are never reused or restarted.
 - Patient form: each optional field can be hidden / optional / required (name always required); enforced by the API, not just the screen.
