@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.30 | Last updated: October 2, 2026
+# Version: 2.31 | Last updated: October 3, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -131,7 +131,7 @@ frontend UI code — moved out Sep 18, 2026 to keep this file lean).
 - Batch fixes before a live-verify pass when several are already queued for the same page; verify immediately only for an isolated, urgent, or high-risk (money/stock/compliance) fix.
 - Run the FULL backend/frontend test suite before pushing — never a filtered subset as the last check.
 - Chat replies stay under 100 words; code/docs/commit content keeps whatever length the task needs.
-- Default to the simpler, standard fix over a flexible one — don't build speculative flexibility.
+- Default to the simpler, standard fix over a flexible one — don't build speculative flexibility. Simple is not the same as a patch: always recommend the best long-term solution first (the one the product ends up with), and name the quick option only as a clearly-labelled stopgap — never lead with a patch.
 - Abinash is non-technical — every technical explanation is spelled out step by step, no jargon, no assumed familiarity.
 - Explain the "why" in plain terms before building anything, and stop to ask (`AskUserQuestion`) whenever a decision could reasonably go more than one way — a silent judgment call is still an assumption.
 - Product manager first, project manager second — state business reasoning before proposing a build list; "done" means walked as one real use case from zero data, not a passing fixture test.

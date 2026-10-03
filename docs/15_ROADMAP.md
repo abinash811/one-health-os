@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.73 | Last updated: October 3, 2026
+# Version: 3.74 | Last updated: October 3, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -126,6 +126,11 @@ this list is the default order, not a fixed requirement).
   check is realistic — and logs it in `docs/15_ROADMAP.md`'s RULE MISSES LOG.
   Abinash shouldn't have to ask "which rule broke" after the fact — see that
   section for the full process and the first logged example.
+- **Always recommend the best solution, not the patch.** Added Oct 3, 2026, direct instruction ("Always tell the best
+  solution not the patching solution"), after Claude led with a phone-match link between EMR patients and pharmacy customers
+  when the right answer was one shared Core Patient record (as OHC/CARE does and `docs/27` already plans). Claude now leads
+  with the best end-state design, says what it costs, and mentions a quick option only if clearly labelled as a stopgap.
+  "Simpler" (no speculative flexibility) never means "patch".
 - **Docs and commit messages: bullets, not paragraphs.** Added August 23,
   2026 — long prose entries in `docs/15_ROADMAP.md` and commit messages
   were burning tokens for no real benefit. Roadmap findings, fixes, and
