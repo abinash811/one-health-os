@@ -12,7 +12,7 @@ import { AuthContext } from '@/App';
 import { AppButton } from '@/components/shared';
 import SidebarNav from '@/components/SidebarNav';
 import StoreSwitcher from '@/components/StoreSwitcher';
-import { visibleNavGroups, ROLE_BADGE, ROLE_LABEL } from '@/components/navConfig';
+import { visibleNavModules, ROLE_BADGE, ROLE_LABEL } from '@/components/navConfig';
 import {
   LogOut,
   Menu,
@@ -68,7 +68,7 @@ function SidebarShell({ collapsed, visibleGroups, user, roleBadge, roleLabel, on
         />
       </div>
 
-      <SidebarNav groups={visibleGroups} collapsed={collapsed} />
+      <SidebarNav modules={visibleGroups} collapsed={collapsed} />
 
       {/* User footer */}
       <div className="flex-shrink-0 border-t border-white/10 px-3 py-3">
@@ -141,7 +141,7 @@ export default function Layout() {
   const roleLabel = ROLE_LABEL[user?.role] ?? (user?.role ?? '');
 
   // Filter each group's items by role (admins see all), drop groups with no visible items
-  const visibleGroups = visibleNavGroups(user);
+  const visibleGroups = visibleNavModules(user);
 
   return (
     <div className="app-shell flex h-screen bg-page overflow-hidden">

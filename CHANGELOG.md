@@ -11,6 +11,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Changed
+- **Sidebar is now grouped by module.** Three folding sections — **EMR** (Appointments, Calendar, Patients, Clinic Billing),
+  **Pharmacy** (Dashboard, Billing, Inventory, Purchases, Customers, Suppliers, Reports, Sch H1 Register) and **Admin** (Audit
+  Log, Settings, Team). The module you are in opens by itself; click another heading to open that one instead. A module with
+  nothing the user may open is hidden, so a doctor sees only EMR and a cashier only Pharmacy. Collapsed-to-icons mode is
+  unchanged. Mock-up: `docs/mockups/30_nav_modules_mock.html`.
 - **Clinic billing buttons now follow Roles & Permissions, not role names.** Collect, Cancel invoice and Write Rx show for
   anyone whose role is ticked for them — so any role can create and collect a bill once access is given. Default ticks are
   unchanged. Login and `/auth/me` now include the user's permission list.
