@@ -1,5 +1,5 @@
 # One Person Record — Build Plan (EMR patients + pharmacy customers share one person)
-# Version: 0.1 | Last updated: October 3, 2026
+# Version: 0.2 | Last updated: October 3, 2026
 # Type: Explanation
 # Status: 🚫 PLAN ONLY — not built. Needs Abinash's approval (schema change + data migration). Nothing in this file exists in code yet.
 
@@ -14,6 +14,14 @@
 - No facility owns the patient; every module points at that one record.
 - Facility-specific numbers (like our UHID) are separate `PatientIdentifier` rows, configured per facility.
 - Not verified: how its pharmacy part uses the patient. Competitors (eVitalRx, Marg, Pharmasoft): not verified — they are pharmacy-only, so they have a customer master but no clinic side.
+
+## How other products do it (checked Oct 3, 2026 via web search)
+- **OpenMRS** — a `person` table; a `patient` is a child row with the same id. A person can also be a user (doctor, receptionist). Identity once, role on top.
+- **Odoo** — one `res.partner` table shared by sales, point of sale, invoicing, purchase and the hospital add-ons; each module extends it with its own fields instead of copying it.
+- **Bahmni (OpenMRS + Odoo)** — keeps two systems and *syncs* every OpenMRS patient into Odoo as a customer. Works, but it is a copy that must be kept in step (the approach we are choosing not to take).
+- **Large hospital systems (Epic and others)** — an Enterprise Master Patient Index: one identifier per patient, plus matching, merging and de-duplication of records across departments. Our "possible duplicates" list is the small version of this.
+- **Practo, eVitalRx, Marg, Pharmasoft** — not verified (no public data model found); do not rely on any claim about them.
+- **Pattern shared by the ones that scale:** one identity record, role/profile rows on top, duplicates handled by review — what this plan does.
 
 ## The design (hub and spoke)
 - **Core table `people`** (new) — identity and contact only:
