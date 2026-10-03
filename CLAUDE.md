@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.32 | Last updated: October 3, 2026
+# Version: 2.33 | Last updated: October 3, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -104,6 +104,7 @@ frontend UI code — moved out Sep 18, 2026 to keep this file lean).
 | 28 | `docs/28_EMR_SCOPE.md` | EMR module scope, persona flows, build order, what is built (appointments, Rx, settings) |
 | 29 | `docs/29_BILLING_SCOPE.md` | Patient Billing build plan — one account per patient, each counter bills its own, billing-desk Pending list. Plan only, 🚫 not built until approved. |
 | 30 | `docs/30_CORE_PERSON_SCOPE.md` | One shared `people` record for EMR patients + pharmacy customers (hub and spoke, as OHC does) — design, 5 migration steps, consumers to update, phases, decisions. Plan only, 🚫 not built until approved. |
+| 31 | `docs/31_CORE_DOCTOR_SCOPE.md` | Doctors as their own records owned by the hospital, mapped to clinics, separate from logins (users) — design, 4 phases, migration, consumers, decisions (OpenMRS-style Provider vs User). Plan only, 🚫 not built until approved. |
 
 ### Living Status — current state, always re-read fresh
 

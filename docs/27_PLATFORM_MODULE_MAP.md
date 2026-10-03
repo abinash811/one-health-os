@@ -1,5 +1,5 @@
 # Platform vs. Module Map — Core vs. Pharmacy
-# Version: 0.4 | Last updated: October 3, 2026
+# Version: 0.5 | Last updated: October 3, 2026
 # Type: Explanation
 # Status: Draft — mapping only, nothing built or moved yet.
 
@@ -68,5 +68,5 @@ We are building an **open-core health platform, like Open Healthcare Network (CA
 1. Decide tenant naming (blocker 1) — one-line plain-language options to Abinash.
 2. Create `core/` and `modules/pharmacy/` folders; move files, no logic changes.
 3. Module registration: each module declares routers, permissions, nav items.
-4. Promote customers/doctors to core Patient/Practitioner. (Patient half planned in `docs/30_CORE_PERSON_SCOPE.md` — one shared `people` record; awaiting approval.)
+4. Promote customers/doctors to core Patient/Practitioner. (Patient half planned in `docs/30_CORE_PERSON_SCOPE.md` — one shared `people` record; doctor half in `docs/31_CORE_DOCTOR_SCOPE.md` — hospital-owned `practitioners`, separate from logins; both awaiting approval.)
 5. Start EMR module on top.
