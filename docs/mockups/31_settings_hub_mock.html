@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Settings hub by module — mock-up</title>
+<title>Settings hub by module — mock-up (3 layouts)</title>
 <style>
   :root { --brand:#4682B4; --navy:#172a45; --navy-2:#1f3556; --line:#e5e7eb; --ink:#111827; --muted:#6b7280; --page:#f8fafc; }
   * { box-sizing:border-box; }
@@ -49,12 +49,28 @@
   .sw::after { content:''; position:absolute; right:2px; top:2px; width:16px; height:16px; background:#fff; border-radius:50%; }
   .note { background:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a; border-radius:10px; padding:12px 14px; font-size:13px; max-width:680px; margin-bottom:12px; }
   .lock { background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:10px; padding:12px 14px; font-size:13px; max-width:680px; margin-bottom:12px; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin:-28px -36px 22px; padding:0 36px; background:#fff; }
+  .tabb { border:0; background:transparent; padding:14px 16px; font-size:14px; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; display:flex; gap:8px; align-items:center; }
+  .tabb.on { color:#1d4f7c; font-weight:600; border-bottom-color:var(--brand); }
+  .search { width:100%; max-width:680px; padding:11px 14px; border:1px solid var(--line); border-radius:10px; font:inherit; margin-bottom:18px; background:#fff; }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; max-width:980px; }
+  .tile { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .tile h3 { margin:0 0 4px; font-size:15px; display:flex; gap:8px; align-items:center; }
+  .tile p { margin:0 0 10px; color:var(--muted); font-size:12px; }
+  .tile a { display:block; padding:5px 0; font-size:13px; color:#1d4f7c; cursor:pointer; }
+  .tile a:hover { text-decoration:underline; }
+  .back { border:0; background:transparent; color:#1d4f7c; font-size:13px; cursor:pointer; padding:0; margin-bottom:10px; }
   .empty { color:#94a3b8; font-size:13px; padding:8px 10px; }
 </style>
 </head>
 <body>
 <div class="try">
   <span><b>Mock-up — try it</b></span>
+  <span><b>Layout</b> <select id="layout">
+    <option value="A">A · One list, grouped by module</option>
+    <option value="B">B · Module tabs on top</option>
+    <option value="C">C · Home page of module cards + search</option>
+  </select></span>
   <span><b>Logged in as</b> <select id="role">
     <option value="admin">Administrator (everything)</option>
     <option value="clinic">Clinic manager (EMR settings only)</option>
@@ -119,9 +135,9 @@
     return SECTIONS.filter((s) => on[s.id] && r.sees.includes(s.id));
   }
   function render() {
+    const layout = $('layout').value;
     const secs = visible();
     const r = ROLES[$('role').value];
-    // the app sidebar, EMR/Pharmacy modules each with a Settings shortcut
     const on = { emr: $('m-emr').checked, pharmacy: $('m-pharmacy').checked };
     const emrItems = ['Appointments','Calendar','Patients','Clinic Billing'];
     const phItems = ['Dashboard','Billing','Inventory','Customers','Reports'];
@@ -129,28 +145,53 @@
       ? `<button class="kid" data-short="${id}">Settings <span class="tag">↗ hub</span></button>` : '';
     const mod = (id, name, color, items) => on[id] ? `<div><button class="mod-head"><span class="dot" style="background:${color}">${name[0]}</span>${name}</button><div class="kids">${items.map((i) => `<button class="kid">${i}</button>`).join('')}${shortcut(id)}</div></div>` : '';
     $('appnav').innerHTML = mod('emr','EMR','#0d9488',emrItems) + mod('pharmacy','Pharmacy','#4682B4',phItems) +
-      (secs.find((s) => s.id === 'core') ? `<div><button class="mod-head"><span class="dot" style="background:#7c3aed">A</span>Admin</button><div class="kids"><button class="kid ${state.sec === 'core' ? 'active' : ''}" data-short="core">Settings</button></div></div>` : '');
+      (secs.find((s) => s.id === 'core') ? `<div><button class="mod-head"><span class="dot" style="background:#7c3aed">A</span>Admin</button><div class="kids"><button class="kid" data-short="core">Settings</button></div></div>` : '');
 
+    $('sub').style.display = layout === 'C' ? 'none' : '';
     if (!secs.length) {
       $('sub').innerHTML = '<h2>Settings</h2><div class="empty">You don’t have access to any settings.</div>';
       $('main').innerHTML = '<div class="lock">🔒 Your role has no settings permissions. Ask an administrator to tick them under Roles &amp; Permissions.</div>';
+      $('how').textContent = `${r.label} sees: nothing`;
       return;
     }
-    if (!secs.find((s) => s.id === state.sec)) { state.sec = secs[0].id; state.item = secs[0].items[0][0]; }
-    $('sub').innerHTML = '<h2>Settings</h2>' + secs.map((s) => `<div class="grp"><div class="grp-h"><span class="dot" style="background:${s.color}">${s.name[0]}</span>${s.name}</div>${s.items.map(([n]) => `<button class="item ${s.id === state.sec && n === state.item ? 'active' : ''}" data-sec="${s.id}" data-item="${n}">${n}</button>`).join('')}</div>`).join('');
+    if (!secs.find((s) => s.id === state.sec)) { state.sec = secs[0].id; state.item = layout === 'C' ? null : secs[0].items[0][0]; }
+    if (layout !== 'C' && !state.item) state.item = secs.find((s) => s.id === state.sec).items[0][0];
     const sec = secs.find((s) => s.id === state.sec);
-    const [name, desc, rows] = sec.items.find(([n]) => n === state.item);
-    $('main').innerHTML = `<div class="crumb">Settings › ${sec.name}</div><h1>${name}</h1><p class="lead">${desc}</p>
-      <div class="card">${rows.map(([a, b]) => `<div class="row"><span>${a}</span>${b === 'On' ? '<span class="sw"></span>' : `<span>${b}</span>`}</div>`).join('')}</div>
-      <div class="note">One home for every setting. ${sec.id === 'core' ? 'These apply to the whole organisation, across modules.' : `Only people with ${sec.name} settings permission see this section.`}</div>`;
     $('how').textContent = `${r.label} sees: ${secs.map((s) => s.name).join(' + ')}`;
+
+    const detail = () => {
+      const [name, desc, rows] = sec.items.find(([n]) => n === state.item);
+      return `<h1>${name}</h1><p class="lead">${desc}</p>
+        <div class="card">${rows.map(([a, b]) => `<div class="row"><span>${a}</span>${b === 'On' ? '<span class="sw"></span>' : `<span>${b}</span>`}</div>`).join('')}</div>
+        <div class="note">${sec.id === 'core' ? 'These apply to the whole organisation, across modules.' : `Only people with ${sec.name} settings permission see this section.`}</div>`;
+    };
+
+    if (layout === 'A') {
+      $('sub').innerHTML = '<h2>Settings</h2>' + secs.map((x) => `<div class="grp"><div class="grp-h"><span class="dot" style="background:${x.color}">${x.name[0]}</span>${x.name}</div>${x.items.map(([n]) => `<button class="item ${x.id === state.sec && n === state.item ? 'active' : ''}" data-sec="${x.id}" data-item="${n}">${n}</button>`).join('')}</div>`).join('');
+      $('main').innerHTML = `<div class="crumb">Settings › ${sec.name}</div>${detail()}`;
+    } else if (layout === 'B') {
+      $('sub').innerHTML = `<h2>${sec.name}</h2>` + sec.items.map(([n]) => `<button class="item ${n === state.item ? 'active' : ''}" data-sec="${sec.id}" data-item="${n}">${n}</button>`).join('');
+      $('main').innerHTML = `<div class="tabs">${secs.map((x) => `<button class="tabb ${x.id === sec.id ? 'on' : ''}" data-tab="${x.id}"><span class="dot" style="background:${x.color}">${x.name[0]}</span>${x.name}</button>`).join('')}</div><div class="crumb">Settings › ${sec.name}</div>${detail()}`;
+    } else if (!state.item) {
+      const q = ($('main').querySelector('.search')?.value || '').toLowerCase();
+      $('main').innerHTML = `<h1>Settings</h1><p class="lead">Everything you can change, grouped by module.</p>
+        <input class="search" placeholder="Search settings…  e.g. GST, UHID, backup" value="${q}">
+        <div class="tiles">${secs.map((x) => `<div class="tile"><h3><span class="dot" style="background:${x.color}">${x.name[0]}</span>${x.name}</h3><p>${x.items.length} settings</p>${x.items.filter(([n, d]) => !q || (n + d).toLowerCase().includes(q)).map(([n]) => `<a data-sec="${x.id}" data-item="${n}">${n}</a>`).join('')}</div>`).join('')}</div>`;
+      const inp = $('main').querySelector('.search'); inp.addEventListener('input', render); inp.focus(); inp.setSelectionRange(q.length, q.length);
+    } else {
+      $('main').innerHTML = `<button class="back" data-home="1">← All settings</button><div class="crumb">Settings › ${sec.name}</div>${detail()}`;
+    }
   }
   document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-home]')) { state.item = null; render(); return; }
+    const tab = e.target.closest('[data-tab]');
+    if (tab) { const t = SECTIONS.find((x) => x.id === tab.dataset.tab); state.sec = t.id; state.item = t.items[0][0]; render(); return; }
     const it = e.target.closest('[data-item]');
     if (it) { state.sec = it.dataset.sec; state.item = it.dataset.item; render(); return; }
     const sh = e.target.closest('[data-short]');
-    if (sh) { const s = SECTIONS.find((x) => x.id === sh.dataset.short); state.sec = s.id; state.item = s.items[0][0]; render(); }
+    if (sh) { const t = SECTIONS.find((x) => x.id === sh.dataset.short); state.sec = t.id; state.item = t.items[0][0]; render(); }
   });
+  $('layout').addEventListener('change', () => { if ($('layout').value === 'C') state.item = null; render(); });
   ['role', 'm-emr', 'm-pharmacy'].forEach((id) => $(id).addEventListener('change', render));
   render();
 </script>
