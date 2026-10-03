@@ -12,6 +12,7 @@ import RolesTab from '@/pages/Team/components/RolesTab';
 import EmrSettingsPanel, { type EmrSettingsSection } from '@/modules/emr/components/EmrSettingsPanel';
 import DoctorSchedulesPanel from '@/modules/emr/components/DoctorSchedulesPanel';
 import PharmacyPanel, { type PharmacySection } from './PharmacyPanel';
+import DoctorsPanel from './doctors/DoctorsPanel';
 
 export interface HubUser {
   id?: string;
@@ -41,16 +42,18 @@ const EMR_FORM_SECTIONS = ['clinic-profile', 'id-formats', 'patient-form', 'doct
 export const HUB_MODULES: HubModule[] = [
   {
     key: 'organisation', label: 'Organisation', dot: 'bg-purple-600',
-    allowed: isAdmin,
+    allowed: (u) => isAdmin(u) || ticked(u, 'doctors:view'),
     sections: [
-      { key: 'team', label: 'Team' },
-      { key: 'roles', label: 'Roles & Permissions' },
-      { key: 'stores', label: 'Stores & chain' },
+      { key: 'team', label: 'Team', allowed: isAdmin },
+      { key: 'doctors', label: 'Doctors', allowed: (u) => isAdmin(u) || ticked(u, 'doctors:view') },
+      { key: 'roles', label: 'Roles & Permissions', allowed: isAdmin },
+      { key: 'stores', label: 'Stores & chain', allowed: isAdmin },
     ],
     content: (key, user) => (
       key === 'roles' ? <RolesTab />
         : key === 'stores' ? <StoresTab />
-          : <MembersTab currentUser={user} />
+          : key === 'doctors' ? <DoctorsPanel />
+            : <MembersTab currentUser={user} />
     ),
   },
   {

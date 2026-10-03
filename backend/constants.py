@@ -54,7 +54,7 @@ DEFAULT_ROLES = [
         "permissions": [
             "patients:view", "patients:create", "patients:edit",
             "appointments:view", "appointments:create", "appointments:edit", "appointments:cancel",
-            "schedules:view", "prescriptions:view",
+            "schedules:view", "prescriptions:view", "doctors:view",
             "patient_billing:view", "patient_billing:charge", "patient_billing:invoice",
             "patient_billing:collect",
         ],
@@ -67,7 +67,7 @@ DEFAULT_ROLES = [
         "permissions": [
             "patients:view", "patients:create", "patients:edit",
             "appointments:view", "appointments:create", "appointments:edit",
-            "schedules:view", "schedules:edit",
+            "schedules:view", "schedules:edit", "doctors:view",
             "prescriptions:view", "prescriptions:create", "prescriptions:edit",
             "prescriptions:issue", "prescriptions:cancel", "patient_billing:view",
         ],
@@ -166,6 +166,10 @@ ALL_PERMISSIONS = {
         {"id": "patient_billing:invoice", "name": "Create Invoices"},
         {"id": "patient_billing:collect", "name": "Collect Payments"},
         {"id": "patient_billing:void", "name": "Void Charges / Cancel Invoices"},
+    ]},
+    "doctors": {"display_name": "Doctors (Organisation)", "permissions": [
+        {"id": "doctors:view", "name": "View Doctors"},
+        {"id": "doctors:edit", "name": "Create / Edit Doctors & Map to Clinics"},
     ]},
     "schedules": {"display_name": "Doctor Schedules (EMR)", "permissions": [
         {"id": "schedules:view", "name": "View Doctor Schedules"},

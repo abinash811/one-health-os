@@ -10,6 +10,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 
 ## [Unreleased]
 
+### Added
+- **Doctors are now their own records (Settings → Organisation → Doctors).** A doctor is a profile owned by the hospital — name,
+  specialty, qualification, registration number, phone — mapped to the clinics where they practise, with a consultation fee for
+  each clinic. No password: logins stay in Team, and a doctor can optionally be linked to one. Outside (referring) doctors are the
+  same record with an "External" tick. Existing doctor logins were turned into profiles automatically. New permissions: View
+  Doctors / Create & Edit Doctors.
+
+### Fixed
+- **First admin had no store access row** (created by `seed_admin.py`): the sidebar store switcher read "Loading…" and clinic pickers
+  were empty. The script, a data fix and a safety fallback now cover it, and a new check blocks it happening again.
+
 ### Changed
 - **One Settings hub, a tab per module.** Settings now has tabs **Organisation** (Team, Roles & Permissions, Stores & chain),
   **EMR** (Clinic profile, Patient ID formats, Patient form, Doctors & fees, Doctor schedules) and **Pharmacy** (the nine

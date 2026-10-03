@@ -342,6 +342,10 @@ export const apiUrl = {
   pbInvoice:         (id) => `patient-billing/invoices/${id}`,
   pbInvoicePayments: (id) => `patient-billing/invoices/${id}/payments`,
   pbSummaryToday:    (params) => `patient-billing/summary/today${qs(params)}`,
+  // Doctors as their own records — Settings → Organisation → Doctors (docs/31_CORE_DOCTOR_SCOPE.md)
+  practitioners:    (params) => `practitioners${qs(params)}`,
+  practitioner:     (id) => `practitioners/${id}`,
+  practitionerLinkableUsers: () => 'practitioners/linkable-users',
   emrSettings: () => 'emr/settings',
   emrDoctorProfiles: () => 'emr/doctor-profiles',
   emrDoctorProfile: (userId) => `emr/doctor-profiles/${userId}`,

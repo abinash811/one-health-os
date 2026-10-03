@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.19 | Last updated: October 3, 2026
+# Version: 1.20 | Last updated: October 3, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -870,6 +870,27 @@ One row per clinic, created with defaults on first read (`modules/emr/settings_s
 `emr_patients.uhid` (String(30), nullable) — the clinic's own patient ID; partial unique index per pharmacy. The migration backfilled existing patients as `UH-000001…` (oldest first).
 
 `emr_doctor_profiles.consultation_fee_paise` (Integer, nullable; migration `1462660fbf8c`) — default fee posted to the patient's account at check-in; blank or 0 = no fee.
+
+### `practitioners` (added Oct 3, 2026 — migration `d4a1f6b8c203`, docs/31_CORE_DOCTOR_SCOPE.md)
+Doctors as their own records, separate from logins. Owned by the hospital, mapped to clinics via `practitioner_clinics`.
+| Column | Type | Notes |
+|--------|------|-------|
+| `chain_id` | UUID FK → chains, nullable | NULL for a standalone clinic. Informational — visibility is decided from the caller's real store grants (`resolve_chain_scope_pids`), never a raw chain filter |
+| `pharmacy_id` | UUID FK | The clinic it was created at |
+| `name` | String(200) | Required |
+| `specialty`, `qualification`, `registration_no`, `phone`, `email`, `hospital`, `notes` | text, nullable | Printed on prescriptions (specialty, qualification, registration) |
+| `is_external` | Boolean, default false | Referring / visiting doctor not on staff |
+| `user_id` | UUID FK → users, nullable | Optional login link; partial unique index — one live profile per login |
+| `is_active`, `deleted_at` | Boolean / TIMESTAMP | Soft delete only |
+
+### `practitioner_clinics`
+| Column | Type | Notes |
+|--------|------|-------|
+| `practitioner_id`, `pharmacy_id` | UUID FKs | Unique together — which clinic a doctor practises at |
+| `consultation_fee_paise` | Integer, nullable | Fee at THIS clinic (integer paise); blank/0 = no fee |
+| `is_active`, `deleted_at` | | Un-mapping soft-deletes; re-adding revives the row |
+
+Migration `e5b2c9a7d314` backfilled missing `user_store_roles` rows (logins created by `seed_admin.py` had none).
 
 ## PATIENT BILLING MODULE TABLES (added Oct 2, 2026 — migration `23cabc12aa4a`)
 

@@ -5,6 +5,7 @@ from models.products import Product, StockBatch, StockMovement
 from models.suppliers import Supplier
 from models.purchases import Purchase, PurchaseItem, PurchasePayment, PurchaseReturn, PurchaseReturnItem
 from models.customers import Customer, Doctor
+from models.practitioners import Practitioner, PractitionerClinic
 from models.billing import Bill, BillItem, SalesReturn, SalesReturnItem, ScheduleH1Register
 from models.stock_transfers import StockTransfer, StockTransferItem
 
@@ -16,6 +17,7 @@ __all__ = [
     "Supplier",
     "Purchase", "PurchaseItem", "PurchasePayment", "PurchaseReturn", "PurchaseReturnItem",
     "Customer", "Doctor",
+    "Practitioner", "PractitionerClinic",
     "Bill", "BillItem", "SalesReturn", "SalesReturnItem", "ScheduleH1Register",
     "StockTransfer", "StockTransferItem",
 ]

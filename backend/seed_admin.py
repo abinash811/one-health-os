@@ -22,6 +22,8 @@ from database import AsyncSessionLocal, engine
 from config import settings
 from constants import DEFAULT_ROLES
 from sqlalchemy import select
+from services.provisioning import sync_user_store_role
+from models.users import UserStoreRole
 from passlib.context import CryptContext
 
 import argparse
@@ -139,6 +141,14 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
             else:
                 print(f"  ✅ Admin user '{email}' already exists — skipping")
                 print("     Run with --force to reset the password to the default.")
+            # Repair an admin created before this script wrote the store-access row.
+            has_row = (await db.execute(select(UserStoreRole).where(
+                UserStoreRole.user_id == existing_user.id,
+                UserStoreRole.pharmacy_id == pharmacy.id))).scalar_one_or_none()
+            if not has_row:
+                await sync_user_store_role(
+                    db, user_id=existing_user.id, pharmacy_id=pharmacy.id, role_id=existing_user.role_id)
+                print("  🔧 Added the missing store-access row for this admin")
         else:
             admin_role = role_map.get("admin")
             if not admin_role:
@@ -156,6 +166,10 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
                 is_active=True,
             )
             db.add(new_user)
+            await db.flush()
+            # Every user-creation path writes the matching store-access row (docs/26) — without it the
+            # sidebar store switcher and "Works at" lists come up empty for this admin.
+            await sync_user_store_role(db, user_id=new_user.id, pharmacy_id=pharmacy.id, role_id=admin_role.id)
             print(f"  ✨ Created admin user: {name} <{email}>")
 
         await db.commit()

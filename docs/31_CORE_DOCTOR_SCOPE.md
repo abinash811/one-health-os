@@ -1,7 +1,8 @@
 # Doctors as their own records — Build Plan (owned by the hospital, mapped to clinics, separate from logins)
-# Version: 0.1 | Last updated: October 3, 2026
+# Version: 0.2 | Last updated: October 3, 2026
 # Type: Explanation
-# Status: 🚫 PLAN ONLY — not built. Needs Abinash's approval (schema change + data migration). Nothing in this file exists in code yet.
+# Status: ✅ APPROVED by Abinash Oct 3, 2026 with all five recommendations. 🚧 P1 (new tables, backfill, API, permissions, Organisation → Doctors screen) BUILT Oct 3, 2026. P2 (EMR switches to the new records) in progress; P3 (pharmacy prescribers) and P4 (contract + audit) not started.
+# Build notes: the `practitioner_id` columns on schedules / appointments / prescriptions land in P2's migration (not P1's) so they are never left half-filled while EMR still writes the login id.
 
 ## Why (product view)
 - Abinash's requirement (Oct 3, 2026): "doctors should be mapped under an entity, while users and doctors are different"; creation lives in **Settings → Organisation → Doctors**.

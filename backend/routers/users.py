@@ -312,6 +312,15 @@ async def get_my_stores(current_user: User = Depends(
         .order_by(PharmacyORM.name)
     )
     current_pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    rows = result.all()
+    if not rows:
+        # A login created before every creation path wrote its store-access row (e.g. by seed_admin.py)
+        # still belongs to its home store — never answer "no stores" for someone who is signed in to one.
+        home = (await db.execute(
+            select(PharmacyORM.name, PharmacyORM.gstin).where(
+                PharmacyORM.id == current_pharmacy_id))).one()  # tenant-safe: the caller's own store
+        return [{"pharmacy_id": str(current_pharmacy_id), "pharmacy_name": home[0],
+                 "role_name": current_user.role, "is_active": True, "gstin": home[1]}]
     return [
         {
             "pharmacy_id": str(usr.pharmacy_id),
@@ -320,7 +329,7 @@ async def get_my_stores(current_user: User = Depends(
             "is_active": usr.pharmacy_id == current_pharmacy_id,
             "gstin": gstin,
         }
-        for usr, pharmacy_name, role_name, gstin in result.all()
+        for usr, pharmacy_name, role_name, gstin in rows
     ]
 
 

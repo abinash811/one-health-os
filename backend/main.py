@@ -11,7 +11,7 @@ from sqlalchemy import select
 from database import AsyncSessionLocal
 from models.pharmacy import Pharmacy
 from routers import (
-    auth, batches, billing, chains, customers, inventory,
+    auth, batches, billing, chains, customers, inventory, practitioners,
     purchase_returns, purchases, reports, sales_returns,
     settings, stock_transfers, suppliers, users,
 )
@@ -69,6 +69,7 @@ app.include_router(inventory.router)
 app.include_router(batches.router)
 app.include_router(billing.router)
 app.include_router(customers.router)
+app.include_router(practitioners.router)
 app.include_router(reports.router)
 app.include_router(suppliers.router)
 app.include_router(purchases.router)

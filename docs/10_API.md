@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.34 | Last updated: October 3, 2026
+# Version: 1.35 | Last updated: October 3, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1474,6 +1474,14 @@ there first if these seem to be missing.
 | GET | `/emr/appointments/{id}` | |
 | PUT | `/emr/appointments/{id}` | Reschedule (`appointment_date`, `start_time`, `doctor_user_id`) or edit `reason`. Only while `booked` (else 409) |
 | POST | `/emr/appointments/{id}/status` | Body `{status, cancel_reason?}`. Moves: `booked→checked_in→in_consult→completed`; `booked/checked_in→cancelled` (reason required, needs `appointments:cancel`); `booked→no_show`. Invalid move = 409 |
+
+### Doctors — `/api/practitioners` (Oct 3, 2026 · permissions `doctors:view|edit` · docs/31_CORE_DOCTOR_SCOPE.md)
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/practitioners?include_inactive=&clinic_id=` | Doctors at clinics the caller has real access to; `clinic_id` = only doctors mapped to that clinic (403 if not the caller's). Each row has `clinics: [{pharmacy_id, pharmacy_name, consultation_fee_paise, is_active}]` and the linked login's name/email |
+| GET | `/practitioners/linkable-users` | Active logins not yet linked to a doctor (`doctors:edit`) |
+| POST | `/practitioners` | `name` + profile fields, `is_external`, `user_id?`, `clinics?: [{pharmacy_id, consultation_fee_paise?}]` (default = the caller's clinic). 403 for a clinic the caller can't access, 404/409 for a login that isn't theirs / is already linked |
+| GET / PUT / DELETE | `/practitioners/{id}` | PUT is partial; `clinics` replaces the caller's visible mappings (others untouched); `user_id: null` unlinks; DELETE is a soft delete that releases the login |
 
 ## AUDIT LOGS
 

@@ -408,6 +408,17 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# ── Rule 24: every place that creates a User also writes its store-access row ──────────
+# Found Oct 3, 2026: seed_admin.py skipped user_store_roles, so the store switcher and clinic pickers were
+# empty for the first admin. See scripts/check_user_creation_paths.py.
+if python3 scripts/check_user_creation_paths.py > /tmp/user_creation_output 2>&1; then
+  green "Rule 24 PASS: Every user-creation path writes its store-access row"
+else
+  red "Rule 24 FAIL: a User is created without sync_user_store_role"
+  cat /tmp/user_creation_output | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
