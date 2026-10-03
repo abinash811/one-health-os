@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings hub by module — mock-up</title>
+<style>
+  :root { --brand:#4682B4; --navy:#172a45; --navy-2:#1f3556; --line:#e5e7eb; --ink:#111827; --muted:#6b7280; --page:#f8fafc; }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif; color:var(--ink); background:var(--page); display:flex; flex-direction:column; }
+  button { font:inherit; }
+  .try { background:#fff; border-bottom:1px solid var(--line); padding:10px 20px; display:flex; flex-wrap:wrap; gap:16px; align-items:center; font-size:13px; }
+  .try b { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; margin-right:4px; }
+  select { padding:5px 9px; border:1px solid var(--line); border-radius:8px; font:inherit; }
+  label.chk { display:flex; gap:6px; align-items:center; }
+  .shell { display:flex; flex:1; min-height:0; }
+  /* app sidebar (same as the real one) */
+  aside.app { width:216px; background:var(--navy); color:#cbd5e1; display:flex; flex-direction:column; flex-shrink:0; }
+  .brand { padding:14px 16px; color:#fff; font-weight:700; border-bottom:1px solid #ffffff14; }
+  .app nav { padding:10px 8px; overflow:auto; flex:1; }
+  .mod-head { width:100%; display:flex; align-items:center; gap:10px; padding:8px 10px; border:0; background:transparent; color:#e2e8f0; font-weight:600; font-size:13px; border-radius:8px; cursor:pointer; text-align:left; }
+  .mod-head:hover { background:var(--navy-2); }
+  .dot { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; }
+  .kids { margin:2px 0 6px 20px; padding-left:10px; border-left:1px solid #ffffff1f; }
+  .kid { display:flex; gap:6px; align-items:center; width:100%; text-align:left; border:0; background:transparent; color:#aab6c8; font-weight:500; font-size:13px; padding:7px 10px; border-radius:7px; cursor:pointer; }
+  .kid:hover { background:var(--navy-2); color:#fff; }
+  .kid.active { background:var(--brand); color:#fff; }
+  .kid .tag { margin-left:auto; font-size:10px; opacity:.75; }
+  /* settings sub-nav */
+  .sub { width:250px; background:#fff; border-right:1px solid var(--line); overflow:auto; padding:18px 12px; flex-shrink:0; }
+  .sub h2 { margin:0 8px 14px; font-size:18px; }
+  .grp { margin-bottom:16px; }
+  .grp-h { display:flex; align-items:center; gap:8px; padding:4px 8px 6px; font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+  .grp-h .dot { width:16px; height:16px; border-radius:4px; font-size:9px; }
+  .item { display:block; width:100%; text-align:left; border:0; background:transparent; padding:8px 10px; border-radius:8px; font-size:13px; color:#374151; cursor:pointer; }
+  .item:hover { background:#f3f4f6; }
+  .item.active { background:#eaf2f9; color:#1d4f7c; font-weight:600; }
+  .item small { color:var(--muted); font-weight:400; }
+  main { flex:1; min-width:0; overflow:auto; padding:28px 36px; }
+  .crumb { color:var(--muted); font-size:13px; margin-bottom:6px; }
+  h1 { margin:0 0 6px; font-size:22px; }
+  .lead { color:var(--muted); font-size:14px; margin:0 0 18px; max-width:640px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px; max-width:680px; margin-bottom:14px; }
+  .row { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:10px 0; border-bottom:1px solid #f1f5f9; font-size:14px; }
+  .row:last-child { border:0; }
+  .row span:last-child { color:var(--muted); }
+  .sw { width:34px; height:20px; border-radius:20px; background:var(--brand); position:relative; }
+  .sw::after { content:''; position:absolute; right:2px; top:2px; width:16px; height:16px; background:#fff; border-radius:50%; }
+  .note { background:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a; border-radius:10px; padding:12px 14px; font-size:13px; max-width:680px; margin-bottom:12px; }
+  .lock { background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:10px; padding:12px 14px; font-size:13px; max-width:680px; margin-bottom:12px; }
+  .empty { color:#94a3b8; font-size:13px; padding:8px 10px; }
+</style>
+</head>
+<body>
+<div class="try">
+  <span><b>Mock-up — try it</b></span>
+  <span><b>Logged in as</b> <select id="role">
+    <option value="admin">Administrator (everything)</option>
+    <option value="clinic">Clinic manager (EMR settings only)</option>
+    <option value="pharm">Pharmacy manager (Pharmacy settings only)</option>
+    <option value="doctor">Doctor (no settings access)</option>
+  </select></span>
+  <span><b>Modules on</b></span>
+  <label class="chk"><input type="checkbox" id="m-emr" checked> EMR</label>
+  <label class="chk"><input type="checkbox" id="m-pharmacy" checked> Pharmacy</label>
+  <span id="how" style="color:var(--muted)"></span>
+</div>
+<div class="shell">
+  <aside class="app">
+    <div class="brand">PharmaCare</div>
+    <nav id="appnav"></nav>
+  </aside>
+  <div class="sub" id="sub"></div>
+  <main id="main"></main>
+</div>
+
+<script>
+  const SECTIONS = [
+    { id: 'core', name: 'Organisation', color: '#7c3aed', who: ['admin'], items: [
+      ['Modules', 'Switch EMR and Pharmacy on or off for this organisation.', [['EMR module','On'],['Pharmacy module','On']]],
+      ['Stores & chain', 'Your stores, and which one each person can open.', [['Main Clinic · Pune','Active'],['Branch · Mumbai','Active']]],
+      ['Team', 'Invite people, give each a role, and tick Administrator.', [['Members','8'],['Pending invites','1']]],
+      ['Roles & Permissions', 'Choose what each role can do, per module.', [['Doctor','EMR'],['Receptionist','EMR'],['Cashier','Pharmacy']]],
+      ['Audit Log', 'Who changed what, and when — across every module.', [['Last 30 days','412 entries']]],
+    ]},
+    { id: 'emr', name: 'EMR', color: '#0d9488', who: ['admin','clinic'], items: [
+      ['Clinic profile', 'Name, address, registration number and prescription footer.', [['Clinic name','Main Clinic'],['Registration no.','MH/12345'],['Rx footer','Get well soon']]],
+      ['Patient ID formats', 'UHID and prescription number formats (new records only).', [['UHID','UH-000124'],['Prescription','RX-000087']]],
+      ['Patient form', 'Which fields to hide, make optional or required.', [['Date of birth','Required'],['Blood group','Optional'],['Allergies','Optional']]],
+      ['Doctors & fees', 'Specialty, registration number and consultation fee per doctor.', [['Dr Rao','₹500'],['Dr Iyer','₹400']]],
+      ['Doctor schedules', 'Working hours and slot length for the calendar.', [['Dr Rao','Mon–Sat 9–1, 5–8'],['Dr Iyer','Mon–Fri 10–2']]],
+      ['Prescription print', 'Header, footer, paper size for printed prescriptions.', [['Paper','A4'],['Show clinic logo','Yes']]],
+    ]},
+    { id: 'pharmacy', name: 'Pharmacy', color: '#4682B4', who: ['admin','pharm'], items: [
+      ['Pharmacy profile', 'Name, drug licence, GSTIN, address.', [['Pharmacy name','Main Pharmacy'],['Drug licence','MH-PUN-1234']]],
+      ['Receipt & print', 'Thermal / A4 receipts, header, footer, logo.', [['Default','Thermal 80mm'],['Logo','On']]],
+      ['Tax & GST', 'GST registration, rounding, tax display.', [['GST scheme','Regular'],['Round-off','On']]],
+      ['Notifications', 'Low stock, expiry and due-payment alerts.', [['Expiry alert','90 days']]],
+      ['Inventory', 'Reorder levels, batch rules, units.', [['Low stock at','10 units']]],
+      ['Billing', 'Discount limits, payment modes, draft bills.', [['Max discount','15%']]],
+      ['Bill sequence', 'Bill number prefix and financial-year reset.', [['Prefix','BILL-']]],
+      ['Returns', 'Return window and approvals.', [['Return window','7 days']]],
+      ['Data & backup', 'Export or back up pharmacy data.', [['Last backup','Today 2:10 AM']]],
+    ]},
+  ];
+  const ROLES = {
+    admin: { label: 'Administrator', sees: ['core','emr','pharmacy'], edit: true },
+    clinic: { label: 'Clinic manager', sees: ['emr'], edit: true },
+    pharm: { label: 'Pharmacy manager', sees: ['pharmacy'], edit: true },
+    doctor: { label: 'Doctor', sees: [], edit: false },
+  };
+  const state = { sec: 'emr', item: 'Clinic profile' };
+  const $ = (id) => document.getElementById(id);
+
+  function visible() {
+    const r = ROLES[$('role').value];
+    const on = { emr: $('m-emr').checked, pharmacy: $('m-pharmacy').checked, core: true };
+    return SECTIONS.filter((s) => on[s.id] && r.sees.includes(s.id));
+  }
+  function render() {
+    const secs = visible();
+    const r = ROLES[$('role').value];
+    // the app sidebar, EMR/Pharmacy modules each with a Settings shortcut
+    const on = { emr: $('m-emr').checked, pharmacy: $('m-pharmacy').checked };
+    const emrItems = ['Appointments','Calendar','Patients','Clinic Billing'];
+    const phItems = ['Dashboard','Billing','Inventory','Customers','Reports'];
+    const shortcut = (id) => secs.find((s) => s.id === id)
+      ? `<button class="kid" data-short="${id}">Settings <span class="tag">↗ hub</span></button>` : '';
+    const mod = (id, name, color, items) => on[id] ? `<div><button class="mod-head"><span class="dot" style="background:${color}">${name[0]}</span>${name}</button><div class="kids">${items.map((i) => `<button class="kid">${i}</button>`).join('')}${shortcut(id)}</div></div>` : '';
+    $('appnav').innerHTML = mod('emr','EMR','#0d9488',emrItems) + mod('pharmacy','Pharmacy','#4682B4',phItems) +
+      (secs.find((s) => s.id === 'core') ? `<div><button class="mod-head"><span class="dot" style="background:#7c3aed">A</span>Admin</button><div class="kids"><button class="kid ${state.sec === 'core' ? 'active' : ''}" data-short="core">Settings</button></div></div>` : '');
+
+    if (!secs.length) {
+      $('sub').innerHTML = '<h2>Settings</h2><div class="empty">You don’t have access to any settings.</div>';
+      $('main').innerHTML = '<div class="lock">🔒 Your role has no settings permissions. Ask an administrator to tick them under Roles &amp; Permissions.</div>';
+      return;
+    }
+    if (!secs.find((s) => s.id === state.sec)) { state.sec = secs[0].id; state.item = secs[0].items[0][0]; }
+    $('sub').innerHTML = '<h2>Settings</h2>' + secs.map((s) => `<div class="grp"><div class="grp-h"><span class="dot" style="background:${s.color}">${s.name[0]}</span>${s.name}</div>${s.items.map(([n]) => `<button class="item ${s.id === state.sec && n === state.item ? 'active' : ''}" data-sec="${s.id}" data-item="${n}">${n}</button>`).join('')}</div>`).join('');
+    const sec = secs.find((s) => s.id === state.sec);
+    const [name, desc, rows] = sec.items.find(([n]) => n === state.item);
+    $('main').innerHTML = `<div class="crumb">Settings › ${sec.name}</div><h1>${name}</h1><p class="lead">${desc}</p>
+      <div class="card">${rows.map(([a, b]) => `<div class="row"><span>${a}</span>${b === 'On' ? '<span class="sw"></span>' : `<span>${b}</span>`}</div>`).join('')}</div>
+      <div class="note">One home for every setting. ${sec.id === 'core' ? 'These apply to the whole organisation, across modules.' : `Only people with ${sec.name} settings permission see this section.`}</div>`;
+    $('how').textContent = `${r.label} sees: ${secs.map((s) => s.name).join(' + ')}`;
+  }
+  document.addEventListener('click', (e) => {
+    const it = e.target.closest('[data-item]');
+    if (it) { state.sec = it.dataset.sec; state.item = it.dataset.item; render(); return; }
+    const sh = e.target.closest('[data-short]');
+    if (sh) { const s = SECTIONS.find((x) => x.id === sh.dataset.short); state.sec = s.id; state.item = s.items[0][0]; render(); }
+  });
+  ['role', 'm-emr', 'm-pharmacy'].forEach((id) => $(id).addEventListener('change', render));
+  render();
+</script>
+</body>
+</html>
