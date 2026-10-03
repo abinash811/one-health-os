@@ -12,7 +12,7 @@ import { AuthContext } from '@/App';
 import { AppButton } from '@/components/shared';
 import SidebarNav from '@/components/SidebarNav';
 import StoreSwitcher from '@/components/StoreSwitcher';
-import { NAV_GROUPS, ROLE_BADGE, ROLE_LABEL } from '@/components/navConfig';
+import { visibleNavGroups, ROLE_BADGE, ROLE_LABEL } from '@/components/navConfig';
 import {
   LogOut,
   Menu,
@@ -140,11 +140,8 @@ export default function Layout() {
   const roleBadge = ROLE_BADGE[user?.role] ?? 'bg-gray-100 text-gray-600';
   const roleLabel = ROLE_LABEL[user?.role] ?? (user?.role ?? '');
 
-  // Filter each group's items by role, drop groups with no visible items
-  const visibleGroups = NAV_GROUPS.map(g => ({
-    ...g,
-    items: g.items.filter(i => i.roles.includes(user?.role)),
-  })).filter(g => g.items.length > 0);
+  // Filter each group's items by role (admins see all), drop groups with no visible items
+  const visibleGroups = visibleNavGroups(user);
 
   return (
     <div className="app-shell flex h-screen bg-page overflow-hidden">

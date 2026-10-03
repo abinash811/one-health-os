@@ -70,3 +70,12 @@ export const ROLE_LABEL = {
   admin: 'Admin', manager: 'Manager', cashier: 'Cashier', inventory_staff: 'Inventory',
   receptionist: 'Reception', doctor: 'Doctor',
 };
+
+/**
+ * The sidebar groups this user sees. An administrator (the Team checkbox, or a wildcard role) gets
+ * everything whatever their clinical role is — a Doctor who is also an admin sees Team and Settings too.
+ */
+export const visibleNavGroups = (user) => NAV_GROUPS.map((g) => ({
+  ...g,
+  items: g.items.filter((i) => user?.is_admin || user?.is_super_admin || i.roles.includes(user?.role)),
+})).filter((g) => g.items.length > 0);

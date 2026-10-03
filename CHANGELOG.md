@@ -22,7 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
   is taken you're told why. A red line marks "now"; walk-ins sit in their own strip; colours match the queue's statuses.
 - **Admin is a checkbox, not a role.** Each member now has a clinical role (Doctor, Receptionist, …) plus a separate
   **Administrator** checkbox, so one person can be a Doctor and an admin. Admins get every permission and can manage team,
-  roles and settings. Existing admins are converted automatically; you can't remove your own admin access. The old
+  roles and settings, and sees the whole sidebar (Team, Settings, Billing…) whatever their clinical role. Existing admins are converted automatically; you can't remove your own admin access. The old
   "admin" role is no longer offered when inviting a member.
 - **Patient Billing B4 — the billing desk.** New "Clinic Billing" area: **Pending** (everyone who owes money, split into
   not-invoiced and invoiced-unpaid, filter by source, one-click Collect), **All bills** (search, pay the rest, cancel an
