@@ -5,75 +5,98 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sidebar by module — mock-up</title>
 <style>
-  :root { --brand:#4682B4; --brand-dark:#3a6fa0; --navy:#172a45; --navy-2:#1f3556; --line:#e5e7eb; --ink:#111827; --muted:#6b7280; --page:#f8fafc; }
+  :root { --brand:#4682B4; --navy:#172a45; --navy-2:#1f3556; --navy-0:#0f1d33; --line:#e5e7eb; --ink:#111827; --muted:#6b7280; --page:#f8fafc; }
   * { box-sizing:border-box; }
-  body { margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif; color:var(--ink); background:var(--page); }
-  .shell { display:flex; height:100vh; }
-  aside { width:248px; background:var(--navy); color:#cbd5e1; display:flex; flex-direction:column; flex-shrink:0; }
-  .brand { padding:16px; display:flex; gap:10px; align-items:center; color:#fff; font-weight:700; border-bottom:1px solid #ffffff14; }
-  .logo { width:30px; height:30px; border-radius:8px; background:var(--brand); display:grid; place-items:center; }
+  html, body { height:100%; }
+  body { margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif; color:var(--ink); background:var(--page); display:flex; flex-direction:column; }
+  button { font:inherit; }
+  .try { background:#fff; border-bottom:1px solid var(--line); padding:10px 20px; display:flex; flex-wrap:wrap; gap:16px; align-items:center; font-size:13px; }
+  .try b { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; margin-right:4px; }
+  select { padding:5px 9px; border:1px solid var(--line); border-radius:8px; font:inherit; }
+  label.chk { display:flex; gap:6px; align-items:center; }
+  /* B: top bar */
+  #top { display:none; background:var(--navy); color:#fff; align-items:center; gap:6px; padding:0 16px; height:52px; }
+  body.B #top { display:flex; }
+  .brand { display:flex; gap:10px; align-items:center; color:#fff; font-weight:700; margin-right:18px; }
+  .logo { width:28px; height:28px; border-radius:8px; background:var(--brand); display:grid; place-items:center; }
+  .tab { border:0; background:transparent; color:#aab6c8; padding:8px 14px; border-radius:8px; font-weight:600; font-size:13px; cursor:pointer; display:flex; gap:8px; align-items:center; }
+  .tab:hover { background:var(--navy-2); color:#fff; }
+  .tab.on { background:var(--navy-2); color:#fff; box-shadow:inset 0 -2px 0 var(--brand); }
+  .who { margin-left:auto; font-size:13px; text-align:right; line-height:1.2; }
+  .who small { display:block; color:#94a3b8; }
+  .shell { display:flex; flex:1; min-height:0; }
+  aside { background:var(--navy); color:#cbd5e1; display:flex; flex-shrink:0; }
+  .col { display:flex; flex-direction:column; width:248px; }
+  .brandbar { padding:16px; border-bottom:1px solid #ffffff14; }
   nav { flex:1; overflow:auto; padding:10px 8px; }
+  .dot { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; }
   .mod { margin-bottom:4px; }
-  .mod-head { width:100%; display:flex; align-items:center; gap:10px; padding:9px 10px; border:0; background:transparent; color:#e2e8f0; font:600 13px inherit; border-radius:8px; cursor:pointer; text-align:left; }
+  .mod-head { width:100%; display:flex; align-items:center; gap:10px; padding:9px 10px; border:0; background:transparent; color:#e2e8f0; font-weight:600; font-size:13px; border-radius:8px; cursor:pointer; text-align:left; }
   .mod-head:hover { background:var(--navy-2); }
-  .mod-head .chev { margin-left:auto; transition:transform .15s; opacity:.7; }
+  .chev { margin-left:auto; transition:transform .15s; opacity:.7; }
   .mod.open .chev { transform:rotate(90deg); }
-  .mod.open > .mod-head { color:#fff; }
-  .dot { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:11px; font-weight:700; color:#fff; }
   .kids { display:none; margin:2px 0 6px 20px; padding-left:10px; border-left:1px solid #ffffff1f; }
   .mod.open .kids { display:block; }
-  .kid { display:block; width:100%; text-align:left; border:0; background:transparent; color:#aab6c8; font:500 13px inherit; padding:7px 10px; border-radius:7px; cursor:pointer; }
+  .kid { display:block; width:100%; text-align:left; border:0; background:transparent; color:#aab6c8; font-weight:500; font-size:13px; padding:7px 10px; border-radius:7px; cursor:pointer; }
   .kid:hover { background:var(--navy-2); color:#fff; }
   .kid.active { background:var(--brand); color:#fff; }
+  .flat .kid { padding:9px 12px; }
+  .heading { padding:14px 14px 6px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#7d8ba1; font-weight:600; }
   .foot { border-top:1px solid #ffffff14; padding:12px 14px; font-size:13px; color:#fff; }
   .foot small { display:block; color:#94a3b8; margin-top:2px; }
-  main { flex:1; display:flex; flex-direction:column; min-width:0; }
-  .try { background:#fff; border-bottom:1px solid var(--line); padding:12px 24px; display:flex; flex-wrap:wrap; gap:18px; align-items:center; font-size:13px; }
-  .try b { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
-  select { padding:6px 10px; border:1px solid var(--line); border-radius:8px; font:inherit; }
-  label.chk { display:flex; gap:6px; align-items:center; }
-  .page { padding:28px 32px; overflow:auto; }
+  /* C: icon rail */
+  .rail { width:64px; background:var(--navy-0); display:flex; flex-direction:column; align-items:center; padding:12px 0; gap:10px; }
+  .rail .logo { margin-bottom:8px; }
+  .rbtn { width:44px; padding:7px 0 5px; border:0; border-radius:10px; background:transparent; color:#94a3b8; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10px; font-weight:600; }
+  .rbtn:hover { background:var(--navy-2); color:#fff; }
+  .rbtn.on { background:var(--navy-2); color:#fff; box-shadow:inset 3px 0 0 var(--brand); }
+  .rail .grow { flex:1; }
+  .avatar { width:32px; height:32px; border-radius:50%; background:#334e75; color:#fff; display:grid; place-items:center; font-size:12px; font-weight:700; }
+  main { flex:1; min-width:0; overflow:auto; }
+  .page { padding:28px 32px; }
   .crumb { color:var(--muted); font-size:13px; margin-bottom:6px; }
   h1 { margin:0 0 18px; font-size:22px; }
   .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px; max-width:760px; }
-  .card p { margin:0 0 10px; color:#374151; font-size:14px; line-height:1.5; }
+  .card p { margin:0; color:#374151; font-size:14px; line-height:1.5; }
   .note { margin-top:16px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a; border-radius:10px; padding:12px 14px; font-size:13px; max-width:760px; }
-  .empty { color:var(--muted); font-size:13px; padding:8px 10px; }
+  .pros { margin-top:16px; max-width:760px; font-size:13px; color:#374151; line-height:1.55; }
+  .pros b { color:var(--ink); }
+  .empty { color:#94a3b8; font-size:13px; padding:8px 10px; }
 </style>
 </head>
 <body>
+<div class="try">
+  <span><b>Mock-up — try it</b></span>
+  <span><b>Layout</b> <select id="layout">
+    <option value="A">A · Folding modules in one sidebar</option>
+    <option value="B">B · Module tabs on top, sections on the left</option>
+    <option value="C">C · Icon rail of modules + section list</option>
+  </select></span>
+  <span><b>Logged in as</b> <select id="role">
+    <option value="admin">Admin (everything)</option>
+    <option value="doctor_admin">Doctor + Administrator checkbox</option>
+    <option value="doctor">Doctor</option>
+    <option value="receptionist">Receptionist</option>
+    <option value="cashier">Pharmacy cashier</option>
+    <option value="manager">Pharmacy manager</option>
+  </select></span>
+  <span><b>Modules on</b></span>
+  <label class="chk"><input type="checkbox" id="m-emr" checked> EMR</label>
+  <label class="chk"><input type="checkbox" id="m-pharmacy" checked> Pharmacy</label>
+</div>
+<header id="top"></header>
 <div class="shell">
-  <aside>
-    <div class="brand"><div class="logo">✚</div><div>PharmaCare<br><small style="font-weight:400;color:#94a3b8;font-size:11px">v1.0</small></div></div>
-    <nav id="nav"></nav>
-    <div class="foot" id="foot"></div>
-  </aside>
-  <main>
-    <div class="try">
-      <span><b>Mock-up — try it</b></span>
-      <span><b>Logged in as</b> <select id="role">
-        <option value="admin">Admin (everything)</option>
-        <option value="doctor_admin">Doctor + Administrator checkbox</option>
-        <option value="doctor">Doctor</option>
-        <option value="receptionist">Receptionist</option>
-        <option value="cashier">Pharmacy cashier</option>
-        <option value="manager">Pharmacy manager</option>
-      </select></span>
-      <span><b>Modules switched on</b></span>
-      <label class="chk"><input type="checkbox" id="m-emr" checked> EMR</label>
-      <label class="chk"><input type="checkbox" id="m-pharmacy" checked> Pharmacy</label>
-    </div>
-    <div class="page">
-      <div class="crumb" id="crumb"></div>
-      <h1 id="title"></h1>
-      <div class="card"><p id="blurb"></p></div>
-      <div class="note" id="note"></div>
-    </div>
-  </main>
+  <aside id="side"></aside>
+  <main><div class="page">
+    <div class="crumb" id="crumb"></div>
+    <h1 id="title"></h1>
+    <div class="card"><p id="blurb"></p></div>
+    <div class="note" id="note"></div>
+    <div class="pros" id="pros"></div>
+  </div></main>
 </div>
 
 <script>
-  // Module → sections. `who` = roles that see the section; Admin sees everything.
   const MODULES = [
     { id: 'emr', name: 'EMR', color: '#0d9488', sections: [
       ['Appointments', ['doctor','receptionist']], ['Calendar', ['doctor','receptionist']],
@@ -94,54 +117,64 @@
     cashier: { name: 'Ravi', label: 'Cashier', isAdmin: false, roles: ['cashier'] },
     manager: { name: 'Sunita', label: 'Pharmacy Manager', isAdmin: false, roles: ['manager'] },
   };
+  const PROS = {
+    A: '<b>A · Folding modules.</b> Everything in one sidebar; one module open at a time. <b>Good:</b> closest to what you described, works for 2–4 modules, one place to look. <b>Watch:</b> gets long if a module has many sections or a 5th module arrives.',
+    B: '<b>B · Module tabs on top.</b> Like Google Workspace / Zoho / Odoo: pick the module in the top bar, the left side shows only its sections. <b>Good:</b> short sidebar, scales to many modules (Lab, IPD…), the module you are in is always obvious. <b>Watch:</b> an extra click to switch module; top bar needs room for tabs.',
+    C: '<b>C · Icon rail.</b> Like Slack / Linear: a thin rail of module icons, then that module’s sections. <b>Good:</b> most compact, great on small screens, feels like a product suite. <b>Watch:</b> icons need labels to be learnable; two columns of navigation.',
+  };
   const state = { module: 'emr', section: 'Calendar' };
   const $ = (id) => document.getElementById(id);
+  const chev = '<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>';
 
   function visible() {
     const user = ROLES[$('role').value];
     const on = { emr: $('m-emr').checked, pharmacy: $('m-pharmacy').checked };
     return MODULES.map((m) => {
-      if (!m.always && !on[m.id]) return null;               // module switched off → gone
+      if (!m.always && !on[m.id]) return null;
       const secs = m.sections.filter(([, who]) => user.isAdmin || who.some((r) => user.roles.includes(r)));
-      return secs.length ? { ...m, sections: secs } : null;   // nothing allowed → whole module hidden
+      return secs.length ? { ...m, sections: secs } : null;
     }).filter(Boolean);
   }
+  const kid = (m, s) => `<button class="kid ${m.id === state.module && s === state.section ? 'active' : ''}" data-mod="${m.id}" data-sec="${s}">${s}</button>`;
+  const brand = '<div class="brand"><div class="logo">✚</div><div>PharmaCare</div></div>';
 
   function render() {
-    const user = ROLES[$('role').value];
-    const mods = visible();
+    const layout = $('layout').value; document.body.className = layout;
+    const user = ROLES[$('role').value]; const mods = visible();
     if (!mods.find((m) => m.id === state.module)) { state.module = mods[0]?.id; state.section = mods[0]?.sections[0][0]; }
-    $('nav').innerHTML = mods.map((m) => `
-      <div class="mod ${m.id === state.module ? 'open' : ''}">
-        <button class="mod-head" data-mod="${m.id}">
-          <span class="dot" style="background:${m.color}">${m.name[0]}</span>${m.name}
-          <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
-        </button>
-        <div class="kids">${m.sections.map(([s]) => `<button class="kid ${m.id === state.module && s === state.section ? 'active' : ''}" data-mod="${m.id}" data-sec="${s}">${s}</button>`).join('')}</div>
-      </div>`).join('') || '<div class="empty">No modules available for this user.</div>';
-    $('foot').innerHTML = `${user.name}<small>${user.label}</small>`;
-    const m = mods.find((x) => x.id === state.module);
-    $('crumb').textContent = m ? `${m.name}  ›  ${state.section}` : '';
+    const cur = mods.find((m) => m.id === state.module);
+    const foot = `<div class="foot">${user.name}<small>${user.label}</small></div>`;
+    $('top').innerHTML = '';
+    if (layout === 'A') {
+      $('side').innerHTML = `<div class="col"><div class="brandbar">${brand}</div><nav>${mods.map((m) => `
+        <div class="mod ${m.id === state.module ? 'open' : ''}"><button class="mod-head" data-mod="${m.id}"><span class="dot" style="background:${m.color}">${m.name[0]}</span>${m.name}${chev}</button>
+        <div class="kids">${m.sections.map(([s]) => kid(m, s)).join('')}</div></div>`).join('') || '<div class="empty">No modules available.</div>'}</nav>${foot}</div>`;
+    } else if (layout === 'B') {
+      $('top').innerHTML = `${brand}${mods.map((m) => `<button class="tab ${m.id === state.module ? 'on' : ''}" data-mod="${m.id}"><span class="dot" style="background:${m.color}">${m.name[0]}</span>${m.name}</button>`).join('')}<div class="who">${user.name}<small>${user.label}</small></div>`;
+      $('side').innerHTML = `<div class="col"><nav class="flat"><div class="heading">${cur ? cur.name : ''}</div>${cur ? cur.sections.map(([s]) => kid(cur, s)).join('') : ''}</nav></div>`;
+    } else {
+      $('side').innerHTML = `<div class="rail"><div class="logo">✚</div>${mods.map((m) => `<button class="rbtn ${m.id === state.module ? 'on' : ''}" data-mod="${m.id}" title="${m.name}"><span class="dot" style="background:${m.color}">${m.name[0]}</span>${m.name}</button>`).join('')}<div class="grow"></div><div class="avatar" title="${user.name} · ${user.label}">${user.name[0]}</div></div>
+        <div class="col"><nav class="flat"><div class="heading">${cur ? cur.name : ''}</div>${cur ? cur.sections.map(([s]) => kid(cur, s)).join('') : ''}</nav>${foot}</div>`;
+    }
+    $('crumb').textContent = cur ? `${cur.name}  ›  ${state.section}` : '';
     $('title').textContent = state.section || '';
-    $('blurb').textContent = m ? `This is the ${state.section} page of the ${m.name} module. Only one module is open at a time; the others stay folded so the sidebar never gets long.` : '';
+    $('blurb').textContent = cur ? `This is the ${state.section} page of the ${cur.name} module.` : '';
     $('note').textContent = noteFor(user, mods);
+    $('pros').innerHTML = PROS[layout];
   }
-
   function noteFor(user, mods) {
     const names = mods.map((m) => m.name).join(' + ') || 'nothing';
     if (user.isAdmin && user.roles.length) return `Doctor + Administrator sees ${names}: the clinical role gives the work screens, the checkbox adds everything else.`;
     if (user.isAdmin) return `Administrator sees ${names}.`;
     return `${user.label} sees only: ${names}. A module with no allowed sections isn't shown at all.`;
   }
-
-  $('nav').addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) return;
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mod]'); if (!b) return;
     state.module = b.dataset.mod;
-    if (b.dataset.sec) state.section = b.dataset.sec;
-    else state.section = visible().find((m) => m.id === state.module).sections[0][0];
+    state.section = b.dataset.sec || visible().find((m) => m.id === state.module).sections[0][0];
     render();
   });
-  ['role', 'm-emr', 'm-pharmacy'].forEach((id) => $(id).addEventListener('change', render));
+  ['layout', 'role', 'm-emr', 'm-pharmacy'].forEach((id) => $(id).addEventListener('change', render));
   render();
 </script>
 </body>
