@@ -1,5 +1,5 @@
 # One Person Record — Build Plan (EMR patients + pharmacy customers share one person)
-# Version: 0.2 | Last updated: October 3, 2026
+# Version: 0.3 | Last updated: October 3, 2026
 # Type: Explanation
 # Status: 🚫 PLAN ONLY — not built. Needs Abinash's approval (schema change + data migration). Nothing in this file exists in code yet.
 
@@ -71,7 +71,12 @@
 - **P5 Contract + whole-feature audit:** drop old columns; walk it as receptionist, doctor, pharmacist, admin from zero data; update docs; log in RULE MISSES LOG if anything was missed.
 
 ## Decisions needed from Abinash (plain language)
-1. **Who shares a person?** Recommended: people are shared within one clinic/pharmacy (`pharmacy_id`), the same boundary as today — safe and matches our proven tenant checks. A hospital with several clinics sharing one patient across clinics (as OHC does) is a later phase, behind explicit store grants; the table is designed so that can be added without a rewrite.
+1. **Who shares a person? (revised Oct 3, 2026 — best end-state, not a stepping stone)** Recommended: ONE person per hospital chain, a separate profile at each clinic.
+   - `people` gets `chain_id` (NULL for a standalone clinic, which then matches only within its own `pharmacy_id`); the person is matched and de-duplicated across the whole chain.
+   - Each clinic still owns its own profile: its own UHID, visits, prescriptions, notes, bills. A clinic sees a person in its normal lists only if it has a profile for them.
+   - A receptionist at Clinic B searching "Asha" who exists only at Clinic A sees "Found in your hospital — add to Clinic B?" with name and phone only. Medical history from Clinic A is not shown by default; sharing history across clinics is a separate, explicit, consented step later.
+   - Access goes through the existing grant-checked helper (`resolve_chain_scope_pids` + `user_store_roles`), never a bare `chain_id` filter — the Sep 28, 2026 cross-store leak was exactly that mistake.
+   - Why not per-clinic only: moving later means re-merging every duplicate person created in the meantime; building it chain-aware now costs one nullable column.
 2. **Same phone, different names:** recommended — always ask, never auto-merge.
 3. **Existing duplicates after backfill:** recommended — a "Possible duplicates" list admins review (merge or keep separate); nothing merges silently.
 4. **Cleanup timing:** recommended — keep old columns unused for a short period after P3/P4, drop in P5 only after the audit.
