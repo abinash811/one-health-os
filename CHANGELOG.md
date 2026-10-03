@@ -11,6 +11,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **Admin is a checkbox, not a role.** Each member now has a clinical role (Doctor, Receptionist, …) plus a separate
+  **Administrator** checkbox, so one person can be a Doctor and an admin. Admins get every permission and can manage team,
+  roles and settings. Existing admins are converted automatically; you can't remove your own admin access. The old
+  "admin" role is no longer offered when inviting a member.
 - **Patient Billing B4 — the billing desk.** New "Clinic Billing" area: **Pending** (everyone who owes money, split into
   not-invoiced and invoiced-unpaid, filter by source, one-click Collect), **All bills** (search, pay the rest, cancel an
   unpaid invoice with a reason, print), **Receipts**, and **Day closing** (the day's collections by cash/UPI/card and by

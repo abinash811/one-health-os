@@ -9,6 +9,7 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import MembersTable from './MembersTable';
 import StoreAccessModal from './StoreAccessModal';
+import AdminCheckbox from './AdminCheckbox';
 
 const inputCls = 'w-full h-10 px-3 rounded-lg border border-gray-300 text-sm focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none placeholder:text-gray-400';
 
@@ -26,10 +27,12 @@ export default function MembersTab({ currentUser }) {
   const [deactivateDialog, setDeactivateDialog]   = useState({ open: false, userId: null, loading: false });
   const [storeAccessMember, setStoreAccessMember] = useState(null);
 
-  const [formData, setFormData]     = useState({ name: '', email: '', password: '', role: '' });
+  const [formData, setFormData]     = useState({ name: '', email: '', password: '', role: '', is_admin: false });
   const [passwordData, setPasswordData] = useState({ current_password: '', new_password: '', confirm_password: '' });
   const [resetData, setResetData] = useState({ new_password: '', confirm_password: '' });
   const [searchQuery, setSearchQuery] = useState('');
+  // Admin is a checkbox now, not a role — only offered as a role when the member being edited already has it.
+  const memberRoles = availableRoles.filter((r) => r.name !== 'admin' || (showEditDialog && r.name === selectedUser?.role));
   const debouncedSearch = useDebounce(searchQuery, 300);
   const pg = usePagination({ pageSize: 15 });
 
@@ -52,7 +55,7 @@ export default function MembersTab({ currentUser }) {
       await api.post(apiUrl.users(), formData);
       toast.success('User created successfully');
       setShowAddDialog(false);
-      setFormData({ name: '', email: '', password: '', role: '' });
+      setFormData({ name: '', email: '', password: '', role: '', is_admin: false });
       fetchUsers();
     } catch (err) { toast.error(err.response?.data?.detail || 'Failed to create user'); }
   };
@@ -60,7 +63,7 @@ export default function MembersTab({ currentUser }) {
   const handleEditUser = async (e) => {
     e.preventDefault();
     try {
-      await api.put(apiUrl.user(selectedUser.id), { name: formData.name, email: formData.email, role: formData.role });
+      await api.put(apiUrl.user(selectedUser.id), { name: formData.name, email: formData.email, role: formData.role, is_admin: formData.is_admin });
       toast.success('User updated successfully');
       setShowEditDialog(false);
       setSelectedUser(null);
@@ -117,7 +120,7 @@ export default function MembersTab({ currentUser }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, users.length]);
 
-  const handleEditClick = (u) => { setSelectedUser(u); setFormData({ name: u.name, email: u.email, role: u.role, password: '' }); setShowEditDialog(true); };
+  const handleEditClick = (u) => { setSelectedUser(u); setFormData({ name: u.name, email: u.email, role: u.role, is_admin: !!u.is_admin, password: '' }); setShowEditDialog(true); };
 
   return (
     <>
@@ -125,7 +128,7 @@ export default function MembersTab({ currentUser }) {
         <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search members..." className="w-60" />
         <div className="flex items-center gap-2">
           <AppButton variant="outline" icon={<Key className="h-4 w-4" strokeWidth={1.5} />} onClick={() => setShowPasswordDialog(true)}>Change Password</AppButton>
-          <AppButton icon={<Plus className="h-4 w-4" strokeWidth={1.5} />} onClick={() => { setFormData({ name: '', email: '', password: '', role: '' }); setShowAddDialog(true); }}>Invite Member</AppButton>
+          <AppButton icon={<Plus className="h-4 w-4" strokeWidth={1.5} />} onClick={() => { setFormData({ name: '', email: '', password: '', role: '', is_admin: false }); setShowAddDialog(true); }}>Invite Member</AppButton>
         </div>
       </div>
 
@@ -155,7 +158,8 @@ export default function MembersTab({ currentUser }) {
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Name *</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={inputCls} required /></div>
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Email *</label><input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={inputCls} required /></div>
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Password *</label><input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className={inputCls} required minLength={6} /><p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p></div>
-            <div><label className="block text-xs font-medium text-gray-700 mb-1">Role *</label><select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className={inputCls} required><option value="">Select a role…</option>{availableRoles.map((r) => <option key={r.id} value={r.name}>{r.display_name}</option>)}</select></div>
+            <div><label htmlFor="member-role" className="block text-xs font-medium text-gray-700 mb-1">Role *</label><select id="member-role" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className={inputCls} required><option value="">Select a role…</option>{memberRoles.map((r) => <option key={r.id} value={r.name}>{r.display_name}</option>)}</select></div>
+            <AdminCheckbox checked={formData.is_admin} onChange={(v) => setFormData({ ...formData, is_admin: v })} />
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
               <AppButton type="button" variant="secondary" onClick={() => setShowAddDialog(false)}>Cancel</AppButton>
               <AppButton type="submit">Create Member</AppButton>
@@ -171,7 +175,8 @@ export default function MembersTab({ currentUser }) {
           <form onSubmit={handleEditUser} className="space-y-4 mt-2">
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Name *</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={inputCls} required /></div>
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Email *</label><input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={inputCls} required /></div>
-            <div><label className="block text-xs font-medium text-gray-700 mb-1">Role *</label><select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className={inputCls} required><option value="">Select a role…</option>{availableRoles.map((r) => <option key={r.id} value={r.name}>{r.display_name}</option>)}</select></div>
+            <div><label htmlFor="member-role" className="block text-xs font-medium text-gray-700 mb-1">Role *</label><select id="member-role" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className={inputCls} required><option value="">Select a role…</option>{memberRoles.map((r) => <option key={r.id} value={r.name}>{r.display_name}</option>)}</select></div>
+            <AdminCheckbox checked={formData.is_admin} disabled={selectedUser?.id === currentUser.id} onChange={(v) => setFormData({ ...formData, is_admin: v })} />
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
               <AppButton type="button" variant="secondary" onClick={() => setShowEditDialog(false)}>Cancel</AppButton>
               <AppButton type="submit">Update Member</AppButton>

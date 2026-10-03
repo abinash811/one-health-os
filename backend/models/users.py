@@ -51,6 +51,10 @@ class User(Base):
     phone: Mapped[Optional[str]] = mapped_column(String(10))
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Separate from the clinical role (Doctor/Receptionist/...): an admin
+    # manages users, roles and settings and gets every permission, so one
+    # person can be a Doctor AND an admin (Oct 3, 2026).
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     last_login_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(

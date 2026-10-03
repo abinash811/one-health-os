@@ -5,6 +5,8 @@ import { AppButton, PaginationBar, TableSkeleton } from '@/components/shared';
 import { formatDateTime } from '@/utils/dates';
 import RoleBadge from './RoleBadge';
 
+const ADMIN_ROLE = 'admin';
+
 export default function MembersTable({ users, loading, currentUser, pagination, onEdit, onDeactivate, onActivate, onResetPassword, onStoreAccess }) {
   const navigate = useNavigate();
   return (
@@ -36,7 +38,12 @@ export default function MembersTable({ users, loading, currentUser, pagination, 
               <tr key={u.id} className="group h-10 border-b border-gray-100 last:border-0 hover:bg-brand-tint">
                 <td className="px-4 py-2.5 text-sm font-medium text-gray-900">{u.name}</td>
                 <td className="px-4 py-2.5 text-sm text-gray-500">{u.email}</td>
-                <td className="px-4 py-2.5"><RoleBadge role={u.role} /></td>
+                <td className="px-4 py-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <RoleBadge role={u.role} />
+                    {u.is_admin && u.role !== 'admin' && <RoleBadge role={ADMIN_ROLE} />}
+                  </div>
+                </td>
                 <td className="px-4 py-2.5">
                   {u.is_active ? (
                     <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">

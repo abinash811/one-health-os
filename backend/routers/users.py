@@ -48,6 +48,7 @@ class UserCreate(BaseModel):
     # docs/14_SECURITY.md KNOWN GAPS #2 — same rule as auth.py::UserCreate.
     password: str = Field(min_length=6)
     role: str
+    is_admin: bool = False
 
 
 class UserUpdate(BaseModel):
@@ -55,6 +56,7 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     role: Optional[str] = None
     is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
 
 
 class ChangePassword(BaseModel):
@@ -76,6 +78,7 @@ def _user_response(user: UserORM) -> dict:
         "role_id": str(user.role_id),
         "pharmacy_id": str(user.pharmacy_id),
         "is_active": user.is_active,
+        "is_admin": user.is_admin,
         # Existed on the model since day one but nothing ever set it
         # (fixed in auth.py's login()) or returned it here — every
         # member's last-login was invisible regardless of real usage.
@@ -120,6 +123,7 @@ async def create_user(user_data: UserCreate, request: Request, current_user: Use
     user = UserORM(
         pharmacy_id=pharmacy_id,
         role_id=role.id,
+        is_admin=user_data.is_admin,
         name=user_data.name,
         email=user_data.email,
         password_hash=hash_password(user_data.password),
@@ -129,7 +133,7 @@ async def create_user(user_data: UserCreate, request: Request, current_user: Use
     await sync_user_store_role(db, user_id=user.id, pharmacy_id=pharmacy_id, role_id=role.id)
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "create", "user", user.id,
-        {"name": user.name, "email": user.email, "role": user_data.role}, db,
+        {"name": user.name, "email": user.email, "role": user_data.role, "is_admin": user.is_admin}, db,
         ip_address=_client_ip(request),
     )
     await db.flush()
@@ -167,7 +171,8 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, c
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    old_values = {"name": user.name, "email": user.email, "role": user.role.name, "is_active": user.is_active}
+    old_values = {"name": user.name, "email": user.email, "role": user.role.name,
+                  "is_active": user.is_active, "is_admin": user.is_admin}
 
     if user_update.role is not None:
         role_result = await db.execute(
@@ -194,10 +199,15 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, c
         user.name = user_update.name
     if user_update.is_active is not None:
         user.is_active = user_update.is_active
+    if user_update.is_admin is not None and user_update.is_admin != user.is_admin:
+        if not user_update.is_admin and str(user.id) == current_user.id:
+            raise HTTPException(status_code=400, detail="You can't remove your own admin access")
+        user.is_admin = user_update.is_admin
 
     await db.flush()
     await db.refresh(user, attribute_names=["role"])
-    new_values = {"name": user.name, "email": user.email, "role": user.role.name, "is_active": user.is_active}
+    new_values = {"name": user.name, "email": user.email, "role": user.role.name,
+                  "is_active": user.is_active, "is_admin": user.is_admin}
     if new_values != old_values:
         await _record_audit(
             uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id), "update", "user", user.id,

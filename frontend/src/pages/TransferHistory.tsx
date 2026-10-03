@@ -39,7 +39,7 @@ function DirectionBadge({ direction }) {
 export default function TransferHistory() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || !!user?.is_super_admin;
 
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);

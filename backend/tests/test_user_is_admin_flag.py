@@ -1,0 +1,74 @@
+"""Admin is a checkbox on the user (users.is_admin), separate from the clinical role: a Doctor can also be an
+admin and gets every permission. Added Oct 3, 2026."""
+import os
+import uuid
+
+import pytest
+import requests
+
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
+
+
+@pytest.fixture()
+def admin():
+    s = requests.Session()
+    s.headers.update({"Content-Type": "application/json"})
+    r = s.post(f"{BASE_URL}/api/auth/login", json={"email": "testadmin@pharmacy.com", "password": "admin123"})
+    if r.status_code != 200:
+        pytest.skip("Authentication failed")
+    s.headers.update({"Authorization": f"Bearer {r.json()['token']}"})
+    return s
+
+
+def _login(email, password):
+    s = requests.Session()
+    s.headers.update({"Content-Type": "application/json"})
+    r = s.post(f"{BASE_URL}/api/auth/login", json={"email": email, "password": password})
+    assert r.status_code == 200, r.text
+    s.headers.update({"Authorization": f"Bearer {r.json()['token']}"})
+    return s, r.json()["user"]
+
+
+def _create(admin, role, is_admin):
+    email = f"isadmin_{uuid.uuid4().hex[:8]}@pharmacy.com"
+    r = admin.post(f"{BASE_URL}/api/users", json={
+        "email": email, "name": "Flag Test", "password": "FlagTest123", "role": role, "is_admin": is_admin})
+    assert r.status_code == 200, r.text
+    return r.json(), email
+
+
+def test_existing_admin_role_user_is_flagged(admin):
+    assert admin.get(f"{BASE_URL}/api/auth/me").json()["is_admin"] is True
+
+
+def test_doctor_without_flag_is_not_admin(admin):
+    user, email = _create(admin, "doctor", False)
+    assert user["is_admin"] is False
+    s, _ = _login(email, "FlagTest123")
+    assert s.get(f"{BASE_URL}/api/users").status_code == 403
+
+
+def test_doctor_with_flag_gets_admin_access_and_keeps_role(admin):
+    user, email = _create(admin, "doctor", True)
+    assert user["is_admin"] is True and user["role"] == "doctor"
+    s, login_user = _login(email, "FlagTest123")
+    assert login_user["role"] == "doctor" and login_user["is_admin"] is True
+    assert s.get(f"{BASE_URL}/api/users").status_code == 200
+    assert s.get(f"{BASE_URL}/api/auth/me").json()["is_super_admin"] is True
+
+
+def test_toggle_flag_on_and_off(admin):
+    user, email = _create(admin, "receptionist", False)
+    r = admin.put(f"{BASE_URL}/api/users/{user['id']}", json={"is_admin": True})
+    assert r.status_code == 200 and r.json()["is_admin"] is True
+    r = admin.put(f"{BASE_URL}/api/users/{user['id']}", json={"is_admin": False})
+    assert r.json()["is_admin"] is False
+    s, _ = _login(email, "FlagTest123")
+    assert s.get(f"{BASE_URL}/api/users").status_code == 403
+
+
+def test_cannot_remove_own_admin(admin):
+    me = admin.get(f"{BASE_URL}/api/auth/me").json()
+    r = admin.put(f"{BASE_URL}/api/users/{me['id']}", json={"is_admin": False})
+    assert r.status_code == 400
+    assert "own admin" in r.json()["detail"]

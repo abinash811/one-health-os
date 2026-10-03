@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.69 | Last updated: October 2, 2026
+# Version: 3.70 | Last updated: October 3, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.

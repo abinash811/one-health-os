@@ -16,7 +16,7 @@ export default function PurchaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || !!user?.is_super_admin;
   const [purchase, setPurchase]   = useState(null);
   const [loading, setLoading]     = useState(true);
   const [showPayModal, setShowPayModal] = useState(false);

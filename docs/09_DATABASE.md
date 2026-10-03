@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.18 | Last updated: October 2, 2026
+# Version: 1.19 | Last updated: October 3, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -290,6 +290,7 @@ Pharmacy staff members. One user belongs to one pharmacy and one role.
 | `phone` | String(10) | Optional |
 | `password_hash` | String(255) | bcrypt hash — never store plain text |
 | `is_active` | Boolean | Inactive = cannot login |
+| `is_admin` | Boolean, default `false` | Administrator checkbox (migration `a7d3e91c4b20`, Oct 3, 2026) — separate from the clinical role, so one person can be a Doctor AND an admin. Admin = every permission + manage team/roles/settings. Backfilled `true` for everyone in the `admin` role. |
 | `last_login_at` | TIMESTAMP | — |
 
 ---

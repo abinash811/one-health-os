@@ -9,11 +9,13 @@ import { USER_ROLE } from '@/constants/domainConstants';
  * button and gets a clear refusal. One place to change when the login response carries permissions.
  *   doctor        — views billing, writes prescriptions, never takes money
  *   receptionist  — runs the desk and takes money, never cancels invoices or writes prescriptions
- *   admin / other — everything
+ *   admin (checkbox) / other — everything
  */
 export function useClinicAccess() {
-  const auth = useContext(AuthContext) as unknown as { user: { role: string } | null } | null;
+  const auth = useContext(AuthContext) as unknown as { user: { role: string; is_super_admin?: boolean } | null } | null;
   const role = auth?.user?.role;
+  // An admin (checkbox) keeps their clinical role but gets everything.
+  if (auth?.user?.is_super_admin) return { canCollect: true, canCancelInvoice: true, canWriteRx: true };
   return {
     canCollect: role !== USER_ROLE.DOCTOR,
     canCancelInvoice: role !== USER_ROLE.DOCTOR && role !== USER_ROLE.RECEPTIONIST,

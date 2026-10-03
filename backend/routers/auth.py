@@ -118,6 +118,7 @@ async def register(user_data: UserCreate, db: AsyncSession = DbSession):
     user = UserORM(
         pharmacy_id=pharmacy.id,
         role_id=role.id,
+        is_admin=True,
         name=user_data.name,
         email=user_data.email,
         phone=user_data.phone,
@@ -130,7 +131,8 @@ async def register(user_data: UserCreate, db: AsyncSession = DbSession):
     token = create_access_token({"sub": str(user.id), "email": user.email})
     return {
         "token": token,
-        "user": {"id": str(user.id), "email": user.email, "name": user.name, "role": "admin"},
+        "user": {"id": str(user.id), "email": user.email, "name": user.name, "role": "admin",
+                 "is_admin": True},
     }
 
 
@@ -174,11 +176,13 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = DbS
     # immediately after login, only fixed after a page reload re-fetches
     # /auth/me. See /auth/me's own comment for the full context.
     perms = user.role.permissions or []
-    is_super_admin = user.role.name == "admin" or (isinstance(perms, list) and "*" in perms)
+    is_super_admin = (
+        user.is_admin or user.role.name == "admin" or (isinstance(perms, list) and "*" in perms))
     return {
         "token": token,
         "user": {
             "id": str(user.id), "email": user.email, "name": user.name, "role": user.role.name,
+            "is_admin": user.is_admin,
             "is_super_admin": is_super_admin,
         },
     }
@@ -299,6 +303,7 @@ async def create_session(request: Request, response: Response, db: AsyncSession 
         user = UserORM(
             pharmacy_id=pharmacy.id,
             role_id=role.id,
+            is_admin=(role_name == "admin"),
             name=session_data["name"],
             email=session_data["email"],
             password_hash="",
@@ -343,5 +348,6 @@ async def get_me(current_user: User = Depends(get_current_user), db: AsyncSessio
         # role couldn't even open Settings/Team, unlike the real admin.
         # Found Sep 15, 2026 (Team product-review), same shape as the Sep
         # 13 backend-only fix. Frontend gates now check this field too.
+        "is_admin": current_user.is_admin,
         "is_super_admin": current_user.role == "admin" or await has_permission(current_user, "*", db),
     }

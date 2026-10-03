@@ -42,8 +42,8 @@ export default function SalesReturnDetail() {
     if (!user?.role) return;
     try {
       const res = await api.get(`/roles/${user.role}/permissions/returns`);
-      setAllowFinancialEdit(res.data.allow_financial_edit_return || user.role === 'admin');
-    } catch { setAllowFinancialEdit(user?.role === 'admin'); }
+      setAllowFinancialEdit(res.data.allow_financial_edit_return || user.role === 'admin' || user.is_super_admin);
+    } catch { setAllowFinancialEdit(user?.role === 'admin' || !!user?.is_super_admin); }
   };
 
   const handleNonFinancialEdit = async () => {

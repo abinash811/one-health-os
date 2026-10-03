@@ -149,6 +149,7 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
                 id=uuid.uuid4(),
                 pharmacy_id=pharmacy.id,
                 role_id=admin_role.id,
+                is_admin=True,
                 name=name,
                 email=email,
                 password_hash=pwd_context.hash(password),

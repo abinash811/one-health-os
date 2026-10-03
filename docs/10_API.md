@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.31 | Last updated: October 2, 2026
+# Version: 1.32 | Last updated: October 3, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1301,13 +1301,13 @@ List all sequence types (INV, RTN, etc.)
 List all users in the pharmacy.
 
 ### `POST /users`
-Create a new user.
+Create a new user. Body: `email`, `name`, `password`, `role`, optional `is_admin` (default `false`).
 
 ### `GET /users/{user_id}`
 Get single user detail. Admin only.
 
 ### `PUT /users/{user_id}`
-Update user (name, role, active status).
+Update user (name, email, role, active status, `is_admin`). A user cannot remove their own admin access (400). `is_admin` users keep their role and get every permission; `/auth/me` and login return `is_admin` and `is_super_admin: true` for them.
 
 ### `DELETE /users/{user_id}`
 Deactivate user (soft delete).

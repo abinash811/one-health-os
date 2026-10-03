@@ -34,6 +34,7 @@ class User(BaseModel):
     role_id: str
     pharmacy_id: str
     is_active: bool = True
+    is_admin: bool = False
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -96,6 +97,7 @@ async def get_current_user(
         role_id=str(user_row.role_id),
         pharmacy_id=str(user_row.pharmacy_id),
         is_active=user_row.is_active,
+        is_admin=user_row.is_admin,
     )
 
 
@@ -287,7 +289,10 @@ async def resolve_chain_scope_pids(current_user: User, scope: str, db: AsyncSess
 
 
 async def has_permission(user: User, permission: str, db: AsyncSession) -> bool:
-    """Check if a user's role has the given permission (e.g. 'billing:create')."""
+    """Check if a user's role has the given permission (e.g. 'billing:create').
+    An admin (users.is_admin) has every permission."""
+    if user.is_admin:
+        return True
     result = await db.execute(
         select(RoleORM).where(RoleORM.id == uuid.UUID(user.role_id))
     )
@@ -316,7 +321,7 @@ async def require_admin_or_super(user: User, db: AsyncSession, detail: str = "Ad
     the literal check used to, so callers don't need to change their error
     handling.
     """
-    if user.role == "admin":
+    if user.is_admin or user.role == "admin":
         return
     if await has_permission(user, "*", db):
         return
