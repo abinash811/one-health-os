@@ -261,3 +261,26 @@ class TestAccountsAndSummary(_Billing):
         pays = self.session.get(f"{API}/payments", params={"date": date.today().isoformat()}).json()
         assert pays["pagination"]["total_items"] == 2
         assert {p["receipt_number"] for p in pays["data"]} == {"RCT-000001", "RCT-000002"}
+
+
+class TestDeskLists(_Billing):
+    """B4: the billing desk's All bills and Receipts tabs."""
+
+    def test_invoice_search_and_receipts_carry_the_patient(self):
+        a, b = str(uuid.uuid4()), str(uuid.uuid4())
+        ia = self.session.post(f"{API}/accounts/{a}/collect", json={
+            "charge_item_ids": [self._charge(a, name="Asha Menon")["id"]], "mode": "cash"}).json()["invoice"]
+        self.session.post(f"{API}/accounts/{b}/collect", json={
+            "charge_item_ids": [self._charge(b, name="Ravi Kumar")["id"]], "mode": "upi"})
+
+        def numbers(**params):
+            return [i["invoice_number"] for i in self.session.get(f"{API}/invoices", params=params).json()["data"]]
+
+        assert numbers(search="asha") == [ia["invoice_number"]]
+        assert numbers(search=ia["invoice_number"]) == [ia["invoice_number"]]
+        assert numbers(search="UH-000001") != []                       # matches the UHID snapshot
+        assert set(numbers(status="paid")) == {"INV-000001", "INV-000002"}
+        assert numbers(search="nobody") == []
+        pays = self.session.get(f"{API}/payments").json()["data"]
+        assert {(p["patient_name"], p["mode"]) for p in pays} == {("Asha Menon", "cash"), ("Ravi Kumar", "upi")}
+        assert all(p["patient_uhid"] == "UH-000001" and p["invoice_number"] for p in pays)

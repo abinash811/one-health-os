@@ -334,6 +334,11 @@ export const apiUrl = {
   emrAppointmentStatus: (id) => `emr/appointments/${id}/status`,
   // Patient Billing (backend/modules/patient_billing/routers)
   pbCollect:         (patientId) => `patient-billing/accounts/${patientId}/collect`,
+  pbAccounts:        (params) => `patient-billing/accounts${qs(params)}`,
+  pbAccount:         (patientId) => `patient-billing/accounts/${patientId}`,
+  pbInvoices:        (params) => `patient-billing/invoices${qs(params)}`,
+  pbInvoiceCancel:   (id) => `patient-billing/invoices/${id}/cancel`,
+  pbPayments:        (params) => `patient-billing/payments${qs(params)}`,
   pbInvoice:         (id) => `patient-billing/invoices/${id}`,
   pbInvoicePayments: (id) => `patient-billing/invoices/${id}/payments`,
   pbSummaryToday:    (params) => `patient-billing/summary/today${qs(params)}`,

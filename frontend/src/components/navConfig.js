@@ -5,7 +5,7 @@
  */
 import {
   LayoutDashboard, ShoppingCart, Package, ShoppingBag, Users, FileText, Settings,
-  UserCog, CalendarDays, Stethoscope,
+  UserCog, CalendarDays, Stethoscope, Receipt,
 } from 'lucide-react';
 
 // ── Nav definition with group labels ─────────────────────────────────────────
@@ -15,6 +15,7 @@ export const NAV_GROUPS = [
     items: [
       { name: 'Appointments', path: '/emr/appointments', icon: CalendarDays, roles: ['admin', 'receptionist', 'doctor'] },
       { name: 'Patients',     path: '/emr/patients',     icon: Stethoscope,  roles: ['admin', 'receptionist', 'doctor'] },
+      { name: 'Clinic Billing', path: '/patient-billing', icon: Receipt,     roles: ['admin', 'receptionist', 'doctor'] },
     ],
   },
   {

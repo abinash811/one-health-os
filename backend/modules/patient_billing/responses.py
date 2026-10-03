@@ -28,10 +28,12 @@ def invoice_dict(i: PbInvoice) -> dict:
     }
 
 
-def payment_dict(p: PbPayment, invoice_number: str | None = None) -> dict:
+def payment_dict(p: PbPayment, invoice_number: str | None = None, patient_name: str | None = None,
+                 patient_uhid: str | None = None) -> dict:
     return {
         "id": str(p.id), "patient_id": str(p.patient_id), "invoice_id": str(p.invoice_id),
-        "invoice_number": invoice_number, "amount_paise": p.amount_paise, "mode": p.mode,
+        "invoice_number": invoice_number, "patient_name": patient_name, "patient_uhid": patient_uhid,
+        "amount_paise": p.amount_paise, "mode": p.mode,
         "reference": p.reference, "receipt_number": p.receipt_number, "paid_on": p.paid_on.isoformat(),
         "created_at": p.created_at.isoformat() if p.created_at else None,
     }

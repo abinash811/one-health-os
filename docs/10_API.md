@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.29 | Last updated: October 2, 2026
+# Version: 1.30 | Last updated: October 2, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1521,6 +1521,8 @@ curl http://localhost:8000/openapi.json  # OpenAPI spec
 | POST | `/accounts/{patient_id}/collect` | `invoice` + `collect`. The "Collect" button: invoice chosen charges and pay (full unless `amount_paise`) atomically |
 | GET | `/payments?date=&patient_id=` | `view`. Receipts, newest first, paginated |
 | GET | `/summary/today?date=` | `view`. `collected_paise`, `receipts`, `by_mode`, `by_counter` |
+
+**Billing desk (B4):** `GET /patient-billing/invoices` also takes `search` (patient name, UHID or invoice number); `GET /patient-billing/payments` rows now carry `patient_name` / `patient_uhid` so receipts read without a second lookup. The desk's Pending tab = `GET /accounts?status=…&source=…&search=` (+ a `status=pending&page_size=1` call for the headline totals); All bills = `/invoices`; Receipts = `/payments?date=`; Day closing = `/summary/today?date=` + `/payments?date=`. Excel exports are built in the browser from the loaded rows.
 
 **Fee on the queue (B3):** every row of `GET /emr/appointments` carries `fee` — `null` (no fee / withdrawn) or `{charge_id, amount_paise, status: unpaid|part_paid|paid, paid_paise, balance_paise, mode, invoice_id, invoice_number}`. EMR gets this from billing's service (`snapshots_by_key`), never from billing tables. The queue's Collect button calls `POST /patient-billing/accounts/{patient_id}/collect` (no invoice yet) or `POST /patient-billing/invoices/{id}/payments` (part-paid invoice); the printable page reads `GET /patient-billing/invoices/{id}`; the "Collected today" card reads `GET /patient-billing/summary/today`.
 

@@ -11,6 +11,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **Patient Billing B4 — the billing desk.** New "Clinic Billing" area: **Pending** (everyone who owes money, split into
+  not-invoiced and invoiced-unpaid, filter by source, one-click Collect), **All bills** (search, pay the rest, cancel an
+  unpaid invoice with a reason, print), **Receipts**, and **Day closing** (the day's collections by cash/UPI/card and by
+  counter). Each patient's complete bill is also a **Billing tab** on their profile. Excel export on each list.
 - **Patient Billing B3 — fees on the queue.** The appointments queue now shows each visit's fee (Unpaid / Part-paid /
   Paid with the payment mode), a **Collect** button (discount, part-payment, cash / UPI / card; pays the rest of a
   part-paid invoice), and a "Collected today" card with the day's receipts. Every collection can be printed as an

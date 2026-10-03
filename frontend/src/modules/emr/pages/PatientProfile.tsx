@@ -6,7 +6,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CalendarPlus, ChevronLeft, Pencil, History } from 'lucide-react';
-import { PageHeader, DataCard, AppButton, EmptyState, ErrorState, TableSkeleton } from '@/components/shared';
+import { PageHeader, PageTabs, DataCard, AppButton, EmptyState, ErrorState, TableSkeleton } from '@/components/shared';
+import AccountBill from '@/modules/patient_billing/components/AccountBill';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { ROUTES } from '@/constants/routes';
@@ -17,6 +18,7 @@ import VisitTimeline from '../components/VisitTimeline';
 import type { EmrAppointment, EmrDoctor, EmrPatient, EmrPrescription } from '../types';
 
 const labelCls = 'text-xs font-bold text-gray-500 uppercase tracking-wide';
+const PROFILE_TABS = [{ key: 'overview', label: 'Overview' }, { key: 'billing', label: 'Billing' }];
 
 const Fact = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div><p className={labelCls}>{label}</p><p className="text-sm text-gray-900">{value || '—'}</p></div>
@@ -33,6 +35,7 @@ export default function PatientProfile() {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [bookOpen, setBookOpen] = useState(false);
+  const [tab, setTab] = useState('overview');
 
   const [tick, setTick] = useState(0);
   // Bumping `tick` re-runs the load below; the first load starts with loading=true.
@@ -91,7 +94,10 @@ export default function PatientProfile() {
         )}
       />
 
-      {!p ? <DataCard noPadding><TableSkeleton rows={4} columns={4} /></DataCard> : (
+      {p && <PageTabs tabs={PROFILE_TABS} activeTab={tab} onChange={setTab} />}
+
+      {!p ? <DataCard noPadding><TableSkeleton rows={4} columns={4} /></DataCard>
+        : tab === 'billing' ? <AccountBill patientId={p.id} showPatient={false} /> : (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
           <DataCard noPadding={false}>
             {p.allergies && (

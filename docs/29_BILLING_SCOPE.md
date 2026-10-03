@@ -1,7 +1,7 @@
 # Patient Billing — Build Plan (clinic, pharmacy, lab, IPD on one account)
-# Version: 0.3 | Last updated: October 2, 2026
+# Version: 0.4 | Last updated: October 2, 2026
 # Type: Explanation
-# Status: B1 + B2 + B3 BUILT (Oct 2, 2026, approved by Abinash); B4–B5 not started. Decisions taken while building are in "Decisions made in B1/B2" below. Visual mock-up: `docs/mockups/29_billing_mock.html` (8 screens, open in a browser).
+# Status: B1–B4 BUILT (Oct 2–3, 2026, approved by Abinash); B5 (whole-feature audit) not started. Decisions taken while building are in "Decisions made in B1/B2" below. Visual mock-up: `docs/mockups/29_billing_mock.html` (8 screens, open in a browser).
 
 ## Why (product view)
 - A patient's complete bill must be visible in one place: consultation today, medicines and lab tomorrow, beds and nursing when IPD arrives.
@@ -81,6 +81,13 @@ The mock-up (screen 4) shows medicines on the clinic invoice. For GST, stock and
 - The printable invoice takes its letterhead from EMR Settings when readable and prints without one otherwise — a known small coupling until Core has an organisation profile.
 - Collect hides for the doctor role in the UI (backend still enforces `patient_billing:collect`). A cancelled/no-show visit offers no Collect.
 - After collecting, the toast has a **Print** action, so the desk stays on the queue by default (fewest clicks); paid rows have *Print receipt* in their ⋮ menu.
+
+## B4 notes (Oct 3, 2026)
+- **Collect** (desk row, patient bill) collects what is owed in this order: the patient's unbilled charges as one new invoice, otherwise the balance of their oldest unpaid invoice. A patient with both needs two clicks — the row stays Pending until both are settled.
+- **Day closing is a summary view, not a sign-off**: it totals a day's receipts by payment mode (cash = "in the drawer") and by counter. It does not lock the day or record who closed it (pharmacy's `day_end_closings` does; a clinic equivalent is a later decision).
+- Patient bill is one component (`AccountBill`) used by the desk's account page and by the **Billing tab** on the EMR patient profile — so both always agree.
+- Pharmacy is not in the source filters yet (nothing posts pharmacy mirrors until the pharmacy connector is built).
+- Exports are Excel files built in the browser from the loaded page (not the whole filtered set).
 
 ## Cross-cutting consumers to check in the same change (rule 11)
 - Audit Log labels (`pb_charge_item`, `pb_invoice`, `pb_payment`) · patient profile page (new Billing tab) · queue page (fee chip) · Settings (doctor fee) · CSV export · permissions seed · docs 09/10/15/28 + CHANGELOG.

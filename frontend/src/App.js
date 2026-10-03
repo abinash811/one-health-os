@@ -54,6 +54,8 @@ const EmrDoctorSchedules = lazy(() => import('@/modules/emr/pages/DoctorSchedule
 const EmrPatientProfile = lazy(() => import('@/modules/emr/pages/PatientProfile'));
 const EmrSettingsPage = lazy(() => import('@/modules/emr/pages/EmrSettings'));
 const PatientBillingInvoicePrint = lazy(() => import('@/modules/patient_billing/pages/InvoicePrint'));
+const PatientBillingDesk = lazy(() => import('@/modules/patient_billing/pages/BillingDesk'));
+const PatientBillingAccount = lazy(() => import('@/modules/patient_billing/pages/AccountPage'));
 const EmrConsultation = lazy(() => import('@/modules/emr/pages/Consultation'));
 const EmrPrescriptionPrint = lazy(() => import('@/modules/emr/pages/PrescriptionPrint'));
 
@@ -168,6 +170,12 @@ function AppRoutes({ user }) {
           <Route path="emr/schedules" element={<EmrDoctorSchedules />} />
           <Route path="emr/settings" element={<EmrSettingsPage />} />
           <Route path="emr/consult/:appointmentId" element={<EmrConsultation />} />
+          <Route path="patient-billing" element={<Navigate to={ROUTES.PATIENT_BILLING.PENDING} replace />} />
+          <Route path="patient-billing/pending" element={<PatientBillingDesk tab="pending" />} />
+          <Route path="patient-billing/invoices" element={<PatientBillingDesk tab="invoices" />} />
+          <Route path="patient-billing/receipts" element={<PatientBillingDesk tab="receipts" />} />
+          <Route path="patient-billing/closing" element={<PatientBillingDesk tab="closing" />} />
+          <Route path="patient-billing/accounts/:patientId" element={<PatientBillingAccount />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="billing" element={<BillingOperations />} />
           <Route path="billing/new" element={<BillingWorkspace />} />

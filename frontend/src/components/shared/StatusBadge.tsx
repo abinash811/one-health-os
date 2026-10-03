@@ -42,6 +42,9 @@ const STATUS_STYLES: Record<string, string> = {
   // EMR appointment statuses (completed/cancelled already covered above)
   issued: 'bg-green-50 text-green-700',
   part_paid: 'bg-amber-50 text-amber-700',
+  unbilled: 'bg-amber-50 text-amber-700',
+  invoiced: 'bg-blue-50 text-blue-700',
+  void: 'bg-gray-100 text-gray-600',
   booked: 'bg-blue-50 text-blue-700',
   checked_in: 'bg-amber-50 text-amber-700',
   in_consult: 'bg-purple-50 text-purple-700',

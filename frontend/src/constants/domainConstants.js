@@ -253,6 +253,36 @@ export const PAYMENT_MODE = {
   CARD: 'card',
 };
 
+export const INVOICE_STATUS = {
+  ISSUED:    'issued',
+  PART_PAID: 'part_paid',
+  PAID:      'paid',
+  CANCELLED: 'cancelled',
+};
+
+export const CHARGE_STATUS = {
+  UNBILLED: 'unbilled',
+  INVOICED: 'invoiced',
+  PAID:     'paid',
+  VOID:     'void',
+};
+
+export const CHARGE_SOURCE = {
+  EMR:      'emr',
+  LAB:      'lab',
+  IPD:      'ipd',
+  MANUAL:   'manual',
+  PHARMACY: 'pharmacy',
+};
+
+export const ACCOUNT_FILTER = {
+  PENDING:         'pending',
+  NOT_INVOICED:    'not_invoiced',
+  INVOICED_UNPAID: 'invoiced_unpaid',
+  PART_PAID:       'part_paid',
+  ALL:             'all',
+};
+
 export const BILLING_COUNTER = {
   FRONT_DESK:   'front_desk',
   BILLING_DESK: 'billing_desk',

@@ -51,6 +51,12 @@ export const ROUTES = {
 
   // Patient Billing (clinic module) — printable pages render outside the app shell
   PATIENT_BILLING: {
+    HOME:     '/patient-billing',
+    PENDING:  '/patient-billing/pending',
+    INVOICES: '/patient-billing/invoices',
+    RECEIPTS: '/patient-billing/receipts',
+    CLOSING:  '/patient-billing/closing',
+    ACCOUNT:  (patientId) => `/patient-billing/accounts/${patientId}`,
     INVOICE_PRINT: (invoiceId) => `/patient-billing/invoices/${invoiceId}/print`,
   },
 

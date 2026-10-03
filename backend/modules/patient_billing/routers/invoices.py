@@ -7,7 +7,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import DbSession
@@ -75,7 +75,7 @@ async def create_invoice(data: InvoiceCreate, request: Request,
 
 @router.get("/invoices")
 async def list_invoices(status: Optional[str] = None, patient_id: Optional[uuid.UUID] = None,
-                        page: int = 1, page_size: int = Query(25, le=100),
+                        search: Optional[str] = None, page: int = 1, page_size: int = Query(25, le=100),
                         current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     await _require_billing_permission(current_user, "patient_billing:view", db)
     q = select(PbInvoice).where(PbInvoice.pharmacy_id == uuid.UUID(current_user.pharmacy_id),
@@ -84,6 +84,10 @@ async def list_invoices(status: Optional[str] = None, patient_id: Optional[uuid.
         q = q.where(PbInvoice.status == status)
     if patient_id:
         q = q.where(PbInvoice.patient_id == patient_id)
+    if search and search.strip():
+        like = f"%{search.strip()}%"
+        q = q.where(or_(PbInvoice.patient_name.ilike(like), PbInvoice.patient_uhid.ilike(like),
+                        PbInvoice.invoice_number.ilike(like)))
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar()
     rows = (await db.execute(q.order_by(PbInvoice.created_at.desc())
                              .offset((page - 1) * page_size).limit(page_size))).scalars().all()
@@ -169,7 +173,7 @@ async def list_payments(on_date: Optional[date] = Query(None, alias="date"),
     """Receipts, newest first."""
     await _require_billing_permission(current_user, "patient_billing:view", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    q = (select(PbPayment, PbInvoice.invoice_number, PbInvoice.status)
+    q = (select(PbPayment, PbInvoice.invoice_number, PbInvoice.patient_name, PbInvoice.patient_uhid)
          .join(PbInvoice, PbInvoice.id == PbPayment.invoice_id)
          .where(PbPayment.pharmacy_id == pharmacy_id, PbPayment.deleted_at.is_(None),
                 PbInvoice.status != INV_CANCELLED))
@@ -180,4 +184,4 @@ async def list_payments(on_date: Optional[date] = Query(None, alias="date"),
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar()
     rows = (await db.execute(q.order_by(PbPayment.created_at.desc())
                              .offset((page - 1) * page_size).limit(page_size))).all()
-    return paginate_response([payment_dict(p, n) for p, n, _ in rows], page, page_size, total)
+    return paginate_response([payment_dict(p, n, name, uhid) for p, n, name, uhid in rows], page, page_size, total)

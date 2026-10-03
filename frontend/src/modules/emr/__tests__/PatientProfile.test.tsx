@@ -29,6 +29,12 @@ function mockApi({ visits = [appt('a1'), appt('a2', { status: 'cancelled', cance
     if (url.startsWith('emr/patients/p1')) return Promise.resolve({ data: PATIENT });
     if (url.startsWith('emr/appointments')) return Promise.resolve({ data: visits });
     if (url.startsWith('emr/doctors')) return Promise.resolve({ data: [{ id: 'd1', name: 'Dr Rao', role: 'doctor' }] });
+    if (url.startsWith('patient-billing/accounts/')) return Promise.resolve({ data: {
+      patient: { id: 'p1', name: 'Asha Menon', uhid: 'UH-1' },
+      totals: { total_charges_paise: 50000, paid_paise: 0, not_invoiced_paise: 50000, invoiced_unpaid_paise: 0, balance_paise: 50000 },
+      charges: [{ id: 'c1', patient_id: 'p1', patient_name: 'Asha Menon', patient_uhid: null, source_module: 'emr', source_ref: null,
+        description: 'Consultation — Dr Rao', quantity: 1, unit_price_paise: 50000, total_paise: 50000, status: 'unbilled',
+        invoice_id: null, void_reason: null, created_at: '2026-10-02T09:00:00Z' }], invoices: [], payments: [] } });
     return Promise.resolve({ data: [] });
   });
 }
@@ -93,5 +99,18 @@ describe('PatientProfile', () => {
     (api.get as jest.Mock).mockRejectedValue(new Error('Patient not found'));
     renderPage();
     expect(await screen.findByText('Patient not found')).toBeInTheDocument();
+  });
+
+  it('has a Billing tab showing the patient\'s complete bill', async () => {
+    mockApi();
+    renderPage();
+    await screen.findByTestId('visit-a1');
+    await userEvent.click(screen.getByRole('tab', { name: 'Billing' }));
+    expect(await screen.findByTestId('account-bill')).toBeInTheDocument();
+    expect(screen.getByTestId('total-balance')).toHaveTextContent('₹500');
+    expect(screen.getByTestId('charge-row-c1')).toHaveTextContent('Consultation — Dr Rao');
+    expect(screen.queryByTestId('visit-timeline')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    expect(await screen.findByTestId('visit-timeline')).toBeInTheDocument();
   });
 });
