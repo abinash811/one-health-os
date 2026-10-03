@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import BillingDesk from '../pages/BillingDesk';
 import { AuthContext } from '@/App';
+import { userFor } from '@/test-utils/rolePermissions';
 import api from '@/lib/axios';
 import { today } from '@/utils/dates';
 
@@ -53,7 +54,7 @@ function mockApi(over: Record<string, unknown> = {}) {
 const lastUrl = (prefix: string) => (api.get as jest.Mock).mock.calls.map((c) => c[0] as string).filter((u) => u.startsWith(prefix)).at(-1) as string;
 
 const renderDesk = (tab: 'pending' | 'invoices' | 'receipts' | 'closing' = 'pending', role = 'admin') => render(
-  <AuthContext.Provider value={{ user: { role } } as never}>
+  <AuthContext.Provider value={{ user: userFor(role) } as never}>
   <MemoryRouter initialEntries={[`/patient-billing/${tab}`]}>
     <Routes>
       <Route path="/patient-billing/pending" element={<BillingDesk tab="pending" />} />

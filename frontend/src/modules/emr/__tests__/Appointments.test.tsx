@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import Appointments from '../pages/Appointments';
 import CancelAppointmentDialog from '../components/CancelAppointmentDialog';
 import { AuthContext } from '@/App';
+import { userFor } from '@/test-utils/rolePermissions';
 import api from '@/lib/axios';
 
 // EMR step 1c (docs/28_EMR_SCOPE.md): the receptionist's day view + live queue.
@@ -34,7 +35,7 @@ function mockApi(rows: unknown[], summary: unknown = null) {
 }
 
 const renderPage = (role = 'receptionist') => render(
-  <AuthContext.Provider value={{ user: { role } } as never}>
+  <AuthContext.Provider value={{ user: userFor(role) } as never}>
     <MemoryRouter><Appointments /></MemoryRouter>
   </AuthContext.Provider>,
 );

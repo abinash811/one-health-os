@@ -23,8 +23,8 @@ import type { EmrDoctorProfile, EmrSettings } from '../types';
 
 export default function EmrSettingsPage() {
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext) as unknown as { user: { role: string } | null };
-  const canEdit = user?.role === USER_ROLE.ADMIN;
+  const { user } = useContext(AuthContext) as unknown as { user: { role: string; is_super_admin?: boolean } | null };
+  const canEdit = user?.role === USER_ROLE.ADMIN || !!user?.is_super_admin;
   const [settings, setSettings] = useState<EmrSettings | null>(null);
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
   const [error, setError] = useState('');

@@ -288,6 +288,22 @@ async def resolve_chain_scope_pids(current_user: User, scope: str, db: AsyncSess
     return sorted(granted_pids, key=str)
 
 
+def flatten_permissions(perms, is_admin: bool = False) -> list[str]:
+    """A role's stored permissions as a flat list of "module:action" ids — ["*"] for an admin or a
+    wildcard role. Sent to the frontend so buttons follow the real Roles & Permissions ticks instead
+    of guessing from the role's name."""
+    if is_admin:
+        return ["*"]
+    if isinstance(perms, list):
+        return ["*"] if "*" in perms else sorted(perms)
+    if isinstance(perms, dict):
+        if perms.get("*"):
+            return ["*"]
+        return sorted(f"{module}:{action}" for module, actions in perms.items()
+                      if isinstance(actions, dict) for action, granted in actions.items() if granted)
+    return []
+
+
 async def has_permission(user: User, permission: str, db: AsyncSession) -> bool:
     """Check if a user's role has the given permission (e.g. 'billing:create').
     An admin (users.is_admin) has every permission."""

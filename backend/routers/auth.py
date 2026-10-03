@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -19,6 +20,7 @@ from models.users import AuditLog, PasswordResetToken as PasswordResetTokenORM, 
 from routers.auth_helpers import (
     User,
     create_access_token,
+    flatten_permissions,
     get_current_user,
     has_permission,
     hash_password,
@@ -184,6 +186,7 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = DbS
             "id": str(user.id), "email": user.email, "name": user.name, "role": user.role.name,
             "is_admin": user.is_admin,
             "is_super_admin": is_super_admin,
+            "permissions": flatten_permissions(user.role.permissions, user.is_admin),
         },
     }
 
@@ -335,6 +338,10 @@ async def logout(response: Response, current_user: User = Depends(get_current_us
 
 @router.get("/auth/me")
 async def get_me(current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
+    role_row = (await db.execute(
+        select(RoleORM).where(
+            RoleORM.id == uuid.UUID(current_user.role_id),
+            RoleORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id)))).scalar_one_or_none()
     return {
         "id": current_user.id,
         "email": current_user.email,
@@ -350,4 +357,7 @@ async def get_me(current_user: User = Depends(get_current_user), db: AsyncSessio
         # 13 backend-only fix. Frontend gates now check this field too.
         "is_admin": current_user.is_admin,
         "is_super_admin": current_user.role == "admin" or await has_permission(current_user, "*", db),
+        # What the role's ticks actually allow (["*"] = everything) — the frontend shows or hides
+        # buttons from this, never from the role's name. The backend still enforces on every call.
+        "permissions": flatten_permissions(role_row.permissions if role_row else {}, current_user.is_admin),
     }

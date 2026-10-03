@@ -1,5 +1,5 @@
 # Patient Billing — Build Plan (clinic, pharmacy, lab, IPD on one account)
-# Version: 0.5 | Last updated: October 2, 2026
+# Version: 0.6 | Last updated: October 3, 2026
 # Type: Explanation
 # Status: ✅ B1–B5 ALL BUILT (Oct 2–3, 2026, approved by Abinash). B5 audit done — findings below. Remaining items are listed under "Not built yet". Decisions taken while building are in "Decisions made in B1/B2" below. Visual mock-up: `docs/mockups/29_billing_mock.html` (8 screens, open in a browser).
 
@@ -119,7 +119,7 @@ CARE's revenue cycle covers charge capture, invoices, payments, **scheme/insuran
 - **Advance deposits** — arrive with IPD.
 
 ### Not built yet / open (decisions for Abinash)
-1. Refunds · 2. Discount limits per role · 3. Free follow-up window · 4. Insurance/schemes · 5. Pharmacy mirror + lab/IPD connectors (built with their modules) · 6. Role-based button hiding is name-based until the login response carries permissions (needs a change to `/auth/me` — approval needed).
+1. Refunds · 2. Discount limits per role · 3. Free follow-up window · 4. Insurance/schemes · 5. Pharmacy mirror + lab/IPD connectors (built with their modules) · 6. ~~Role-based button hiding is name-based~~ — **Resolved Oct 3, 2026** (Abinash: "anyone can create a bill if access is given"): login and `/auth/me` now return `permissions`, and Collect / Cancel invoice / Write Rx buttons follow the Roles & Permissions ticks, not role names. Default ticks unchanged (only Receptionist collects; tick it for any role to give access).
 - Known small risks: patient name/UHID on a charge is a snapshot (a later rename doesn't update old bills); "today" is the server's date (same as appointments) — a clinic far from the server's timezone could see the day roll over at the wrong hour.
 
 ## Cross-cutting consumers to check in the same change (rule 11)

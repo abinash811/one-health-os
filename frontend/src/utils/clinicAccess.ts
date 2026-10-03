@@ -1,24 +1,22 @@
 import { useContext } from 'react';
 import { AuthContext } from '@/App';
-import { USER_ROLE } from '@/constants/domainConstants';
+
+/** Does this permission list (as /auth/me and login send it) allow `permission`? `*` = everything. */
+export const hasPermission = (permissions: string[] | undefined | null, permission: string): boolean =>
+  !permissions || permissions.includes('*') || permissions.includes(permission);
 
 /**
- * Which clinic buttons to OFFER the current user. The frontend only knows the user's role name (the
- * login response carries no permission list yet), so this hides the actions the built-in roles can't do
- * — the backend still enforces the real permission on every call, and a custom role simply sees the
- * button and gets a clear refusal. One place to change when the login response carries permissions.
- *   doctor        — views billing, writes prescriptions, never takes money
- *   receptionist  — runs the desk and takes money, never cancels invoices or writes prescriptions
- *   admin (checkbox) / other — everything
+ * Which clinic buttons to OFFER the current user — straight from the Roles & Permissions ticks the
+ * login response carries, never from the role's name. "Anyone can create a bill if access is given":
+ * tick Collect Payments on any role and its users see the button. An old session without the list
+ * shows everything (the backend still refuses what the role can't do, with the reason).
  */
 export function useClinicAccess() {
-  const auth = useContext(AuthContext) as unknown as { user: { role: string; is_super_admin?: boolean } | null } | null;
-  const role = auth?.user?.role;
-  // An admin (checkbox) keeps their clinical role but gets everything.
-  if (auth?.user?.is_super_admin) return { canCollect: true, canCancelInvoice: true, canWriteRx: true };
+  const auth = useContext(AuthContext) as unknown as { user: { permissions?: string[] } | null } | null;
+  const perms = auth?.user?.permissions;
   return {
-    canCollect: role !== USER_ROLE.DOCTOR,
-    canCancelInvoice: role !== USER_ROLE.DOCTOR && role !== USER_ROLE.RECEPTIONIST,
-    canWriteRx: role !== USER_ROLE.RECEPTIONIST,
+    canCollect: hasPermission(perms, 'patient_billing:collect'),
+    canCancelInvoice: hasPermission(perms, 'patient_billing:void'),
+    canWriteRx: hasPermission(perms, 'prescriptions:create'),
   };
 }

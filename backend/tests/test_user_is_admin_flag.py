@@ -72,3 +72,23 @@ def test_cannot_remove_own_admin(admin):
     r = admin.put(f"{BASE_URL}/api/users/{me['id']}", json={"is_admin": False})
     assert r.status_code == 400
     assert "own admin" in r.json()["detail"]
+
+
+def test_me_and_login_return_the_real_permission_list(admin):
+    me = admin.get(f"{BASE_URL}/api/auth/me").json()
+    assert me["permissions"] == ["*"]  # admin = everything
+
+    user, email = _create(admin, "receptionist", False)
+    s, login_user = _login(email, "FlagTest123")
+    perms = login_user["permissions"]
+    assert "patient_billing:collect" in perms and "patient_billing:void" not in perms
+    assert perms == s.get(f"{BASE_URL}/api/auth/me").json()["permissions"]
+
+
+def test_ticking_a_permission_shows_up_in_me(admin):
+    role = admin.post(f"{BASE_URL}/api/roles", json={
+        "name": f"billtest_{uuid.uuid4().hex[:6]}", "display_name": "Bill test",
+        "permissions": ["patient_billing:view", "patient_billing:collect"]}).json()
+    _, email = _create(admin, role["name"], False)
+    s, _ = _login(email, "FlagTest123")
+    assert s.get(f"{BASE_URL}/api/auth/me").json()["permissions"] == ["patient_billing:collect", "patient_billing:view"]

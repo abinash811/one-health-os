@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.33 | Last updated: October 3, 2026
+# Version: 1.34 | Last updated: October 3, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -184,8 +184,12 @@ backend test that tried to read it); `is_super_admin` is a computed flag
 (role is `"admin"`, or the user has the `*` wildcard permission), not a
 raw column:
 ```json
-{ "id": "uuid", "email": "...", "name": "Rajesh", "role": "admin", "is_active": true, "is_super_admin": false }
+{ "id": "uuid", "email": "...", "name": "Rajesh", "role": "doctor", "is_active": true,
+  "is_admin": false, "is_super_admin": false, "permissions": ["patient_billing:view", "prescriptions:create"] }
 ```
+`permissions` (Oct 3, 2026) is the role's ticks as a flat `module:action` list — `["*"]` for an admin or wildcard
+role. `POST /auth/login`'s `user` object carries the same `is_admin` / `is_super_admin` / `permissions`. The frontend
+shows or hides buttons from this list; the backend still enforces on every call.
 Need the pharmacy_id for the current user? `GET /users/{id}` (with the
 `id` from this response) returns it.
 

@@ -10,6 +10,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 
 ## [Unreleased]
 
+### Changed
+- **Clinic billing buttons now follow Roles & Permissions, not role names.** Collect, Cancel invoice and Write Rx show for
+  anyone whose role is ticked for them — so any role can create and collect a bill once access is given. Default ticks are
+  unchanged. Login and `/auth/me` now include the user's permission list.
+
 ### Added
 - **Clinic calendar (Practo-style).** New **Calendar** page: doctors side by side for a day, or one doctor's whole week, on a
   time grid built from their working hours. Click an open slot to book (doctor, date and time already filled in), click a visit
