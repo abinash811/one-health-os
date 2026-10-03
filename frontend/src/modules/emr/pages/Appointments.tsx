@@ -3,17 +3,17 @@
  * Route: /emr/appointments (docs/28_EMR_SCOPE.md). Refreshes itself every
  * 30s so a check-in at the front desk shows up at the doctor's screen.
  */
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   PageHeader, PageTabs, DataCard, TableSkeleton, AppButton, EmptyState, FilterPills, StatusBadge,
 } from '@/components/shared';
-import { AuthContext } from '@/App';
+import { useClinicAccess } from '@/utils/clinicAccess';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
-import { APPOINTMENT_STATUS, APPOINTMENT_TYPE, USER_ROLE } from '@/constants/domainConstants';
+import { APPOINTMENT_STATUS, APPOINTMENT_TYPE } from '@/constants/domainConstants';
 import { formatDate, today } from '@/utils/dates';
 import { ROUTES } from '@/constants/routes';
 import { EMR_TABS, emrTabRoute } from '../emrTabs';
@@ -59,9 +59,7 @@ export default function Appointments() {
   const [cancelling, setCancelling] = useState<EmrAppointment | null>(null);
   const [collecting, setCollecting] = useState<EmrAppointment | null>(null);
   const [collected, setCollected] = useState<DaySummary | null>(null);
-  const auth = useContext(AuthContext) as unknown as { user: { role: string } | null } | null;
-  // Doctors only view billing; the backend enforces it, this just hides a button that would be refused.
-  const canCollect = auth?.user?.role !== USER_ROLE.DOCTOR;
+  const { canCollect, canWriteRx } = useClinicAccess();
 
   useEffect(() => {
     api.get(apiUrl.emrDoctors()).then((res: { data: EmrDoctor[] }) => setDoctors(res.data || []))
@@ -98,7 +96,8 @@ export default function Appointments() {
     try {
       await api.post(apiUrl.emrAppointmentStatus(a.id), { status: next });
       // Starting a consult goes straight to the prescription — one click, not two.
-      if (next === APPOINTMENT_STATUS.IN_CONSULT) { navigate(ROUTES.EMR.CONSULT(a.id)); return; }
+      // (only for users who can write one — the front desk stays on the queue.)
+      if (next === APPOINTMENT_STATUS.IN_CONSULT && canWriteRx) { navigate(ROUTES.EMR.CONSULT(a.id)); return; }
       fetchQueue(false);
     } catch (err) {
       toast.error((err as Error).message);
@@ -177,6 +176,7 @@ export default function Appointments() {
                   <td className="px-4 py-3">
                     <QueueActions appointment={a} busy={busyId === a.id} onMove={move} onCancel={setCancelling}
                       onOpenRx={(x) => navigate(ROUTES.EMR.CONSULT(x.id))}
+                      canWriteRx={canWriteRx}
                       onCollect={canCollect ? setCollecting : undefined}
                       onPrintReceipt={(x) => x.fee?.invoice_id && navigate(ROUTES.PATIENT_BILLING.INVOICE_PRINT(x.fee.invoice_id))} />
                   </td>

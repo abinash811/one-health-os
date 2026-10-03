@@ -84,7 +84,7 @@ describe('AccountBill', () => {
   });
 
   it('a patient with no charges yet gets a friendly empty state, not an error', async () => {
-    (api.get as jest.Mock).mockRejectedValue(new Error('No billing account for this patient yet'));
+    (api.get as jest.Mock).mockRejectedValue(Object.assign(new Error('No billing account for this patient yet'), { response: { status: 404 } }));
     renderBill();
     expect(await screen.findByText('No charges yet')).toBeInTheDocument();
   });

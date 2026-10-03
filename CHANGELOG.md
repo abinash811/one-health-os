@@ -85,6 +85,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
   trusting it.
 
 ### Fixed
+- **Clinic roles and buttons (B5 audit).** Clinics created before the prescription/billing features had doctors and
+  front-desk roles missing the new permissions (so doctors couldn't write prescriptions, the desk couldn't take
+  fees) — a one-time update fixes every existing clinic without removing anything an admin granted. The desk no
+  longer offers buttons a role can't use (doctors: Collect; front desk: Cancel invoice, Write Rx); the front desk can
+  now open a finished prescription; "Start consult" no longer sends the front desk to a refused screen; and a
+  patient who still owes money can't be deleted.
 - **Saved-before-committed bug (all endpoints).** The server was sending "success" to the browser a moment *before* the
   database finished saving, so a quick follow-up request could miss the data (the cause of the random test failures we had been
   calling "flaky"), and a failed save would never have been reported. Every endpoint now finishes saving before replying;

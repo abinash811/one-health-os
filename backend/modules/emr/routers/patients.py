@@ -15,6 +15,7 @@ from deps import DbSession
 from modules.emr.common import (
     _client_ip, _record_audit, _require_emr_permission, _validate_phone_length)
 from modules.emr.constants import FIELD_REQUIRED
+from modules.patient_billing import service as billing
 from modules.emr.models import EmrPatient
 from modules.emr.settings_service import effective_patient_form, get_or_create_settings, next_uhid
 from routers.auth_helpers import User, get_current_user, get_owned_or_404, paginate_response
@@ -181,6 +182,12 @@ async def delete_patient(patient_id: str, request: Request,
     patient = await get_owned_or_404(
         db, EmrPatient, patient_id, pharmacy_id, not_found_detail="Patient not found",
         extra_conditions=[EmrPatient.deleted_at.is_(None)])
+    owed = await billing.open_balance_paise(db, pharmacy_id, patient.id)
+    if owed > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=(f"{patient.name} still owes {billing.rupees(owed)}. "
+                    "Collect or cancel their bills before deleting the patient"))
     patient.deleted_at = datetime.now(timezone.utc)
     patient.is_active = False
     await _record_audit(

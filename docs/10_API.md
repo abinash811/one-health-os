@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.30 | Last updated: October 2, 2026
+# Version: 1.31 | Last updated: October 2, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1540,11 +1540,14 @@ Audit `entity_type` = `emr_settings` / `emr_doctor_profile`.
 Patients: every patient gets a `uhid` (clinic prefix + zero-padded counter) at registration; `GET /emr/patients?search=` also matches UHID. Fields set to `required` in the patient-form settings are enforced here (422 "Allergies is required") on create, and on edit for any field being sent.
 Prescriptions: the `clinic` block now uses EMR settings (+ `registration_no`, `email`, `footer`), and the response adds `doctor` (specialty/qualification/registration) and `patient_uhid`. `rx_number` uses the clinic's `rx_prefix`; numbering continues across prefix changes.
 
+> `DELETE /emr/patients/{id}` now returns 409 while the patient has an open balance on their bill ("Asha Menon still owes ₹500.00…"); settle or cancel the bills first.
+
 ### Prescriptions — `prescriptions:view|create|edit|issue|cancel` (doctor role; receptionist can only view)
 One prescription per visit = consultation record + medicine lines. Audit `entity_type` = `emr_prescription`.
 | Method | Path | Notes |
 |--------|------|-------|
 | POST | `/emr/prescriptions` | Body: `appointment_id`. Starts the visit's draft Rx; idempotent — returns the live one if it exists. 409 on a cancelled appointment |
+| GET | `/emr/appointments/{id}/prescription` | Read-only: the visit's live (non-cancelled) Rx, 404 if none yet. Needs only `prescriptions:view` — the Rx screen calls this first and `POST /emr/prescriptions` only when it 404s |
 | GET | `/emr/prescriptions/{id}` | Full record incl. `items`, `patient` (age, gender, phone, allergies) and `clinic` (name, address, phone) for printing |
 | PUT | `/emr/prescriptions/{id}` | Draft only (409 otherwise). Body: `vitals`, `complaints`, `diagnosis`, `advice`, `follow_up_date`, `items[]` (replaces all lines). Negative vitals → 422 |
 | POST | `/emr/prescriptions/{id}/issue` | Draft → issued (locks it) and, if the visit is `in_consult`, completes the appointment. 422 with no medicines |

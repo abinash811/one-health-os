@@ -179,6 +179,21 @@ async def start_prescription(data: RxCreate, request: Request,
     return await _rx_response(db, rx)
 
 
+@router.get("/appointments/{appointment_id}/prescription")
+async def appointment_prescription(appointment_id: uuid.UUID, current_user: User = Depends(get_current_user),
+                                   db: AsyncSession = DbSession):
+    """The visit's live (non-cancelled) prescription, read-only — so anyone who may VIEW prescriptions (e.g.
+    the front desk) can open it without needing the permission to start one. 404 when there is none yet."""
+    await _require_emr_permission(current_user, "prescriptions:view", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    live = (await db.execute(select(EmrPrescription).where(
+        EmrPrescription.pharmacy_id == pharmacy_id, EmrPrescription.appointment_id == appointment_id,
+        EmrPrescription.status != RX_CANCELLED, EmrPrescription.deleted_at.is_(None)))).scalar_one_or_none()
+    if not live:
+        raise HTTPException(status_code=404, detail="No prescription for this visit yet")
+    return await _rx_response(db, live)
+
+
 @router.get("/prescriptions/suggestions")
 async def medicine_suggestions(q: str = Query("", max_length=100), limit: int = Query(200, le=500),
                                current_user: User = Depends(get_current_user),

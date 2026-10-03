@@ -11,6 +11,7 @@ import { apiUrl } from '@/constants/api';
 import { CHARGE_STATUS } from '@/constants/domainConstants';
 import { ROUTES } from '@/constants/routes';
 import { formatDate } from '@/utils/dates';
+import { useClinicAccess } from '@/utils/clinicAccess';
 import { MODE_LABELS, rupeesLabel } from '../money';
 import { useQuery } from '../useQuery';
 import { ChargeBadge, InvoiceBadge, SourceBadge } from './badges';
@@ -33,10 +34,11 @@ export default function AccountBill({ patientId, showPatient = true, patientName
   const refresh = () => setTick((t) => t + 1);
   const res = useQuery<AccountDetail>(apiUrl.pbAccount(patientId), tick);
   const { start, dialog, busyId } = useCollect(refresh);
+  const { canCollect } = useClinicAccess();
   const a = res.data;
 
   if (res.loading) return <DataCard noPadding><TableSkeleton rows={5} columns={5} /></DataCard>;
-  if (res.error.startsWith('No billing account')) {
+  if (res.status === 404) {   // no charges yet is not an error
     return <DataCard><EmptyState icon={Receipt} title="No charges yet"
       description="Charges appear here when the patient checks in or a service is added to their bill." /></DataCard>;
   }
@@ -51,7 +53,7 @@ export default function AccountBill({ patientId, showPatient = true, patientName
           <div><p className="text-lg font-semibold text-gray-900" data-testid="account-patient">{name}</p>
             <p className="text-xs font-mono text-gray-500">{a.patient.uhid || ''}</p></div>
         ) : <span />}
-        {t.balance_paise > 0 && (
+        {canCollect && t.balance_paise > 0 && (
           <AppButton loading={busyId === patientId} onClick={() => start(patientId, name)} data-testid="account-collect">
             Collect {rupeesLabel(t.balance_paise)}
           </AppButton>

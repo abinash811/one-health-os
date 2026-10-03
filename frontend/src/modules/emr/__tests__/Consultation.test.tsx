@@ -25,12 +25,15 @@ const RX = {
   doctor: { specialty: null, qualification: null, registration_no: null }, patient_uhid: 'UH-000001',
 };
 
-function mockApi(rx = RX, history: unknown[] = []) {
+const NOT_FOUND = Object.assign(new Error('No prescription for this visit yet'), { response: { status: 404 } });
+
+function mockApi(rx = RX, history: unknown[] = [], existing = false) {
   (api.post as jest.Mock).mockImplementation((url: string) => Promise.resolve({
     data: url.endsWith('/issue') ? { ...rx, status: 'issued' } : rx }));
   (api.put as jest.Mock).mockImplementation((_u: string, body: Record<string, unknown>) =>
     Promise.resolve({ data: { ...rx, ...body, items: body.items } }));
   (api.get as jest.Mock).mockImplementation((url: string) => {
+    if (url.startsWith('emr/appointments/')) return existing ? Promise.resolve({ data: rx }) : Promise.reject(NOT_FOUND);
     if (url.includes('suggestions')) return Promise.resolve({ data: ['Paracetamol 650', 'Pantoprazole 40'] });
     if (url.includes('/prescriptions') && url.includes('patients')) return Promise.resolve({ data: history });
     return Promise.resolve({ data: rx });
@@ -55,7 +58,8 @@ describe('Consultation', () => {
     renderConsult();
 
     expect(await screen.findByTestId('consult-patient')).toHaveTextContent('Asha Menon');
-    expect(api.post).toHaveBeenCalledWith('emr/prescriptions', { appointment_id: 'a1' });
+    expect(api.get).toHaveBeenCalledWith('emr/appointments/a1/prescription');          // read first…
+    expect(api.post).toHaveBeenCalledWith('emr/prescriptions', { appointment_id: 'a1' });   // …start only when there is none
     expect(screen.getByTestId('allergy-banner')).toHaveTextContent('Penicillin');
     expect(screen.getByTestId('vital-pulse')).toHaveValue(72);
     expect(await screen.findByText('Migraine')).toBeInTheDocument();
@@ -110,7 +114,16 @@ describe('Consultation', () => {
     expect(screen.getByTestId('print-rx-btn')).toBeInTheDocument();
   });
 
+  it('opens an existing prescription without trying to start one (so view-only roles can read it)', async () => {
+    mockApi({ ...RX, status: 'issued' }, [], true);
+    renderConsult();
+    expect(await screen.findByTestId('consult-patient')).toHaveTextContent('Asha Menon');
+    expect(api.post).not.toHaveBeenCalled();
+    expect(screen.getByTestId('rx-diagnosis')).toBeDisabled();
+  });
+
   it('shows the real server reason when the prescription cannot be opened', async () => {
+    (api.get as jest.Mock).mockRejectedValue(NOT_FOUND);
     (api.post as jest.Mock).mockRejectedValue(new Error("Your role does not have the 'prescriptions:create' permission"));
     renderConsult();
     expect(await screen.findByText(/prescriptions:create/)).toBeInTheDocument();

@@ -6,8 +6,8 @@ import type { PagedResponse } from './types';
  *  reason in `error` for the page to show. `loading` is true only until the first answer, so
  *  filtering doesn't flash the whole table back to a skeleton. */
 export function useQuery<T>(url: string | null, tick = 0) {
-  const [state, setState] = useState<{ data: T | null; error: string; loading: boolean }>(
-    { data: null, error: '', loading: true });
+  const [state, setState] = useState<{ data: T | null; error: string; status: number; loading: boolean }>(
+    { data: null, error: '', status: 0, loading: true });
 
   useEffect(() => {
     if (!url) return undefined;
@@ -15,9 +15,12 @@ export function useQuery<T>(url: string | null, tick = 0) {
     (async () => {
       try {
         const res = await api.get(url);
-        if (!cancelled) setState({ data: res.data as T, error: '', loading: false });
+        if (!cancelled) setState({ data: res.data as T, error: '', status: res.status ?? 200, loading: false });
       } catch (err) {
-        if (!cancelled) setState({ data: null, error: (err as Error).message, loading: false });
+        if (!cancelled) {
+          const status = (err as { response?: { status?: number } }).response?.status ?? 0;
+          setState({ data: null, error: (err as Error).message, status, loading: false });
+        }
       }
     })();
     return () => { cancelled = true; };

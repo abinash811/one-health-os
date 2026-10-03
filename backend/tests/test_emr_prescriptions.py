@@ -127,3 +127,18 @@ class TestPrescriptions(_EmrBase):
             results = list(pool.map(lambda _: self._start(appt), range(4)))
         assert all(r.status_code == 200 for r in results), [r.text for r in results]
         assert len({r.json()["id"] for r in results}) == 1
+
+    def test_visit_prescription_can_be_read_without_permission_to_write(self):
+        _, appt = self._visit()
+        url = f"{BASE_URL}/api/emr/appointments/{appt['id']}/prescription"
+        assert self.session.get(url).status_code == 404                  # nothing written yet
+        rx = self._start(appt).json()
+        got = self.session.get(url)
+        assert got.status_code == 200 and got.json()["id"] == rx["id"]
+        _, rec = self._user("receptionist")                              # may view, may not start one
+        assert rec.get(url).json()["id"] == rx["id"]
+        assert self._start(appt, rec).status_code == 403
+        _, cashier = self._user("cashier")
+        assert cashier.get(url).status_code == 403
+        self.session.post(f"{BASE_URL}/api/emr/prescriptions/{rx['id']}/cancel", json={"reason": "redo"})
+        assert self.session.get(url).status_code == 404                  # a cancelled Rx is not "the" prescription

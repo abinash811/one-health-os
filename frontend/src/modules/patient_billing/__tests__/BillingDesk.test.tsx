@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import BillingDesk from '../pages/BillingDesk';
+import { AuthContext } from '@/App';
 import api from '@/lib/axios';
 import { today } from '@/utils/dates';
 
@@ -51,7 +52,8 @@ function mockApi(over: Record<string, unknown> = {}) {
 }
 const lastUrl = (prefix: string) => (api.get as jest.Mock).mock.calls.map((c) => c[0] as string).filter((u) => u.startsWith(prefix)).at(-1) as string;
 
-const renderDesk = (tab: 'pending' | 'invoices' | 'receipts' | 'closing' = 'pending') => render(
+const renderDesk = (tab: 'pending' | 'invoices' | 'receipts' | 'closing' = 'pending', role = 'admin') => render(
+  <AuthContext.Provider value={{ user: { role } } as never}>
   <MemoryRouter initialEntries={[`/patient-billing/${tab}`]}>
     <Routes>
       <Route path="/patient-billing/pending" element={<BillingDesk tab="pending" />} />
@@ -61,7 +63,8 @@ const renderDesk = (tab: 'pending' | 'invoices' | 'receipts' | 'closing' = 'pend
       <Route path="/patient-billing/accounts/:patientId" element={<div data-testid="account-route" />} />
       <Route path="/patient-billing/invoices/:id/print" element={<div data-testid="print-route" />} />
     </Routes>
-  </MemoryRouter>,
+  </MemoryRouter>
+  </AuthContext.Provider>,
 );
 
 describe('Billing desk — Pending', () => {
@@ -228,5 +231,32 @@ describe('Billing desk — Receipts and Day closing', () => {
     expect(await screen.findByTestId('receipts-tab')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('tab', { name: 'Day closing' }));
     expect(await screen.findByTestId('day-closing-tab')).toBeInTheDocument();
+  });
+});
+
+describe('Billing desk — what each role is offered', () => {
+  beforeEach(() => { jest.clearAllMocks(); mockApi(); });
+
+  it('a doctor can look at everything but is not offered Collect or Pay', async () => {
+    renderDesk('pending', 'doctor');
+    await screen.findByTestId('pending-row-p1');
+    expect(screen.getByTestId('open-bill-p1')).toBeInTheDocument();
+    expect(screen.queryByTestId('collect-p1')).not.toBeInTheDocument();
+  });
+
+  it('a doctor sees no Pay button on All bills', async () => {
+    renderDesk('invoices', 'doctor');
+    await screen.findByTestId('invoice-row-i1');
+    expect(screen.queryByTestId('pay-i1')).not.toBeInTheDocument();
+  });
+
+  it('the front desk can collect but is not offered Cancel invoice', async () => {
+    mockApi({ 'patient-billing/invoices': PAGE([INVOICE({ id: 'u', status: 'issued', paid_paise: 0, balance_paise: 200000 })]) });
+    renderDesk('invoices', 'receptionist');
+    await screen.findByTestId('invoice-row-u');
+    expect(screen.getByTestId('pay-u')).toBeInTheDocument();
+    await userEvent.click(within(screen.getByTestId('invoice-row-u')).getByRole('button', { name: /more/i }));
+    expect(await screen.findByText('View / print')).toBeInTheDocument();
+    expect(screen.queryByText('Cancel invoice')).not.toBeInTheDocument();
   });
 });

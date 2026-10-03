@@ -14,6 +14,8 @@ jest.mock('@/lib/axios', () => ({
   default: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() },
 }));
 jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
+const mockNavigate = jest.fn();
+jest.mock('react-router-dom', () => ({ ...jest.requireActual('react-router-dom'), useNavigate: () => mockNavigate }));
 
 const DOCTORS = [{ id: 'd1', name: 'Dr Rao', role: 'doctor' }];
 const row = (over: Record<string, unknown>) => ({
@@ -72,7 +74,7 @@ describe('Appointments queue', () => {
   it('offers the right next step per status and none once a visit is done', async () => {
     mockApi([row({ id: 'w', status: 'checked_in' }), row({ id: 'c', status: 'in_consult' }),
       row({ id: 'd', status: 'completed' })]);
-    renderPage();
+    renderPage('doctor');
 
     expect(await screen.findByTestId('queue-next-w')).toHaveTextContent('Start consult');
     expect(screen.getByTestId('queue-next-c')).toHaveTextContent('Complete');
@@ -190,6 +192,34 @@ describe('CancelAppointmentDialog', () => {
       await screen.findByTestId('queue-row-a1');
       expect(screen.getByTestId('stat-waiting')).toBeInTheDocument();
       expect(screen.queryByTestId('stat-collected')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('what each role is offered', () => {
+    it('the front desk can view a finished prescription but is not offered Write Rx', async () => {
+      mockApi([row({ id: 'c', status: 'in_consult' }), row({ id: 'd', status: 'completed' })]);
+      renderPage('receptionist');
+      await screen.findByTestId('queue-row-c');
+      expect(screen.queryByTestId('queue-rx-c')).not.toBeInTheDocument();
+      expect(screen.getByTestId('queue-rx-d')).toHaveTextContent('View Rx');
+    });
+
+    it('starting a consult as the front desk stays on the queue; a doctor goes straight to the prescription', async () => {
+      (api.post as jest.Mock).mockResolvedValue({ data: {} });
+      mockApi([row({ id: 'w', status: 'checked_in' })]);
+      const { unmount } = renderPage('receptionist');
+      await userEvent.click(await screen.findByTestId('queue-next-w'));
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('emr/appointments/w/status', { status: 'in_consult' }));
+      await waitFor(() => expect((api.get as jest.Mock).mock.calls.length).toBeGreaterThan(3));   // queue refreshed, no redirect
+      expect(mockNavigate).not.toHaveBeenCalled();
+      unmount();
+
+      jest.clearAllMocks();
+      (api.post as jest.Mock).mockResolvedValue({ data: {} });
+      mockApi([row({ id: 'w', status: 'checked_in' })]);
+      renderPage('doctor');
+      await userEvent.click(await screen.findByTestId('queue-next-w'));
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/emr/consult/w'));
     });
   });
 });

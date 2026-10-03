@@ -13,13 +13,13 @@ from datetime import date
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.patient_billing.constants import (
     CHG_INVOICED, CHG_PAID, CHG_UNBILLED, CHG_VOID, COUNTERS, INV_CANCELLED, INV_ISSUED,
-    INV_PAID, INV_PART_PAID, INVOICE_PREFIX, MAX_AMOUNT_PAISE, PAYMENT_MODES, RECEIPT_PREFIX,
+    INV_PAID, INV_PART_PAID, INVOICE_OPEN_STATUSES, INVOICE_PREFIX, MAX_AMOUNT_PAISE, PAYMENT_MODES, RECEIPT_PREFIX,
     SOURCE_MODULES, SOURCES_POSTABLE_NOW, SRC_PHARMACY)
 from modules.patient_billing.models import PbChargeItem, PbInvoice, PbPayment
 
@@ -112,6 +112,18 @@ async def void_unbilled_by_key(db: AsyncSession, pharmacy_id: uuid.UUID, idempot
         return None
     await void_charge(db, charge, reason)
     return charge
+
+
+async def open_balance_paise(db: AsyncSession, pharmacy_id: uuid.UUID, patient_id: uuid.UUID) -> int:
+    """What this patient still owes on their account: unbilled charges + the unpaid part of open invoices.
+    For other modules that must not act on a patient who owes money (e.g. EMR refusing to delete them)."""
+    unbilled = (await db.execute(select(func.coalesce(func.sum(PbChargeItem.total_paise), 0)).where(
+        PbChargeItem.pharmacy_id == pharmacy_id, PbChargeItem.patient_id == patient_id,
+        PbChargeItem.status == CHG_UNBILLED, PbChargeItem.deleted_at.is_(None)))).scalar()
+    unpaid = (await db.execute(select(func.coalesce(func.sum(PbInvoice.net_paise - PbInvoice.paid_paise), 0)).where(
+        PbInvoice.pharmacy_id == pharmacy_id, PbInvoice.patient_id == patient_id,
+        PbInvoice.status.in_(INVOICE_OPEN_STATUSES), PbInvoice.deleted_at.is_(None)))).scalar()
+    return int(unbilled) + int(unpaid)
 
 
 async def snapshots_by_key(db: AsyncSession, pharmacy_id: uuid.UUID, keys: list[str]) -> dict[str, dict]:

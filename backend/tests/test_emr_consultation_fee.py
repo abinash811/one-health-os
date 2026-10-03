@@ -161,3 +161,28 @@ class TestFeeOnTheQueue(_Fee):
         _, no_fee = self._walk_in(self._doctor(fee_paise=None))
         self._move(no_fee, "checked_in")
         assert self._row(no_fee)["fee"] is None
+
+
+class TestPatientWithMoneyOwed(_Fee):
+    """B5 audit: a patient who owes money can't be deleted — their bill would be orphaned."""
+
+    def test_delete_is_refused_until_the_bill_is_settled(self):
+        patient, appt = self._walk_in(self._doctor(50000))
+        self._move(appt, "checked_in")                                   # ₹500 fee now unbilled
+        r = self.session.delete(f"{BASE_URL}/api/emr/patients/{patient['id']}")
+        assert r.status_code == 409 and "₹500.00" in r.json()["detail"] and patient["name"] in r.json()["detail"]
+        charge = self._account(patient["id"]).json()["charges"][0]
+        self.session.post(f"{API}/accounts/{patient['id']}/collect",
+                          json={"charge_item_ids": [charge["id"]], "amount_paise": 20000, "mode": "cash"})
+        part_paid = self.session.delete(f"{BASE_URL}/api/emr/patients/{patient['id']}")
+        assert part_paid.status_code == 409                                  # part-paid still owes
+        invoice_id = self._account(patient["id"]).json()["invoices"][0]["id"]
+        assert self._pay(invoice_id, 30000).status_code == 200
+        assert self.session.delete(f"{BASE_URL}/api/emr/patients/{patient['id']}").status_code == 200  # settled
+        assert self.session.get(f"{API}/accounts/{patient['id']}").status_code == 200  # bill history is kept
+
+    def test_voided_fee_does_not_block_delete(self):
+        patient, appt = self._walk_in(self._doctor(50000))
+        self._move(appt, "checked_in")
+        self._move(appt, "cancelled", cancel_reason="Left")
+        assert self.session.delete(f"{BASE_URL}/api/emr/patients/{patient['id']}").status_code == 200

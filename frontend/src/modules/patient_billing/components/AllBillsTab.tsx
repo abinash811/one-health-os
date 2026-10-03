@@ -7,6 +7,7 @@ import { apiUrl } from '@/constants/api';
 import { INVOICE_STATUS, BILLING_COUNTER } from '@/constants/domainConstants';
 import { ROUTES } from '@/constants/routes';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
+import { useClinicAccess } from '@/utils/clinicAccess';
 import { exportToExcel } from '@/utils/excelExport';
 import { formatDate } from '@/utils/dates';
 import { rupeesLabel } from '../money';
@@ -39,6 +40,7 @@ export default function AllBillsTab() {
   const [cancelling, setCancelling] = useState<PbInvoice | null>(null);
   const applySearch = useDebouncedCallback((v: string) => { setQuery(v); setPage(1); }, 300);
   const refresh = () => setTick((t) => t + 1);
+  const { canCollect, canCancelInvoice } = useClinicAccess();
 
   const res = useQuery<PagedResponse<PbInvoice>>(apiUrl.pbInvoices({
     status: status === 'all' ? undefined : status, search: query || undefined, page, page_size: 20 }), tick);
@@ -90,12 +92,12 @@ export default function AllBillsTab() {
                       <td className="px-4 py-3"><InvoiceBadge status={i.status} /></td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{COUNTER_LABELS[i.counter] || i.counter}</td>
                       <td className="px-4 py-3 text-right whitespace-nowrap"><div className="flex items-center justify-end gap-1">
-                        {i.balance_paise > 0 && i.status !== INVOICE_STATUS.CANCELLED && (
+                        {canCollect && i.balance_paise > 0 && i.status !== INVOICE_STATUS.CANCELLED && (
                           <AppButton size="sm" onClick={() => setPaying(i)} data-testid={`pay-${i.id}`}>Pay {rupeesLabel(i.balance_paise)}</AppButton>
                         )}
                         <MoreMenu testId={`invoice-more-${i.id}`} items={[
                           { icon: <Printer className="w-4 h-4" />, label: 'View / print', action: () => navigate(ROUTES.PATIENT_BILLING.INVOICE_PRINT(i.id)) },
-                          i.paid_paise === 0 && i.status === INVOICE_STATUS.ISSUED && {
+                          canCancelInvoice && i.paid_paise === 0 && i.status === INVOICE_STATUS.ISSUED && {
                             icon: <XCircle className="w-4 h-4" />, label: 'Cancel invoice', action: () => setCancelling(i) },
                         ]} />
                       </div></td>

@@ -7,6 +7,7 @@ import { apiUrl } from '@/constants/api';
 import { ACCOUNT_FILTER, CHARGE_SOURCE } from '@/constants/domainConstants';
 import { ROUTES } from '@/constants/routes';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
+import { useClinicAccess } from '@/utils/clinicAccess';
 import { exportToExcel } from '@/utils/excelExport';
 import { formatDate } from '@/utils/dates';
 import { rupeesLabel } from '../money';
@@ -47,6 +48,7 @@ export default function PendingTab() {
   const applySearch = useDebouncedCallback((v: string) => { setQuery(v); setPage(1); }, 300);
   const refresh = () => setTick((t) => t + 1);
   const { start, dialog, busyId } = useCollect(refresh);
+  const { canCollect } = useClinicAccess();
 
   const list = useQuery<AccountsResponse>(apiUrl.pbAccounts({
     status: filter, source: source === 'all' ? undefined : source, search: query || undefined, page, page_size: 20 }), tick);
@@ -115,8 +117,10 @@ export default function PendingTab() {
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <AppButton variant="outline" size="sm" onClick={() => navigate(ROUTES.PATIENT_BILLING.ACCOUNT(r.patient_id))}
                           data-testid={`open-bill-${r.patient_id}`}>Open bill</AppButton>{' '}
-                        <AppButton size="sm" loading={busyId === r.patient_id} onClick={() => start(r.patient_id, r.patient_name)}
-                          data-testid={`collect-${r.patient_id}`}>Collect</AppButton>
+                        {canCollect && (
+                          <AppButton size="sm" loading={busyId === r.patient_id} onClick={() => start(r.patient_id, r.patient_name)}
+                            data-testid={`collect-${r.patient_id}`}>Collect</AppButton>
+                        )}
                       </td>
                     </tr>
                   ))}

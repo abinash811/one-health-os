@@ -397,6 +397,17 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# ── Rule 23: DEFAULT_ROLES may only grant permissions that exist ───────────
+# Found Oct 3, 2026 (B5 audit): stored role permissions drifted into three generations because new
+# permissions were added to constants.py with no check and no data migration. A typo'd id grants nothing.
+if python3 scripts/check_default_roles.py > /tmp/default_roles_output 2>&1; then
+  green "Rule 23 PASS: Every default-role permission is a defined permission"
+else
+  red "Rule 23 FAIL: DEFAULT_ROLES / ALL_PERMISSIONS inconsistent"
+  cat /tmp/default_roles_output | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

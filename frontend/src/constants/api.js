@@ -345,6 +345,7 @@ export const apiUrl = {
   emrSettings: () => 'emr/settings',
   emrDoctorProfiles: () => 'emr/doctor-profiles',
   emrDoctorProfile: (userId) => `emr/doctor-profiles/${userId}`,
+  emrAppointmentPrescription: (appointmentId) => `emr/appointments/${appointmentId}/prescription`,
   emrPrescriptions: () => 'emr/prescriptions',
   emrPrescription:  (id) => `emr/prescriptions/${id}`,
   emrPrescriptionIssue:  (id) => `emr/prescriptions/${id}/issue`,

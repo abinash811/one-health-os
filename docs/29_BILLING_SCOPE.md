@@ -1,7 +1,7 @@
 # Patient Billing — Build Plan (clinic, pharmacy, lab, IPD on one account)
-# Version: 0.4 | Last updated: October 2, 2026
+# Version: 0.5 | Last updated: October 2, 2026
 # Type: Explanation
-# Status: B1–B4 BUILT (Oct 2–3, 2026, approved by Abinash); B5 (whole-feature audit) not started. Decisions taken while building are in "Decisions made in B1/B2" below. Visual mock-up: `docs/mockups/29_billing_mock.html` (8 screens, open in a browser).
+# Status: ✅ B1–B5 ALL BUILT (Oct 2–3, 2026, approved by Abinash). B5 audit done — findings below. Remaining items are listed under "Not built yet". Decisions taken while building are in "Decisions made in B1/B2" below. Visual mock-up: `docs/mockups/29_billing_mock.html` (8 screens, open in a browser).
 
 ## Why (product view)
 - A patient's complete bill must be visible in one place: consultation today, medicines and lab tomorrow, beds and nursing when IPD arrives.
@@ -88,6 +88,39 @@ The mock-up (screen 4) shows medicines on the clinic invoice. For GST, stock and
 - Patient bill is one component (`AccountBill`) used by the desk's account page and by the **Billing tab** on the EMR patient profile — so both always agree.
 - Pharmacy is not in the source filters yet (nothing posts pharmacy mirrors until the pharmacy connector is built).
 - Exports are Excel files built in the browser from the loaded page (not the whole filtered set).
+
+## B5 — whole-feature audit (Oct 3, 2026)
+Walked fresh from zero data in a real browser as **receptionist**, **doctor** and **admin**, logging every refused request and console error, then checked every consumer of the data (rule 11).
+
+### Found and fixed
+| # | Persona | Problem | Fix |
+|---|---------|---------|-----|
+| 1 | Billing desk (existing clinics) | Stored `doctor`/`receptionist` roles held 8, 13 or 14 permissions — three generations. Clinics created before EMR/billing steps could not write prescriptions or collect fees. New permissions only ever reached *new* clinics | Additive data migration `ccbda72a934b` (nothing an admin granted is removed) + gate `check_default_roles.py` (Rule 23) + RULE MISSES LOG entry |
+| 2 | Doctor | Desk offered **Collect / Pay** → 403 | `useClinicAccess` hides what the role can't do |
+| 3 | Front desk | Offered **Cancel invoice** → 403 | Hidden for receptionist/doctor |
+| 4 | Front desk | **Start consult** redirected to the prescription screen → error page | Front desk stays on the queue; "Write Rx" hidden |
+| 5 | Front desk | Could not **view** an issued prescription (opening it tried to *create* one → 403) | New read-only `GET /emr/appointments/{id}/prescription`; the Rx screen reads first, starts one only if none |
+| 6 | Reception | Deleting a patient who still owed money orphaned their bill | Delete refused with the amount owed (409) until settled or cancelled |
+| 7 | Code | "No charges yet" detected by matching message text | Uses the HTTP 404 status |
+
+### Cross-cutting consumers checked
+- **Audit Log:** charges, invoices, payments, voids, cancels and fee posting all appear with readable labels. ✅
+- **Exports:** Excel on Pending, All bills, Receipts. ✅ (current page only, not the whole filtered set)
+- **Other pages:** patient profile (Billing tab), queue (fee chip, Collected today), Settings (doctor fee), print pages. ✅
+- **Pharmacy reports / pharmacy day-end closing:** clinic money is *not* included — by design (separate module, separate cash). The clinic drawer is on its own **Day closing** tab.
+- **Soft deletes / money in paise / tenant isolation / permission + audit gates:** every gate passes (`design-guard.sh` Rules 1–23).
+
+### Competitor benchmark (rule 15)
+CARE's revenue cycle covers charge capture, invoices, payments, **scheme/insurance coverage, claims and reconciliation, accounting integration** (ohc.network/solutions/hospital-management). Against that, real gaps for us:
+- **Insurance / government-scheme coverage and claims** — CARE has it; we have none (v1 is cash/UPI/card, patient-pays).
+- **Refunds / credit notes** — blocked today (paid invoices can't be cancelled).
+- **Receipt sharing on WhatsApp** — the pharmacy side already has a WhatsApp share modal; clinic receipts don't (it is already planned as EMR Step 4).
+- **Packages / bundles, follow-up-free rule, outstanding-balance reminders** — product judgment, not verified against competitors.
+- **Advance deposits** — arrive with IPD.
+
+### Not built yet / open (decisions for Abinash)
+1. Refunds · 2. Discount limits per role · 3. Free follow-up window · 4. Insurance/schemes · 5. Pharmacy mirror + lab/IPD connectors (built with their modules) · 6. Role-based button hiding is name-based until the login response carries permissions (needs a change to `/auth/me` — approval needed).
+- Known small risks: patient name/UHID on a charge is a snapshot (a later rename doesn't update old bills); "today" is the server's date (same as appointments) — a clinic far from the server's timezone could see the day roll over at the wrong hour.
 
 ## Cross-cutting consumers to check in the same change (rule 11)
 - Audit Log labels (`pb_charge_item`, `pb_invoice`, `pb_payment`) · patient profile page (new Billing tab) · queue page (fee chip) · Settings (doctor fee) · CSV export · permissions seed · docs 09/10/15/28 + CHANGELOG.

@@ -59,7 +59,14 @@ export default function Consultation() {
   const load = useCallback(async () => {
     setError('');
     try {
-      const res = await api.post(apiUrl.emrPrescriptions(), { appointment_id: appointmentId });
+      // Read the visit's prescription first (view permission is enough); only start one when there is none.
+      let res;
+      try {
+        res = await api.get(apiUrl.emrAppointmentPrescription(appointmentId));
+      } catch (e) {
+        if ((e as { response?: { status?: number } }).response?.status !== 404) throw e;
+        res = await api.post(apiUrl.emrPrescriptions(), { appointment_id: appointmentId });
+      }
       hydrate(res.data);
       const [hist, sug] = await Promise.all([
         api.get(apiUrl.emrPatientPrescriptions(res.data.patient_id)),
