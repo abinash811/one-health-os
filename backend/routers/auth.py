@@ -144,15 +144,22 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = DbS
         select(UserORM)
         .options(joinedload(UserORM.role))
         .where(UserORM.email == credentials.email)
+        .order_by(UserORM.created_at)
     )
-    user = result.scalar_one_or_none()
+    # The same email can exist at more than one pharmacy (POST /users only checks within its own
+    # pharmacy), so this used to crash with a 500 ("Multiple rows were found"), which the browser
+    # showed as "Could not reach the server". Sign in as whichever account the password opens.
+    candidates = result.scalars().unique().all()
+    user = next(
+        (u for u in candidates if u.password_hash and verify_password(credentials.password, u.password_hash)),
+        None)
     ip = _client_ip(request)
 
-    if not user or not verify_password(credentials.password, user.password_hash):
+    if not user:
         # An unknown email has no pharmacy to attribute the attempt to —
         # only a real account's wrong-password attempts are logged.
-        if user:
-            await _record_login_event(user, "login_failed", db, ip)
+        if candidates:
+            await _record_login_event(candidates[0], "login_failed", db, ip)
             # A plain flush() is not enough here: get_db's own exception
             # handler rolls back the whole transaction the moment this
             # HTTPException propagates out, which would silently discard
@@ -211,8 +218,9 @@ async def forgot_password(payload: ForgotPassword, request: Request, db: AsyncSe
     later only means replacing this one function's body, not any of the
     token/validation logic around it.
     """
-    result = await db.execute(select(UserORM).where(UserORM.email == payload.email))
-    user = result.scalar_one_or_none()
+    result = await db.execute(
+        select(UserORM).where(UserORM.email == payload.email).order_by(UserORM.created_at))
+    user = result.scalars().first()  # same email at several pharmacies: reset the oldest account
 
     generic_response = {
         "message": "If an account exists for that email, a password reset link has been sent.",

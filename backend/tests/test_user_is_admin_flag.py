@@ -92,3 +92,31 @@ def test_ticking_a_permission_shows_up_in_me(admin):
     _, email = _create(admin, role["name"], False)
     s, _ = _login(email, "FlagTest123")
     assert s.get(f"{BASE_URL}/api/auth/me").json()["permissions"] == ["patient_billing:collect", "patient_billing:view"]
+
+
+def test_same_email_at_two_pharmacies_can_still_log_in(admin):
+    """The same email can exist at two pharmacies; login used to 500 ("Multiple rows were found")."""
+    email = f"dup_{uuid.uuid4().hex[:8]}@pharmacy.com"
+    first = admin.post(f"{BASE_URL}/api/users", json={
+        "email": email, "name": "Dup One", "password": "DupOne1234", "role": "cashier"})
+    assert first.status_code == 200, first.text
+
+    # a second, separate pharmacy registers its own admin, then adds the same email there
+    other_email = f"other_{uuid.uuid4().hex[:8]}@pharmacy.com"
+    reg = requests.post(f"{BASE_URL}/api/auth/register", json={
+        "email": other_email, "name": "Other Admin", "password": "OtherAdmin1", "phone": "9000000002",
+        "pharmacy_name": "Other Pharmacy", "address": "1 Test Road", "city": "Pune", "state": "MH",
+        "pincode": "411001"})
+    assert reg.status_code == 200, reg.text
+    other = requests.Session()
+    other.headers.update({"Content-Type": "application/json", "Authorization": f"Bearer {reg.json()['token']}"})
+    second = other.post(f"{BASE_URL}/api/users", json={
+        "email": email, "name": "Dup Two", "password": "DupTwo5678", "role": "cashier"})
+    assert second.status_code == 200, second.text
+
+    for pw, name in (("DupOne1234", "Dup One"), ("DupTwo5678", "Dup Two")):
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"email": email, "password": pw})
+        assert r.status_code == 200, r.text
+        assert r.json()["user"]["name"] == name
+    bad = requests.post(f"{BASE_URL}/api/auth/login", json={"email": email, "password": "wrong-password"})
+    assert bad.status_code == 401
