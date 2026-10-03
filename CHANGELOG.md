@@ -11,6 +11,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **Clinic calendar (Practo-style).** New **Calendar** page: doctors side by side for a day, or one doctor's whole week, on a
+  time grid built from their working hours. Click an open slot to book (doctor, date and time already filled in), click a visit
+  to check in / start / complete / cancel / collect, or drag a booked visit onto another open slot to reschedule — if the slot
+  is taken you're told why. A red line marks "now"; walk-ins sit in their own strip; colours match the queue's statuses.
 - **Admin is a checkbox, not a role.** Each member now has a clinical role (Doctor, Receptionist, …) plus a separate
   **Administrator** checkbox, so one person can be a Doctor and an admin. Admins get every permission and can manage team,
   roles and settings. Existing admins are converted automatically; you can't remove your own admin access. The old

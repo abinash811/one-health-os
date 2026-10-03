@@ -1,5 +1,5 @@
 # EMR Module — v1 Scope (clinic-day flow)
-# Version: 0.5 | Last updated: October 2, 2026
+# Version: 0.6 | Last updated: October 3, 2026
 # Type: Explanation
 # Status: Steps 1–2 built (Oct 2, 2026); steps 3–5 not started. Schema decisions live in docs/09_DATABASE.md
 
@@ -56,6 +56,7 @@
    - Rx lifecycle: draft (editable) → issued (locked, printable) / cancelled (reason required; frees the visit for a new Rx).
    - Print = browser print page (clean A4, Print / Save as PDF). Doctor-only writes; receptionist can view.
 3. Rx → pharmacy incoming list → Fill Rx into a bill → dispensed status back. **On hold.** Design when resumed: pharmacy owns a public `rx-inbox` API (per-pharmacy API key); EMR is just one client of it, so a pharmacy can use any external EMR.
+3b. **Calendar** `/emr/calendar` — **Built Oct 3, 2026** (Abinash: "a calendar like Practo has"). No schema change: a time-grid view of the same appointments + doctor schedules. Day view = one column per doctor; Week view = one doctor, seven days. Working hours white, off-hours grey, red "now" line, walk-ins in their own strip, colour by status (cancelled / no-show hidden — their slot is free again). Click an open slot → booking dialog pre-filled (doctor, date, time); click a visit → details + check in / start / complete / cancel / collect; drag a still-booked visit onto another open slot to reschedule (API refuses a taken or off-hours slot with the reason). Native drag-and-drop, no new library. Not yet: leave / blocked time (needs a table — ask first), month view, resize-to-change-length.
 4. Whatsapp send + follow-up reminders.
 5. Fresh whole-feature audit as receptionist / doctor / pharmacist / patient (Manifesto rule 11).
 

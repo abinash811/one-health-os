@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AppButton, FilterPills, SearchInput } from '@/components/shared';
@@ -26,11 +26,14 @@ export interface BookAppointmentModalProps {
   defaultDoctorId?: string;
   /** Opens with this patient already chosen (e.g. from their profile). */
   defaultPatient?: EmrPatient | null;
+  /** Calendar click: opens on this date with this slot (HH:MM) already picked, if it is still free. */
+  defaultDate?: string;
+  defaultStartTime?: string;
   onClose: () => void;
   onBooked: () => void;
 }
 
-export default function BookAppointmentModal({ open, doctors, defaultDoctorId, defaultPatient, onClose, onBooked }: BookAppointmentModalProps) {
+export default function BookAppointmentModal({ open, doctors, defaultDoctorId, defaultPatient, defaultDate, defaultStartTime, onClose, onBooked }: BookAppointmentModalProps) {
   const [patientQuery, setPatientQuery] = useState('');
   const [matches, setMatches] = useState<EmrPatient[]>([]);
   const [patient, setPatient] = useState<EmrPatient | null>(null);
@@ -43,13 +46,15 @@ export default function BookAppointmentModal({ open, doctors, defaultDoctorId, d
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [newPatientOpen, setNewPatientOpen] = useState(false);
+  const prefillTime = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (!open) return;
-    setPatientQuery(''); setMatches([]); setPatient(defaultPatient ?? null); setDate(today()); setMode('slot');
+    setPatientQuery(''); setMatches([]); setPatient(defaultPatient ?? null); setDate(defaultDate || today()); setMode('slot');
     setStartTime(''); setReason('');
+    prefillTime.current = defaultStartTime;
     setDoctorId(defaultDoctorId || doctors[0]?.id || '');
-  }, [open, defaultDoctorId, defaultPatient, doctors]);
+  }, [open, defaultDoctorId, defaultPatient, defaultDate, defaultStartTime, doctors]);
 
   const searchPatients = useDebouncedCallback(async (q: string) => {
     if (!q.trim()) { setMatches([]); return; }
@@ -67,7 +72,13 @@ export default function BookAppointmentModal({ open, doctors, defaultDoctorId, d
     setSlotsLoading(true);
     setStartTime('');
     api.get(apiUrl.emrSlots({ doctor_user_id: doctorId, date }))
-      .then((res) => { if (!cancelled) setSlots(res.data || []); })
+      .then((res) => {
+        if (cancelled) return;
+        setSlots(res.data || []);
+        const wanted = prefillTime.current;
+        prefillTime.current = undefined;
+        if (wanted && (res.data || []).some((s: EmrSlot) => s.start_time === wanted && s.available)) setStartTime(wanted);
+      })
       .catch((err: Error) => { if (!cancelled) toast.error(err.message); })
       .finally(() => { if (!cancelled) setSlotsLoading(false); });
     return () => { cancelled = true; };

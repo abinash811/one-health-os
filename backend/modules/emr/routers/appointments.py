@@ -117,19 +117,28 @@ async def create_appointment(data: AppointmentCreate, request: Request,
 
 @router.get("/appointments")
 async def list_appointments(
-    on_date: Optional[date] = Query(None, alias="date"), doctor_user_id: Optional[uuid.UUID] = None,
+    on_date: Optional[date] = Query(None, alias="date"),
+    date_from: Optional[date] = None, date_to: Optional[date] = None,
+    doctor_user_id: Optional[uuid.UUID] = None,
     patient_id: Optional[uuid.UUID] = None, status: Optional[str] = None,
     current_user: User = Depends(get_current_user), db: AsyncSession = DbSession,
 ):
-    """The day view / live queue. Defaults to today; ordered by token."""
+    """The day view / live queue. Defaults to today; ordered by token. `date_from`+`date_to`
+    (max 31 days, inclusive) return a whole range — the calendar's week view."""
     await _require_emr_permission(current_user, "appointments:view", db)
+    if (date_from is None) != (date_to is None):
+        raise HTTPException(status_code=422, detail="Send both date_from and date_to")
+    if date_from and date_to and (date_to < date_from or (date_to - date_from).days > 30):
+        raise HTTPException(status_code=422, detail="Date range must be 1 to 31 days, start before end")
     query = (
         select(EmrAppointment, EmrPatient.name, UserORM.name)
         .join(EmrPatient, EmrPatient.id == EmrAppointment.patient_id)
         .join(UserORM, UserORM.id == EmrAppointment.doctor_user_id)
         .where(EmrAppointment.pharmacy_id == uuid.UUID(current_user.pharmacy_id),
                EmrAppointment.deleted_at.is_(None)))
-    if on_date:
+    if date_from and date_to:
+        query = query.where(EmrAppointment.appointment_date.between(date_from, date_to))
+    elif on_date:
         query = query.where(EmrAppointment.appointment_date == on_date)
     elif not patient_id:
         query = query.where(EmrAppointment.appointment_date == date.today())

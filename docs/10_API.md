@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.32 | Last updated: October 3, 2026
+# Version: 1.33 | Last updated: October 3, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1466,7 +1466,7 @@ there first if these seem to be missing.
 |--------|------|-------|
 | GET | `/emr/slots?doctor_user_id=&date=` | Slot grid from the doctor's schedule: `[{start_time, end_time, available}]` |
 | POST | `/emr/appointments` | `patient_id`, `doctor_user_id`, `appointment_date`, optional `start_time`, `reason`. With `start_time` = scheduled (must be an open slot, 422 if off-grid/outside hours, 409 if taken). Without = walk-in (today only). Past dates 422. Token number is per doctor per day |
-| GET | `/emr/appointments?date=&doctor_user_id=&patient_id=&status=` | Day view / live queue. Defaults to today (all dates when `patient_id` is given). Ordered by token. Includes `patient_name`, `doctor_name` |
+| GET | `/emr/appointments?date=&date_from=&date_to=&doctor_user_id=&patient_id=&status=` | Day view / live queue. Defaults to today (all dates when `patient_id` is given). Ordered by token. Includes `patient_name`, `doctor_name`. `date_from`+`date_to` (both required together, inclusive, max 31 days, else 422) return a whole range — the calendar's week view |
 | GET | `/emr/appointments/{id}` | |
 | PUT | `/emr/appointments/{id}` | Reschedule (`appointment_date`, `start_time`, `doctor_user_id`) or edit `reason`. Only while `booked` (else 409) |
 | POST | `/emr/appointments/{id}/status` | Body `{status, cancel_reason?}`. Moves: `booked→checked_in→in_consult→completed`; `booked/checked_in→cancelled` (reason required, needs `appointments:cancel`); `booked→no_show`. Invalid move = 409 |

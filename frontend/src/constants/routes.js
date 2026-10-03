@@ -63,6 +63,7 @@ export const ROUTES = {
   // EMR (clinic module)
   EMR: {
     APPOINTMENTS: '/emr/appointments',
+    CALENDAR:     '/emr/calendar',
     PATIENTS:     '/emr/patients',
     PATIENT:      (id) => `/emr/patients/${id}`,
     SCHEDULES:    '/emr/schedules',

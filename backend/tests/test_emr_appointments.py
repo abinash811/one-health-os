@@ -266,3 +266,37 @@ class TestAppointments(_EmrBase):
         doctor_id = self._doctor_with_schedule(3)
         assert self._book(str(uuid.uuid4()), doctor_id, date.today()).status_code == 404
         assert self._book(self._patient()["id"], str(uuid.uuid4()), date.today()).status_code == 404
+
+
+class TestCalendarRange(_EmrBase):
+    """The calendar's week view: one call returns a whole date range."""
+
+    def test_range_returns_each_day_and_respects_doctor_filter(self):
+        d1 = _next_weekday_date(0)
+        d2 = d1 + timedelta(days=2)
+        doctor_id = self._doctor_with_schedule(0, "09:00", "10:00", 30)
+        other_id = self._doctor_with_schedule(0, "09:00", "10:00", 30)
+        p = self._patient()
+        assert self._book(p["id"], doctor_id, d1, "09:00").status_code == 200
+        assert self._book(p["id"], other_id, d1, "09:00").status_code == 200
+        url = f"{BASE_URL}/api/emr/appointments"
+        rng = {"date_from": d1.isoformat(), "date_to": d2.isoformat()}
+        both = self.session.get(url, params=rng).json()
+        assert {a["doctor_user_id"] for a in both} >= {doctor_id, other_id}
+        only = self.session.get(url, params={**rng, "doctor_user_id": doctor_id}).json()
+        assert [a["doctor_user_id"] for a in only] == [doctor_id]
+        later = self.session.get(url, params={
+            "date_from": (d1 + timedelta(days=1)).isoformat(), "date_to": d2.isoformat(),
+            "doctor_user_id": doctor_id}).json()
+        assert later == []
+
+    def test_range_validation(self):
+        url = f"{BASE_URL}/api/emr/appointments"
+        today = date.today()
+        assert self.session.get(url, params={"date_from": today.isoformat()}).status_code == 422
+        assert self.session.get(url, params={
+            "date_from": today.isoformat(), "date_to": (today - timedelta(days=1)).isoformat()}).status_code == 422
+        assert self.session.get(url, params={
+            "date_from": today.isoformat(), "date_to": (today + timedelta(days=31)).isoformat()}).status_code == 422
+        assert self.session.get(url, params={
+            "date_from": today.isoformat(), "date_to": (today + timedelta(days=30)).isoformat()}).status_code == 200

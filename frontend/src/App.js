@@ -49,6 +49,7 @@ const ReorderList = lazy(() => import('@/pages/ReorderList'));
 const TransferHistory = lazy(() => import('@/pages/TransferHistory'));
 // EMR module (docs/28_EMR_SCOPE.md)
 const EmrAppointments = lazy(() => import('@/modules/emr/pages/Appointments'));
+const EmrCalendar = lazy(() => import('@/modules/emr/pages/Calendar'));
 const EmrPatients = lazy(() => import('@/modules/emr/pages/Patients'));
 const EmrDoctorSchedules = lazy(() => import('@/modules/emr/pages/DoctorSchedules'));
 const EmrPatientProfile = lazy(() => import('@/modules/emr/pages/PatientProfile'));
@@ -165,6 +166,7 @@ function AppRoutes({ user }) {
         <Route path="/" element={<ErrorBoundary><Layout /></ErrorBoundary>}>
           <Route index element={<Navigate to={homePathFor(user)} replace />} />
           <Route path="emr/appointments" element={<EmrAppointments />} />
+          <Route path="emr/calendar" element={<EmrCalendar />} />
           <Route path="emr/patients" element={<EmrPatients />} />
           <Route path="emr/patients/:patientId" element={<EmrPatientProfile />} />
           <Route path="emr/schedules" element={<EmrDoctorSchedules />} />
