@@ -199,6 +199,7 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = DbS
         "token": token,
         "user": {
             "id": str(user.id), "email": user.email, "name": user.name, "role": user.role.name,
+            "pharmacy_id": str(user.pharmacy_id),
             "is_admin": user.is_admin,
             "is_super_admin": is_super_admin,
             "permissions": flatten_permissions(user.role.permissions, user.is_admin),
@@ -377,4 +378,7 @@ async def get_me(current_user: User = Depends(get_current_user), db: AsyncSessio
         "permissions": flatten_permissions(role_row.permissions if role_row else {}, current_user.is_admin),
         # The workspace (hospital) the login belongs to — docs/33_WORKSPACE_SCOPE.md.
         "workspace": await _workspace_of(db, current_user),
+        # Where this login is working right now — the frontend keys per-place local drafts on it.
+        "pharmacy_id": current_user.pharmacy_id,
+        "clinic_id": current_user.clinic_id,
     }

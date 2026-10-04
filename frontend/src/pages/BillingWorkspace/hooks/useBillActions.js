@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { buildBillBase, guardBillForSave } from '../utils/buildBillPayload';
+import { clearBillDraft } from '../utils/billDraft';
 
 /**
  * @param {object} billSnapshot  — read-only snapshot of current bill state
@@ -63,7 +64,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
     : `Bill #${res.data.bill_number} ${created}!`;
 
   const afterSuccess = () => {
-    localStorage.removeItem('billing_draft');
+    clearBillDraft();
     onSaveSuccess?.();
     navigate('/billing');
   };
@@ -101,7 +102,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
         total_gst:      totalGst,
         grand_total:    grandTotal,
       });
-      localStorage.removeItem('billing_draft');
+      clearBillDraft();
       setTimeout(() => { window.print(); afterSuccess(); }, 200);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to save bill');

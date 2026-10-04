@@ -3,9 +3,10 @@
  * Route: /billing/new · /billing/create · /billing/edit/:id (viewing a
  * completed/due/parked bill is BillDetail, /billing/:id)
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { AuthContext } from '@/App';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useBillItems }       from './hooks/useBillItems';
@@ -24,12 +25,18 @@ import { isDrugLicenseValid, isDrugLicenseExpired } from '@/utils/drugLicense';
 import { buildPrintPharmacyInfo } from './utils/buildPrintPharmacyInfo';
 import { getPaymentSplitsError } from './utils/validatePaymentSplits';
 import { mapBillItemsToRows } from './utils/mapBillItemsToRows';
+import { setDraftOwner, readBillDraft, writeBillDraft, clearBillDraft } from './utils/billDraft';
+import ResumeDraftBanner from './components/ResumeDraftBanner';
 
 export default function BillingWorkspace() {
   const navigate       = useNavigate();
   const [searchParams] = useSearchParams();
   const { id: billId } = useParams();
   const searchInputRef = useRef(null);
+  const { user } = useContext(AuthContext);
+  // The unfinished bill kept in this browser for THIS login at THIS pharmacy — offered, never auto-filled.
+  setDraftOwner(user?.id, user?.pharmacy_id);
+  const [pendingDraft, setPendingDraft] = useState(null);
 
   // ── Mode & loaded bill ───────────────────────────────────────────────────
   const [viewMode,       setViewMode]       = useState('new');
@@ -83,16 +90,17 @@ export default function BillingWorkspace() {
 
   // ── Draft helpers ─────────────────────────────────────────────────────────
   const saveDraft = useCallback(() => {
+    if (viewMode !== 'new') return; // editing an existing bill must never become a "draft" of a new one
     const num = draftNumber || Math.floor(1000 + Math.random() * 9000);
-    localStorage.setItem('billing_draft', JSON.stringify({ customerName, customerPhone, doctorName, paymentType, items: billItems, draftNumber: num }));
+    writeBillDraft({ customerName, customerPhone, doctorName, items: billItems, draftNumber: num });
     if (!draftNumber) setDraftNumber(num);
-  }, [customerName, customerPhone, doctorName, paymentType, billItems, draftNumber]);
+  }, [customerName, customerPhone, doctorName, billItems, draftNumber, viewMode]);
 
   const clearBill = useCallback(() => {
     setItems([]); setCustomerName(''); setCustomerPhone(''); setCustomerId(null);
     setDoctorName(''); setPaymentType('cash'); setPaymentSplits([]);
     setPatientAddress(''); setPatientAge('');
-    localStorage.removeItem('billing_draft'); setDraftNumber(null);
+    clearBillDraft(); setDraftNumber(null); setPendingDraft(null);
   }, [setItems]);
 
   // ── Load helpers ──────────────────────────────────────────────────────────
@@ -135,19 +143,21 @@ export default function BillingWorkspace() {
     if (billId) { loadExistingBill(billId); return; }
     const draftId = searchParams.get('draft');
     if (draftId) { loadExistingBill(draftId); return; }
-    const saved = localStorage.getItem('billing_draft');
-    if (saved) {
-      try {
-        const d = JSON.parse(saved);
-        setCustomerName(d.customerName || ''); setCustomerPhone(d.customerPhone || '');
-        setDoctorName(d.doctorName || ''); setItems(d.items || []);
-        // Payment type is intentionally NOT restored from a leftover draft —
-        // Abinash, Sep 19, 2026: "Create Bill" must always default to Cash,
-        // even if an abandoned draft last had UPI/Due/Multi selected.
-        setDraftNumber(d.draftNumber || Math.floor(1000 + Math.random() * 9000));
-      } catch { /* corrupt draft */ }
-    }
-  }, [billId]);
+    // A fresh "Create Bill" starts BLANK (Oct 4, 2026 — previously-entered customer details were being poured
+    // back in, even another person's). An unfinished bill of this login at this pharmacy is only offered.
+    setPendingDraft(readBillDraft());
+  }, [billId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const resumeDraft = () => {
+    const d = pendingDraft;
+    if (!d) return;
+    setCustomerName(d.customerName || ''); setCustomerPhone(d.customerPhone || '');
+    setDoctorName(d.doctorName || ''); setItems(d.items || []);
+    // Payment type is intentionally NOT restored — "Create Bill" always defaults to Cash (Sep 19, 2026).
+    setDraftNumber(d.draftNumber || Math.floor(1000 + Math.random() * 9000));
+    setPendingDraft(null);
+  };
+  const discardDraft = () => { clearBillDraft(); setPendingDraft(null); };
 
   // Auto-focus the item search bar on a fresh "Create Bill" — Abinash, Sep
   // 19, 2026: nothing was focused before, forcing an extra click before the
@@ -233,6 +243,9 @@ export default function BillingWorkspace() {
       />
 
       <main className="flex-grow p-4 lg:p-6 overflow-hidden flex flex-col gap-4">
+        {pendingDraft && viewMode === 'new' && (
+          <ResumeDraftBanner draft={pendingDraft} onResume={resumeDraft} onDiscard={discardDraft} />
+        )}
         <BillingSubbar
           viewMode={viewMode} billDate={billDate} onBillDateChange={setBillDate}
           customerName={customerName} customerPhone={customerPhone}

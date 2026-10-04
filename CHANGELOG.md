@@ -22,6 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 - New role ticks: View / Create / Edit Clinics and View / Create / Edit Pharmacies.
 
 ### Changed
+- **Create Bill now starts blank.** An unfinished bill is kept only for the same login at the same pharmacy, offered as "You have an unfinished bill · Resume / Discard", and dropped after a day. Before, the last bill's customer details appeared in every new bill — even for another user or pharmacy on the same computer.
 - Audit Log now names clinic, doctor-at-clinic and pharmacy entries and lets you filter by them.
 - The clinic / pharmacy switcher now sits in the page header, right next to the page title ("Appointments | Sunrise Clinic ▾"); the separate top bar is gone. On phones it stays in the top bar.
 - In Settings → Organisation, "Team" is now called **Users** (page links unchanged).

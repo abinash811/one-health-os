@@ -155,3 +155,16 @@ class TestWorkspaceReads:
         m.headers.update({"Authorization": f"Bearer {tok}"})
         seen = names(m)
         assert "Clinic At B" not in seen
+
+
+class TestMeSaysWhereYouWork:
+    def test_me_and_login_carry_the_active_pharmacy_and_clinic(self):
+        s, sfx = _register("where")
+        me = _me(s)
+        active = next(x for x in s.get(f"{API}/users/me/stores").json() if x["is_active"])
+        assert me["pharmacy_id"] == active["pharmacy_id"] and me["clinic_id"] is None
+        cid = s.post(f"{API}/clinics", json={"name": "Where Clinic"}).json()["id"]
+        assert _me(s)["clinic_id"] == cid
+        login = requests.post(f"{API}/auth/login", json={
+            "email": f"where_{sfx}@pharmacy.com", "password": "Workspace123"}).json()
+        assert login["user"]["pharmacy_id"] == active["pharmacy_id"]
