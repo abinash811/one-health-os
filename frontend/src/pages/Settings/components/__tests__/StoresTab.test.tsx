@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import StoresTab from '../StoresTab';
+import { AuthContext } from '@/App';
 import api from '@/lib/axios';
 
 // Regression tests for the Sep 26, 2026 multi-chain Phase 2, Step 3
@@ -19,18 +20,22 @@ const TWO_STORES = [
   { pharmacy_id: 'p2', name: 'Second Store', city: 'Mysuru', state: 'Karnataka' },
 ];
 
+const renderTab = (user: unknown = { role: 'admin', permissions: ['*'] }) => render(
+  <AuthContext.Provider value={{ user } as never}><StoresTab /></AuthContext.Provider>,
+);
+
 describe('StoresTab', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('lists the existing store(s)', async () => {
     (api.get as jest.Mock).mockResolvedValue({ data: ONE_STORE });
-    render(<StoresTab />);
+    renderTab();
     await waitFor(() => expect(screen.getByText('Main Store')).toBeInTheDocument());
   });
 
   it('tells the admin settings will be copied but numbering starts fresh', async () => {
     (api.get as jest.Mock).mockResolvedValue({ data: ONE_STORE });
-    render(<StoresTab />);
+    renderTab();
     await waitFor(() => expect(screen.getByText('Main Store')).toBeInTheDocument());
     await userEvent.click(screen.getByTestId('add-store-btn'));
     expect(screen.getByText(/branding, GST defaults, and thresholds will be copied/)).toBeInTheDocument();
@@ -42,7 +47,7 @@ describe('StoresTab', () => {
       .mockResolvedValueOnce({ data: TWO_STORES });
     (api.post as jest.Mock).mockResolvedValue({ data: { pharmacy_id: 'p2', name: 'Second Store' } });
 
-    render(<StoresTab />);
+    renderTab();
     await waitFor(() => expect(screen.getByText('Main Store')).toBeInTheDocument());
 
     await userEvent.click(screen.getByTestId('add-store-btn'));
@@ -53,7 +58,7 @@ describe('StoresTab', () => {
     await userEvent.type(screen.getByLabelText('State *'), 'Karnataka');
     await userEvent.type(screen.getByLabelText('Pincode *'), '570001');
 
-    await userEvent.click(screen.getByText('Add Store', { selector: 'button[type="submit"]' }));
+    await userEvent.click(screen.getByText('Add Pharmacy', { selector: 'button[type="submit"]' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith(
       'pharmacies/stores',
@@ -62,12 +67,22 @@ describe('StoresTab', () => {
     await waitFor(() => expect(screen.getByText('Second Store')).toBeInTheDocument());
   });
 
+  it('hides Add Pharmacy unless the role is ticked for it', async () => {
+    (api.get as jest.Mock).mockResolvedValue({ data: ONE_STORE });
+    const { unmount } = renderTab({ role: 'manager', permissions: ['pharmacies:view'] });
+    await waitFor(() => expect(screen.getByText('Main Store')).toBeInTheDocument());
+    expect(screen.queryByTestId('add-store-btn')).not.toBeInTheDocument();
+    unmount();
+    renderTab({ role: 'manager', permissions: ['pharmacies:create'] });
+    expect(await screen.findByTestId('add-store-btn')).toBeInTheDocument();
+  });
+
   it('shows the real error reason when adding a store fails', async () => {
     const { toast } = require('sonner');
     (api.get as jest.Mock).mockResolvedValue({ data: ONE_STORE });
     (api.post as jest.Mock).mockRejectedValue({ message: 'Admin access required' });
 
-    render(<StoresTab />);
+    renderTab();
     await waitFor(() => expect(screen.getByText('Main Store')).toBeInTheDocument());
     await userEvent.click(screen.getByTestId('add-store-btn'));
     await userEvent.type(screen.getByLabelText('Store Name *'), 'X');
@@ -76,7 +91,7 @@ describe('StoresTab', () => {
     await userEvent.type(screen.getByLabelText('City *'), 'x');
     await userEvent.type(screen.getByLabelText('State *'), 'x');
     await userEvent.type(screen.getByLabelText('Pincode *'), '570001');
-    await userEvent.click(screen.getByText('Add Store', { selector: 'button[type="submit"]' }));
+    await userEvent.click(screen.getByText('Add Pharmacy', { selector: 'button[type="submit"]' }));
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Admin access required'));
   });

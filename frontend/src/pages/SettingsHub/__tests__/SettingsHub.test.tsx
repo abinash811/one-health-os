@@ -63,8 +63,15 @@ describe('visibleModules — who sees which settings', () => {
     expect(mods.map((m) => m.key)).toEqual(['organisation']);
     expect(mods[0].sections.map((s) => s.key)).toEqual(['doctors']);
   });
-  it('an administrator sees Doctors between Team and Roles in Organisation', () => {
-    expect(visibleModules(ADMIN)[0].sections.map((s) => s.key)).toEqual(['team', 'doctors', 'roles', 'stores']);
+  it('an administrator sees Doctors, Clinics and Pharmacies between Team and Roles in Organisation', () => {
+    expect(visibleModules(ADMIN)[0].sections.map((s) => s.key)).toEqual(['team', 'doctors', 'clinics', 'pharmacies', 'roles']);
+  });
+  it('someone ticked for clinics sees only Clinics; pharmacies ticks open only Pharmacies', () => {
+    const c = visibleModules({ role: 'manager', permissions: ['clinics:view'] });
+    expect(c.map((m) => m.key)).toEqual(['organisation']);
+    expect(c[0].sections.map((x) => x.key)).toEqual(['clinics']);
+    const p = visibleModules({ role: 'manager', permissions: ['pharmacies:create'] });
+    expect(p[0].sections.map((x) => x.key)).toEqual(['pharmacies']);
   });
   it('someone with no settings ticks, or an old session without a permission list, sees nothing', () => {
     expect(visibleModules({ role: 'cashier', permissions: ['billing:create'] })).toEqual([]);

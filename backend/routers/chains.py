@@ -15,17 +15,16 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import DbSession
-from models.chains import Chain as ChainORM
 from models.pharmacy import Pharmacy as PharmacyORM, PharmacySettings as PharmacySettingsORM
 from models.users import AuditLog
-from routers.auth_helpers import User, get_current_user, require_admin_or_super
-from services.role_scope import find_role, promote_roles_to_chain
+from routers.auth_helpers import User, get_current_user, has_permission
+from services.hospital import ensure_chain
 from services.provisioning import create_pharmacy_with_defaults, sync_user_store_role
 
 router = APIRouter(prefix="/api", tags=["chains"])
@@ -91,23 +90,17 @@ async def get_chain_stores(current_user: User = Depends(
 @router.post("/pharmacies/stores")
 async def create_chain_store(body: StoreCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = DbSession):
-    """Adds a new store. If the caller's pharmacy isn't in a chain yet,
+    """Adds a new pharmacy (needs the `pharmacies:create` tick). If the caller's pharmacy isn't in a chain yet,
     creates one now (this is the one and only place a Chain gets created)
     and puts the caller's own existing pharmacy in it too, alongside the
     new one — both real stores in the same chain from this point on."""
-    await require_admin_or_super(current_user, db)
+    if not await has_permission(current_user, "pharmacies:create", db):
+        raise HTTPException(status_code=403, detail="Your role does not have the 'pharmacies:create' permission")
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     result = await db.execute(select(PharmacyORM).where(PharmacyORM.id == pharmacy_id))
     pharmacy = result.scalar_one()
 
-    if pharmacy.chain_id is None:
-        chain = ChainORM(name=f"{pharmacy.name} Group", owner_user_id=uuid.UUID(current_user.id))
-        db.add(chain)
-        await db.flush()
-        pharmacy.chain_id = chain.id
-        await promote_roles_to_chain(db, pharmacy_id, chain.id)
-    else:
-        chain = None  # already in a chain, nothing to create
+    await ensure_chain(db, pharmacy, uuid.UUID(current_user.id))
 
     # Fixed Sep 28, 2026 (docs/15_ROADMAP.md RULE MISSES LOG): a new store
     # used to always get bare PharmacySettings defaults, silently discarding
@@ -127,9 +120,10 @@ async def create_chain_store(body: StoreCreate, request: Request, current_user: 
     )
     await db.flush()
 
-    admin_role = await find_role(db, new_store.id, "admin")
+    # The creator gets the role they already hold (roles are hospital-wide) — creating a pharmacy
+    # never promotes anyone to administrator.
     await sync_user_store_role(
-        db, user_id=uuid.UUID(current_user.id), pharmacy_id=new_store.id, role_id=admin_role.id)
+        db, user_id=uuid.UUID(current_user.id), pharmacy_id=new_store.id, role_id=uuid.UUID(current_user.role_id))
 
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "create", "store", new_store.id,

@@ -54,7 +54,7 @@ DEFAULT_ROLES = [
         "permissions": [
             "patients:view", "patients:create", "patients:edit",
             "appointments:view", "appointments:create", "appointments:edit", "appointments:cancel",
-            "schedules:view", "prescriptions:view", "doctors:view",
+            "schedules:view", "prescriptions:view", "doctors:view", "clinics:view",
             "patient_billing:view", "patient_billing:charge", "patient_billing:invoice",
             "patient_billing:collect",
         ],
@@ -67,7 +67,7 @@ DEFAULT_ROLES = [
         "permissions": [
             "patients:view", "patients:create", "patients:edit",
             "appointments:view", "appointments:create", "appointments:edit",
-            "schedules:view", "schedules:edit", "doctors:view",
+            "schedules:view", "schedules:edit", "doctors:view", "clinics:view",
             "prescriptions:view", "prescriptions:create", "prescriptions:edit",
             "prescriptions:issue", "prescriptions:cancel", "patient_billing:view",
         ],
@@ -170,6 +170,16 @@ ALL_PERMISSIONS = {
     "doctors": {"display_name": "Doctors (Organisation)", "permissions": [
         {"id": "doctors:view", "name": "View Doctors"},
         {"id": "doctors:edit", "name": "Create / Edit Doctors & Map to Clinics"},
+    ]},
+    "clinics": {"display_name": "Clinics (Organisation)", "permissions": [
+        {"id": "clinics:view", "name": "View Clinics"},
+        {"id": "clinics:create", "name": "Create Clinics"},
+        {"id": "clinics:edit", "name": "Edit / Deactivate Clinics"},
+    ]},
+    "pharmacies": {"display_name": "Pharmacies (Organisation)", "permissions": [
+        {"id": "pharmacies:view", "name": "View Pharmacies"},
+        {"id": "pharmacies:create", "name": "Create Pharmacies"},
+        {"id": "pharmacies:edit", "name": "Edit Pharmacies"},
     ]},
     "schedules": {"display_name": "Doctor Schedules (EMR)", "permissions": [
         {"id": "schedules:view", "name": "View Doctor Schedules"},

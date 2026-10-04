@@ -13,6 +13,7 @@ import EmrSettingsPanel, { type EmrSettingsSection } from '@/modules/emr/compone
 import DoctorSchedulesPanel from '@/modules/emr/components/DoctorSchedulesPanel';
 import PharmacyPanel, { type PharmacySection } from './PharmacyPanel';
 import DoctorsPanel from './doctors/DoctorsPanel';
+import ClinicsPanel from './clinics/ClinicsPanel';
 
 export interface HubUser {
   id?: string;
@@ -34,6 +35,11 @@ export const isAdmin = (u: HubUser): boolean => u.role === 'admin' || !!u.is_sup
 /** An explicit tick — a session from before permissions were sent counts as "no tick". */
 const ticked = (u: HubUser, permission: string): boolean => !!u.permissions && hasPermission(u.permissions, permission);
 
+const canSeeClinics = (u: HubUser): boolean =>
+  isAdmin(u) || ['clinics:view', 'clinics:create', 'clinics:edit'].some((p) => ticked(u, p));
+const canSeePharmacies = (u: HubUser): boolean =>
+  isAdmin(u) || ['pharmacies:view', 'pharmacies:create', 'pharmacies:edit'].some((p) => ticked(u, p));
+
 export const settingsPath = (module: string, section?: string): string =>
   `/settings/${module}${section ? `/${section}` : ''}`;
 
@@ -42,18 +48,20 @@ const EMR_FORM_SECTIONS = ['clinic-profile', 'id-formats', 'patient-form', 'doct
 export const HUB_MODULES: HubModule[] = [
   {
     key: 'organisation', label: 'Organisation', dot: 'bg-purple-600',
-    allowed: (u) => isAdmin(u) || ticked(u, 'doctors:view'),
+    allowed: (u) => isAdmin(u) || ticked(u, 'doctors:view') || canSeeClinics(u) || canSeePharmacies(u),
     sections: [
       { key: 'team', label: 'Team', allowed: isAdmin },
       { key: 'doctors', label: 'Doctors', allowed: (u) => isAdmin(u) || ticked(u, 'doctors:view') },
+      { key: 'clinics', label: 'Clinics', allowed: canSeeClinics },
+      { key: 'pharmacies', label: 'Pharmacies', allowed: canSeePharmacies },
       { key: 'roles', label: 'Roles & Permissions', allowed: isAdmin },
-      { key: 'stores', label: 'Stores & chain', allowed: isAdmin },
     ],
     content: (key, user) => (
       key === 'roles' ? <RolesTab />
-        : key === 'stores' ? <StoresTab />
-          : key === 'doctors' ? <DoctorsPanel />
-            : <MembersTab currentUser={user} />
+        : key === 'pharmacies' ? <StoresTab />
+          : key === 'clinics' ? <ClinicsPanel />
+            : key === 'doctors' ? <DoctorsPanel />
+              : <MembersTab currentUser={user} />
     ),
   },
   {

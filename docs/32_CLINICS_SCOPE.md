@@ -1,7 +1,7 @@
 # Clinics (EMR) and Pharmacies as separate things — Build Plan
-# Version: 0.4 | Last updated: October 4, 2026
+# Version: 0.5 | Last updated: October 4, 2026
 # Type: Explanation
-# Status: DIRECTION APPROVED by Abinash Oct 4, 2026 (real separate clinics; new Clinics tick-box; deactivate only; logins stay in Team). 🚫 Nothing built. Roles decision made: hospital-wide roles (Oct 4, 2026). ✅ P0 BUILT Oct 4, 2026 (migration `a1c4e7d90b36`, `services/role_scope.py`, 6 new tests). P1 next.
+# Status: DIRECTION APPROVED by Abinash Oct 4, 2026 (real separate clinics; new Clinics tick-box; deactivate only; logins stay in Team). 🚫 Nothing built. Roles decision made: hospital-wide roles (Oct 4, 2026). ✅ P0 BUILT Oct 4, 2026 (migration `a1c4e7d90b36`, `services/role_scope.py`, 6 new tests). ✅ P1 BUILT Oct 4, 2026 (`clinics` table + backfill `b2d5f8a1c47e`, `/api/clinics`, `clinics:*` / `pharmacies:*` ticks, Organisation → Clinics + Pharmacies screens, 12 backend + 10 jest tests). P2 next.
 # Supersedes v0.1 (which treated a clinic as a pharmacy row — rejected by Abinash).
 
 ## Why (product view)
@@ -23,7 +23,7 @@
 - **Existing data — same-id trick:** each pharmacy row that currently has EMR data gets a clinic row with the **same id**. Foreign keys keep working through the move, rollback is easy, nothing is copied twice.
 - **`practitioner_clinics`:** `pharmacy_id` → `clinic_id` (fee per clinic stays).
 - **Roles become hospital-wide:** a role is owned by the hospital and used in clinics and pharmacies alike (a standalone pharmacy keeps working: its own hospital-of-one). This is an extra expand/backfill/switch step on `roles` and everything reading `roles.pharmacy_id`; its own phase below.
-- **Logins ↔ clinics:** new `user_clinic_access` (user, clinic, role) — the same shape as today's `user_store_roles`. Logins stay managed in Team; this only records which clinics a login may open.
+- **Logins ↔ clinics:** (table built in P2, not P1 — nothing reads it before the switcher) new `user_clinic_access` (user, clinic, role) — the same shape as today's `user_store_roles`. Logins stay managed in Team; this only records which clinics a login may open.
 - **Switcher:** sidebar shows a Clinics group and a Pharmacies group; the person picks one place at a time. Pharmacy pages use the active pharmacy, EMR pages the active clinic.
 - **Doctors:** profile ↔ clinic mapping unchanged in meaning; the Organisation → Doctors "Works at" list now lists clinics (not pharmacies).
 
@@ -50,7 +50,7 @@
 
 ## Build phases (stop and re-check after each)
 - **P0 Roles at hospital level:** expand `roles` with a hospital owner, backfill, switch permission lookups, keep every current login's permissions identical (proven by test before/after).
-- **P1 Foundation:** `clinics` + access tables, permissions, Clinics screen (list / add / edit / deactivate), Pharmacies section split. EMR unchanged underneath.
+- **P1 Foundation (built):** `clinics` table, permissions, Clinics screen (list / add / edit / deactivate), Pharmacies section split. EMR unchanged underneath.
 - **P2 EMR move:** `clinic_id` on EMR tables, backfill, switch code, switcher with both groups, Doctors at this clinic.
 - **P3 Contract + whole-feature audit:** walk it as admin, clinic manager with only the Clinics tick, receptionist, doctor with and without login, pharmacist; from zero data.
 
@@ -63,3 +63,9 @@
 - Prescription hand-off from a clinic to its linked pharmacy (docs/28 step 3 — on hold).
 - A doctor double-booked at two clinics (docs/31 audit item).
 - Shared patient records across clinics (docs/30 — skipped for now).
+
+## P1 notes (built Oct 4, 2026)
+- A place that already used EMR got a clinic with the SAME id (backfill) — it shows in both Clinics and Pharmacies until P2/P3 split them for real.
+- Deactivating a clinic is a flag only in P1; the "block while appointments or bills are open" check arrives with P2, when EMR rows carry `clinic_id`.
+- Add Pharmacy: the creator now gets the role they already hold at the new pharmacy, not administrator (a non-admin with only `pharmacies:create` must not become an admin).
+- Doctors' "Works at" and "Doctors at this clinic" still point at pharmacies until P2.

@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.36 | Last updated: October 3, 2026
+# Version: 1.37 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1484,6 +1484,17 @@ there first if these seem to be missing.
 | GET | `/practitioners/linkable-users` | Active logins not yet linked to a doctor (`doctors:edit`) |
 | POST | `/practitioners` | `name` + profile fields, `is_external`, `user_id?`, `clinics?: [{pharmacy_id, consultation_fee_paise?}]` (default = the caller's clinic). 403 for a clinic the caller can't access, 404/409 for a login that isn't theirs / is already linked |
 | GET / PUT / DELETE | `/practitioners/{id}` | PUT is partial; `clinics` replaces the caller's visible mappings (others untouched); `user_id: null` unlinks; DELETE is a soft delete that releases the login |
+
+### Clinics — `/api/clinics` (Oct 4, 2026 · permissions `clinics:view|create|edit` · docs/32_CLINICS_SCOPE.md)
+Clinics are EMR places, separate from pharmacies. Visible to the caller's own hospital only (a place still standing alone sees only the clinic sharing its id).
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/clinics?include_inactive=` | Clinics in the caller's hospital. Needs `clinics:view`. Row: `{id, name, address, city, state, pincode, phone, email, registration_no, is_active, has_pharmacy}` |
+| POST | `/clinics` | `name` required; others optional (pincode 6 digits). Needs `clinics:create`. Forms the hospital on first use (roles and the founding place's clinics move under it). 409 if the name exists in the hospital |
+| GET | `/clinics/{id}` | `clinics:view`; 404 for another hospital's clinic |
+| PUT | `/clinics/{id}` | Partial; `is_active=false` deactivates (never deleted). Needs `clinics:edit`; 409 on duplicate name |
+
+**Pharmacies:** `POST /pharmacies/stores` now needs `pharmacies:create` (was administrator-only). The creator gets the role they already hold at the new pharmacy — never administrator. `GET /pharmacies/stores` is unchanged (read-only, own hospital).
 
 ## AUDIT LOGS
 

@@ -1,5 +1,6 @@
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.chains import Chain
+from models.clinics import Clinic
 from models.users import Role, User, AuditLog, UserStoreRole
 from models.products import Product, StockBatch, StockMovement
 from models.suppliers import Supplier
@@ -17,7 +18,7 @@ __all__ = [
     "Supplier",
     "Purchase", "PurchaseItem", "PurchasePayment", "PurchaseReturn", "PurchaseReturnItem",
     "Customer", "Doctor",
-    "Practitioner", "PractitionerClinic",
+    "Practitioner", "PractitionerClinic", "Clinic",
     "Bill", "BillItem", "SalesReturn", "SalesReturnItem", "ScheduleH1Register",
     "StockTransfer", "StockTransferItem",
 ]

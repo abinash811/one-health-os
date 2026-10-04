@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.22 | Last updated: October 4, 2026
+# Version: 1.23 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -871,6 +871,21 @@ One row per clinic, created with defaults on first read (`modules/emr/settings_s
 `emr_patients.uhid` (String(30), nullable) — the clinic's own patient ID; partial unique index per pharmacy. The migration backfilled existing patients as `UH-000001…` (oldest first).
 
 `emr_doctor_profiles.consultation_fee_paise` (Integer, nullable; migration `1462660fbf8c`) — default fee posted to the patient's account at check-in; blank or 0 = no fee.
+
+### `clinics` (added Oct 4, 2026 — migration `b2d5f8a1c47e`, docs/32_CLINICS_SCOPE.md P1)
+EMR places, separate from `pharmacies`. Owned by the hospital. Not yet referenced by the EMR tables (they still hold `pharmacy_id` until P2).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | Backfilled clinics reuse their pharmacy's id, so P2 moves EMR data with no copying |
+| `chain_id` | UUID FK → chains, nullable | The hospital; NULL only for a standalone place's backfilled clinic |
+| `linked_pharmacy_id` | UUID FK → pharmacies, nullable | Set for backfilled clinics (same id); NULL for clinics created fresh |
+| `name` | String(200) | Unique per hospital among live rows (checked in code, case-insensitive) |
+| `address`, `city`, `state`, `pincode`(6), `phone`(20), `email`, `registration_no` | nullable | Backfilled from `emr_settings` clinic profile, else the pharmacy |
+| `is_active` | Boolean | Deactivate, never delete |
+| `deleted_at` | Timestamp, nullable | Reserved (soft delete) |
+
+Backfill: every pharmacy that already holds EMR data (settings, patients, appointments, schedules, doctor mappings) gets a clinic row. Same migration gives stored `doctor`/`receptionist` roles `clinics:view`.
 
 ### `practitioners` (added Oct 3, 2026 — migration `d4a1f6b8c203`, docs/31_CORE_DOCTOR_SCOPE.md)
 Doctors as their own records, separate from logins. Owned by the hospital, mapped to clinics via `practitioner_clinics`.

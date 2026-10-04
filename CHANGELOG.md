@@ -10,7 +10,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 
 ## [Unreleased]
 
+### Added
+- **Settings → Organisation → Clinics** (docs/32 P1): clinics are now their own records, separate from pharmacies. Create, edit and deactivate them; who can is decided by the Clinics ticks in a role (administrators always). Places that already used EMR keep working — each got a clinic with the same id.
+- New role ticks: View / Create / Edit Clinics and View / Create / Edit Pharmacies.
+
 ### Changed
+- "Stores & chain" is now **Pharmacies**. Adding a pharmacy needs the Create Pharmacies tick (not administrator only), and the person who adds it gets the role they already have there, never administrator.
 - Roles now belong to the hospital, not to one pharmacy (docs/32 P0): a place added to a hospital uses its existing roles, and a role made once works everywhere. No one's access changed — existing hospitals' roles were merged by name and permissions (migration `a1c4e7d90b36`).
 
 ### Changed
