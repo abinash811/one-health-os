@@ -1,38 +1,57 @@
 /**
- * PlaceSwitcher — top bar. Shows where you are working right now and lets you move between every clinic and
+ * PlaceSwitcher — sits in the page header, right next to the page title ("Appointments | Sunrise Clinic ▾").
+ * `PlaceProvider` (mounted once in the Layout) loads the lists a single time; every page header then renders
+ * the switcher from that shared data. Shows where you are working right now and lets you move between every clinic and
  * pharmacy you can open (docs/32_CLINICS_SCOPE.md P2). One list, two groups: Clinics (EMR) and Pharmacies.
  * The trigger shows the place that belongs to the module you are in (a clinic on EMR pages, a pharmacy on
  * pharmacy pages). Switching updates the account's active place server-side, then reloads the page: many
  * pages cache place-scoped data, and a hard reload guarantees none of it survives stale.
  */
-import React, { useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Building2, Check, ChevronDown, Pill, Stethoscope } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
-import { AppButton } from '@/components/shared';
+import AppButton from '@/components/shared/AppButton';
 import { moduleForPath } from '@/components/navConfig';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 interface Clinic { clinic_id: string; clinic_name: string; role_name: string; is_active: boolean }
 interface Store { pharmacy_id: string; pharmacy_name: string; role_name: string; is_active: boolean }
 
-export default function PlaceSwitcher() {
-  const location = useLocation();
-  const [open, setOpen] = useState(false);
-  const [clinics, setClinics] = useState<Clinic[]>([]);
-  const [stores, setStores] = useState<Store[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [switching, setSwitching] = useState(false);
+interface PlaceData { clinics: Clinic[]; stores: Store[]; loading: boolean }
+const PlaceContext = createContext<PlaceData | null>(null);
 
+/** Loads the clinics and pharmacies this login can open — once, for the whole app shell. */
+export function PlaceProvider({ children }: { children: React.ReactNode }) {
+  const [data, setData] = useState<PlaceData>({ clinics: [], stores: [], loading: true });
   // Fetched once on mount: the trigger needs the active names before the list is ever opened.
   useEffect(() => {
     Promise.all([
       api.get(apiUrl.myClinics()).then((r: { data: Clinic[] }) => r.data || []).catch(() => [] as Clinic[]),
       api.get(apiUrl.myStores()).then((r: { data: Store[] }) => r.data || []).catch(() => [] as Store[]),
-    ]).then(([c, s]) => { setClinics(c); setStores(s); }).finally(() => setLoading(false));
+    ]).then(([clinics, stores]) => setData({ clinics, stores, loading: false }));
   }, []);
+  return <PlaceContext.Provider value={data}>{children}</PlaceContext.Provider>;
+}
+
+/** Renders nothing outside a PlaceProvider (e.g. a page rendered on its own in a test). */
+export default function PlaceSwitcher({ withDivider = false }: { withDivider?: boolean }) {
+  const ctx = useContext(PlaceContext);
+  if (!ctx) return null;
+  return (
+    <>
+      {withDivider && <span className="h-6 w-px bg-gray-200" aria-hidden="true" />}
+      <PlaceSwitcherInner {...ctx} />
+    </>
+  );
+}
+
+function PlaceSwitcherInner({ clinics, stores, loading }: PlaceData) {
+  const location = useLocation();
+  const [open, setOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
 
   const activeClinic = clinics.find((c) => c.is_active);
   const activeStore = stores.find((s) => s.is_active);

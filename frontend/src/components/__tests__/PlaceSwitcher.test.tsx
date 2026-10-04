@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import api from '@/lib/axios';
-import PlaceSwitcher from '../PlaceSwitcher';
+import PlaceSwitcher, { PlaceProvider } from '../PlaceSwitcher';
 
 jest.mock('@/lib/axios', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn() } }));
 jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
@@ -22,7 +22,15 @@ const mockApi = (clinics: unknown[] = CLINICS, stores: unknown[] = STORES) => {
   (api.get as jest.Mock).mockImplementation((url: string) =>
     Promise.resolve({ data: url.startsWith('users/me/clinics') ? clinics : stores }));
 };
-const renderAt = (path: string) => render(<MemoryRouter initialEntries={[path]}><PlaceSwitcher /></MemoryRouter>);
+const renderAt = (path: string) => render(
+  <MemoryRouter initialEntries={[path]}><PlaceProvider><PlaceSwitcher /></PlaceProvider></MemoryRouter>);
+
+describe('PlaceSwitcher outside the app shell', () => {
+  it('renders nothing without a provider (a page on its own)', () => {
+    const { container } = render(<MemoryRouter><PlaceSwitcher /></MemoryRouter>);
+    expect(container).toBeEmptyDOMElement();
+  });
+});
 
 describe('PlaceSwitcher', () => {
   const reload = jest.fn();
