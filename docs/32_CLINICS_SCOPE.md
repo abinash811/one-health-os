@@ -1,7 +1,8 @@
 # Clinics (EMR) and Pharmacies as separate things — Build Plan
-# Version: 0.5 | Last updated: October 4, 2026
+# Version: 0.6 | Last updated: October 4, 2026
 # Type: Explanation
 # Status: DIRECTION APPROVED by Abinash Oct 4, 2026 (real separate clinics; new Clinics tick-box; deactivate only; logins stay in Team). 🚫 Nothing built. Roles decision made: hospital-wide roles (Oct 4, 2026). ✅ P0 BUILT Oct 4, 2026 (migration `a1c4e7d90b36`, `services/role_scope.py`, 6 new tests). ✅ P1 BUILT Oct 4, 2026 (`clinics` table + backfill `b2d5f8a1c47e`, `/api/clinics`, `clinics:*` / `pharmacies:*` ticks, Organisation → Clinics + Pharmacies screens, 12 backend + 10 jest tests). P2 next.
+# Oct 4, 2026: P2 is paused until the Workspace plan (docs/33) is approved and built — logins move to the hospital first, then EMR moves to clinics.
 # Supersedes v0.1 (which treated a clinic as a pharmacy row — rejected by Abinash).
 
 ## Why (product view)

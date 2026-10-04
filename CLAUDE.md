@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.35 | Last updated: October 4, 2026
+# Version: 2.36 | Last updated: October 4, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -106,6 +106,8 @@ frontend UI code — moved out Sep 18, 2026 to keep this file lean).
 | 30 | `docs/30_CORE_PERSON_SCOPE.md` | One shared `people` record for EMR patients + pharmacy customers (hub and spoke, as OHC does) — design, 5 migration steps, consumers to update, phases, decisions. Plan only, 🚫 not built until approved. |
 | 31 | `docs/31_CORE_DOCTOR_SCOPE.md` | Doctors as their own records owned by the hospital, mapped to clinics, separate from logins (users) — design, 4 phases, migration, consumers, decisions (OpenMRS-style Provider vs User). Plan only, 🚫 not built until approved. |
 | 32 | `docs/32_CLINICS_SCOPE.md` | Clinics (EMR) and Pharmacies as separate records under Organisation — new `clinics` table, EMR tables move to `clinic_id`, access ticks, 3 phases. Direction approved; plan only, 🚫 not built. |
+
+| 33 | `docs/33_WORKSPACE_SCOPE.md` | Workspace (= hospital) owns logins, roles, audit; clinics and pharmacies live inside it — design, W1–W4 phases, consumers, decisions. Supersedes docs/27's "keep `pharmacy_id`" for identity. Plan only, 🚫 not built until approved. |
 
 ### Living Status — current state, always re-read fresh
 
