@@ -16,6 +16,7 @@ from routers.auth_helpers import (
     User, get_current_user, get_owned_or_404, hash_password, require_admin_or_super, verify_password,
 )
 from services.provisioning import sync_user_store_role
+from services.role_scope import find_role
 
 router = APIRouter(prefix="/api", tags=["users"])
 
@@ -107,10 +108,7 @@ async def create_user(user_data: UserCreate, request: Request, current_user: Use
 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
-    role_result = await db.execute(
-        select(RoleORM).where(RoleORM.pharmacy_id == pharmacy_id, RoleORM.name == user_data.role)
-    )
-    role = role_result.scalar_one_or_none()
+    role = await find_role(db, pharmacy_id, user_data.role)
     if not role:
         raise HTTPException(status_code=400, detail=f"Role '{user_data.role}' not found")
 
@@ -175,12 +173,7 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, c
                   "is_active": user.is_active, "is_admin": user.is_admin}
 
     if user_update.role is not None:
-        role_result = await db.execute(
-            select(RoleORM).where(
-                RoleORM.pharmacy_id == user.pharmacy_id,
-                RoleORM.name == user_update.role)
-        )
-        role = role_result.scalar_one_or_none()
+        role = await find_role(db, user.pharmacy_id, user_update.role)
         if not role:
             raise HTTPException(status_code=400, detail=f"Role '{user_update.role}' not found")
         user.role_id = role.id
@@ -434,9 +427,7 @@ async def grant_user_store_access(user_id: str, body: GrantStoreAccess, request:
     target_pharmacy_id = uuid.UUID(body.pharmacy_id)
     await _same_chain_or_self(target_pharmacy_id, admin_pharmacy_id, db)
 
-    role_result = await db.execute(
-        select(RoleORM).where(RoleORM.pharmacy_id == target_pharmacy_id, RoleORM.name == body.role))
-    role = role_result.scalar_one_or_none()
+    role = await find_role(db, target_pharmacy_id, body.role)
     if not role:
         raise HTTPException(status_code=400, detail=f"Role '{body.role}' not found at that store")
 

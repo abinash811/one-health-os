@@ -8,15 +8,16 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, ValidationError, field_validator
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from constants import ALL_PERMISSIONS, DEFAULT_ROLES  # noqa: F401 — DEFAULT_ROLES re-exported for main.py
 from deps import DbSession
 from models.billing import Bill, SalesReturn
 from models.pharmacy import Pharmacy, PharmacySettings
-from models.users import AuditLog, Role as RoleORM, User as UserORM
-from routers.auth_helpers import User, get_current_user, get_owned_or_404, require_admin_or_super
+from models.users import AuditLog, Role as RoleORM
+from services.role_scope import chain_of, find_role, get_role_or_404, list_roles, role_users_in_chain
+from routers.auth_helpers import User, get_current_user, require_admin_or_super
 
 router = APIRouter(prefix="/api", tags=["settings"])
 
@@ -514,13 +515,8 @@ async def get_all_permissions(current_user: User = Depends(get_current_user),
 async def get_all_roles(current_user: User = Depends(get_current_user),
                         db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
-    result = await db.execute(
-        select(RoleORM).where(
-            RoleORM.pharmacy_id == uuid.UUID(
-                current_user.pharmacy_id),
-            RoleORM.is_active)
-    )
-    return [_role_response(r) for r in result.scalars().all()]
+    roles = await list_roles(db, uuid.UUID(current_user.pharmacy_id))
+    return [_role_response(r) for r in roles]
 
 
 @router.post("/roles")
@@ -528,13 +524,12 @@ async def create_role(role_data: RoleCreate, request: Request, current_user: Use
         get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    existing = await db.execute(select(RoleORM).where(
-        RoleORM.pharmacy_id == pharmacy_id, RoleORM.name == role_data.name))
-    if existing.scalar_one_or_none():
+    if await find_role(db, pharmacy_id, role_data.name, active_only=False):
         raise HTTPException(status_code=400, detail="Role name already exists")
 
     role = RoleORM(
         pharmacy_id=pharmacy_id,
+        chain_id=await chain_of(db, pharmacy_id),
         name=role_data.name,
         description=role_data.display_name,
         permissions=role_data.permissions,
@@ -554,8 +549,7 @@ async def create_role(role_data: RoleCreate, request: Request, current_user: Use
 async def get_role(role_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
-    role = await get_owned_or_404(
-        db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
+    role = await get_role_or_404(db, role_id, uuid.UUID(current_user.pharmacy_id))
     return _role_response(role)
 
 
@@ -563,8 +557,7 @@ async def get_role(role_id: str, current_user: User = Depends(
 async def update_role(role_id: str, role_update: RoleUpdate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
-    role = await get_owned_or_404(
-        db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
+    role = await get_role_or_404(db, role_id, uuid.UUID(current_user.pharmacy_id))
     if role.is_system_role:
         raise HTTPException(status_code=400, detail="Cannot edit default roles")
 
@@ -590,13 +583,11 @@ async def update_role(role_id: str, role_update: RoleUpdate, request: Request, c
 async def delete_role(role_id: str, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
-    role = await get_owned_or_404(
-        db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
+    role = await get_role_or_404(db, role_id, uuid.UUID(current_user.pharmacy_id))
     if role.is_system_role:
         raise HTTPException(status_code=400, detail="Cannot delete default roles")
 
-    count_result = await db.execute(select(func.count()).select_from(UserORM).where(UserORM.role_id == role.id))
-    user_count = count_result.scalar()
+    user_count = await role_users_in_chain(db, role.id)
     if user_count > 0:
         raise HTTPException(
             status_code=400,

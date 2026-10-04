@@ -11,6 +11,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Changed
+- Roles now belong to the hospital, not to one pharmacy (docs/32 P0): a place added to a hospital uses its existing roles, and a role made once works everywhere. No one's access changed — existing hospitals' roles were merged by name and permissions (migration `a1c4e7d90b36`).
+
+### Changed
 - **EMR now uses the doctor records.** Appointments, the calendar, booking, working hours, prescriptions and the consultation fee all
   point at a doctor profile mapped to the clinic — no longer at a login. A doctor with no login can be scheduled, booked and can
   prescribe. Settings → EMR → Doctors & fees now sets only this clinic's fee; name, registration number and the clinics a doctor

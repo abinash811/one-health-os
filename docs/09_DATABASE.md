@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.21 | Last updated: October 3, 2026
+# Version: 1.22 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -266,8 +266,9 @@ RBAC roles. System roles are seeded on startup, custom roles can be created.
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | UUID PK | — |
-| `pharmacy_id` | UUID FK | Scoped per pharmacy |
-| `name` | String(100) | UNIQUE per pharmacy |
+| `pharmacy_id` | UUID FK | Where the role was created |
+| `chain_id` | UUID FK → chains, nullable | Set = owned by the hospital and usable at every place in it; NULL = a standalone pharmacy's own role. Added `a1c4e7d90b36` (Oct 4, 2026, docs/32 P0): each chain's roles merged into one set (same name + same permissions → logins repointed, sibling row switched off; different permissions → kept as `<name> (<place>)`). |
+| `name` | String(100) | UNIQUE per pharmacy; unique per hospital among active roles (partial index `uq_roles_chain_name`) |
 | `description` | Text | — |
 | `is_system_role` | Boolean | `true` = seeded, cannot delete |
 | `permissions` | JSONB | Permission flags per module |

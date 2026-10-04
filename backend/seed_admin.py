@@ -23,6 +23,7 @@ from config import settings
 from constants import DEFAULT_ROLES
 from sqlalchemy import select
 from services.provisioning import sync_user_store_role
+from services.role_scope import find_role
 from models.users import UserStoreRole
 from passlib.context import CryptContext
 
@@ -104,10 +105,7 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
         role_map: dict[str, Role] = {}
         for role_def in DEFAULT_ROLES:
             role_name = role_def["name"]
-            r_result = await db.execute(
-                select(Role).where(Role.pharmacy_id == pharmacy.id, Role.name == role_name)
-            )
-            existing_role = r_result.scalar_one_or_none()
+            existing_role = await find_role(db, pharmacy.id, role_name, active_only=False)
             if existing_role:
                 role_map[role_name] = existing_role
                 print(f"  ✅ Role '{role_name}' already exists — skipping")
@@ -115,6 +113,7 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
                 new_role = Role(
                     id=uuid.uuid4(),
                     pharmacy_id=pharmacy.id,
+                    chain_id=pharmacy.chain_id,
                     name=role_name,
                     description=role_def.get("display_name", role_name),
                     is_system_role=role_def.get("is_default", True),

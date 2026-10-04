@@ -14,7 +14,8 @@ from models.billing import Bill, BillItem, SalesReturn as SalesReturnORM, SalesR
 from models.pharmacy import PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.purchases import Purchase as PurchaseORM, PurchaseReturn as PurchaseReturnORM
-from models.users import AuditLog, Role as RoleORM
+from models.users import AuditLog
+from services.role_scope import find_role, get_role_or_404
 from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission, require_admin_or_super
 
 router = APIRouter(prefix="/api", tags=["sales_returns"])
@@ -946,10 +947,7 @@ async def update_sales_return(
 async def get_role_return_permissions(role_name: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = DbSession):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    result = await db.execute(
-        select(RoleORM).where(RoleORM.pharmacy_id == pharmacy_id, RoleORM.name == role_name)
-    )
-    role = result.scalar_one_or_none()
+    role = await find_role(db, pharmacy_id, role_name)
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
     perms = role.permissions if isinstance(role.permissions, list) else []
@@ -967,8 +965,7 @@ async def update_role_return_permissions(
 ):
     await require_admin_or_super(current_user, db, detail="Only admins can update permissions")
 
-    role = await get_owned_or_404(
-        db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
+    role = await get_role_or_404(db, role_id, uuid.UUID(current_user.pharmacy_id))
 
     old_perms = list(role.permissions) if isinstance(role.permissions, list) else []
     perms = list(old_perms)

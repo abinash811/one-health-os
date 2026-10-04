@@ -1,7 +1,7 @@
 from __future__ import annotations
 import uuid
 from typing import Optional
-from sqlalchemy import Boolean, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -12,11 +12,20 @@ from database import Base
 
 class Role(Base):
     __tablename__ = "roles"
-    __table_args__ = (UniqueConstraint("pharmacy_id", "name"),)
+    __table_args__ = (
+        UniqueConstraint("pharmacy_id", "name"),
+        Index("uq_roles_chain_name", "chain_id", "name", unique=True,
+              postgresql_where=text("chain_id IS NOT NULL AND is_active")),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     pharmacy_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    # Hospital-wide roles (docs/32_CLINICS_SCOPE.md P0): set = this role is owned by
+    # the hospital (chain) and usable at every place in it; `pharmacy_id` is then only
+    # the place it was created at. NULL = a standalone pharmacy's own role.
+    chain_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("chains.id"))
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     is_system_role: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

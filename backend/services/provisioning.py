@@ -47,8 +47,13 @@ async def create_pharmacy_with_defaults(
     gstin: Optional[str] = None,
     drug_license_number: Optional[str] = None,
     source_settings: Optional[PharmacySettings] = None,
+    chain_id: Optional[uuid.UUID] = None,
 ) -> Pharmacy:
     """Create a Pharmacy, its PharmacySettings, and the default role set.
+
+    `chain_id`, when given, puts the new pharmacy in that hospital and does NOT create a
+    role set — roles belong to the hospital (docs/32_CLINICS_SCOPE.md P0) and the new place
+    uses the hospital's existing ones.
 
     Does not commit — caller controls the transaction so the pharmacy can be
     created in the same unit of work as the admin user who owns it.
@@ -72,6 +77,7 @@ async def create_pharmacy_with_defaults(
         email=email,
         gstin=gstin,
         drug_license_number=drug_license_number,
+        chain_id=chain_id,
     )
     db.add(pharmacy)
     await db.flush()  # populate pharmacy.id before FK references below
@@ -86,7 +92,7 @@ async def create_pharmacy_with_defaults(
     else:
         db.add(PharmacySettings(pharmacy_id=pharmacy.id))
 
-    for role_def in DEFAULT_ROLES:
+    for role_def in (DEFAULT_ROLES if chain_id is None else []):
         db.add(RoleORM(
             pharmacy_id=pharmacy.id,
             name=role_def["name"],

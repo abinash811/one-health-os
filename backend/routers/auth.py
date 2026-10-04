@@ -26,6 +26,7 @@ from routers.auth_helpers import (
     hash_password,
     verify_password,
 )
+from services.role_scope import chain_of, find_role, scope_clause
 from services.provisioning import create_pharmacy_with_defaults, sync_user_store_role
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -304,10 +305,7 @@ async def create_session(request: Request, response: Response, db: AsyncSession 
         count_result = await db.execute(select(func.count()).select_from(UserORM))
         role_name = "admin" if count_result.scalar() == 0 else "cashier"
 
-        role_result = await db.execute(
-            select(RoleORM).where(RoleORM.pharmacy_id == pharmacy.id, RoleORM.name == role_name)
-        )
-        role = role_result.scalar_one_or_none()
+        role = await find_role(db, pharmacy.id, role_name)
         if not role:
             raise HTTPException(status_code=500, detail=f"Role '{role_name}' not configured")
 
@@ -349,7 +347,8 @@ async def get_me(current_user: User = Depends(get_current_user), db: AsyncSessio
     role_row = (await db.execute(
         select(RoleORM).where(
             RoleORM.id == uuid.UUID(current_user.role_id),
-            RoleORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id)))).scalar_one_or_none()
+            scope_clause(uuid.UUID(current_user.pharmacy_id),
+                         await chain_of(db, uuid.UUID(current_user.pharmacy_id)))))).scalar_one_or_none()
     return {
         "id": current_user.id,
         "email": current_user.email,

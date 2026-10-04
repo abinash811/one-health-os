@@ -23,8 +23,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from deps import DbSession
 from models.chains import Chain as ChainORM
 from models.pharmacy import Pharmacy as PharmacyORM, PharmacySettings as PharmacySettingsORM
-from models.users import AuditLog, Role as RoleORM
+from models.users import AuditLog
 from routers.auth_helpers import User, get_current_user, require_admin_or_super
+from services.role_scope import find_role, promote_roles_to_chain
 from services.provisioning import create_pharmacy_with_defaults, sync_user_store_role
 
 router = APIRouter(prefix="/api", tags=["chains"])
@@ -104,6 +105,7 @@ async def create_chain_store(body: StoreCreate, request: Request, current_user: 
         db.add(chain)
         await db.flush()
         pharmacy.chain_id = chain.id
+        await promote_roles_to_chain(db, pharmacy_id, chain.id)
     else:
         chain = None  # already in a chain, nothing to create
 
@@ -121,13 +123,11 @@ async def create_chain_store(body: StoreCreate, request: Request, current_user: 
         db, name=body.name, address=body.address, city=body.city, state=body.state,
         pincode=body.pincode, phone=body.phone, email=body.email, gstin=body.gstin,
         drug_license_number=body.drug_license_number, source_settings=source_settings,
+        chain_id=pharmacy.chain_id,
     )
-    new_store.chain_id = pharmacy.chain_id
     await db.flush()
 
-    admin_role_result = await db.execute(
-        select(RoleORM).where(RoleORM.pharmacy_id == new_store.id, RoleORM.name == "admin"))
-    admin_role = admin_role_result.scalar_one()
+    admin_role = await find_role(db, new_store.id, "admin")
     await sync_user_store_role(
         db, user_id=uuid.UUID(current_user.id), pharmacy_id=new_store.id, role_id=admin_role.id)
 
