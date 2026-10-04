@@ -83,7 +83,7 @@ export default function DoctorSchedulesPanel() {
       {doctors.length === 0 && !loading ? (
         <DataCard>
           <EmptyState icon={CalendarClock} title="No doctors yet"
-            description="Add a team member with the Doctor role in Team, then set their working hours here." />
+            description="Add a user with the Doctor role under Users, then set their working hours here." />
         </DataCard>
       ) : (
         <DataCard noPadding>

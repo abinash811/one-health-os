@@ -20,6 +20,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 - New role ticks: View / Create / Edit Clinics and View / Create / Edit Pharmacies.
 
 ### Changed
+- In Settings → Organisation, "Team" is now called **Users** (page links unchanged).
 - EMR pages (Appointments, Calendar, Patients) no longer repeat the sidebar as tabs, and their titles now name the page instead of "Clinic".
 - **EMR now belongs to clinics** (docs/32 P2b): patients, appointments, schedules, prescriptions, clinic settings and clinic billing are stored per clinic, not per pharmacy. Existing data kept its place automatically. Without a selected clinic, EMR asks you to pick one. Doctors are mapped to clinics (the Doctors form's "Works at" lists clinics).
 - Workspace is now required everywhere (docs/33 W4): every pharmacy, login, role, clinic and doctor belongs to one; role names and emails are unique inside a workspace. The old "standalone pharmacy" special cases are gone. New check (Rule 25) stops anyone scoping logins or roles by a single pharmacy again.

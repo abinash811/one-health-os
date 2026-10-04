@@ -1,6 +1,6 @@
 /**
  * Settings → Organisation → Doctors. Doctors are profiles owned by the hospital and mapped to the
- * clinics where they practise — separate from the logins in Team (docs/31_CORE_DOCTOR_SCOPE.md).
+ * clinics where they practise — separate from the logins under Users (docs/31_CORE_DOCTOR_SCOPE.md).
  * Anyone ticked for `doctors:view` can read; `doctors:edit` adds, edits and removes.
  */
 import React, { useCallback, useContext, useEffect, useState } from 'react';
@@ -89,7 +89,7 @@ export default function DoctorsPanel() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-gray-900">Doctors</h2>
-          <p className="text-sm text-gray-500">Profiles owned by your hospital, mapped to the clinics where they practise. Logins stay in Team.</p>
+          <p className="text-sm text-gray-500">Profiles owned by your hospital, mapped to the clinics where they practise. Logins stay under Users.</p>
         </div>
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer whitespace-nowrap" htmlFor="show-inactive-doctors">

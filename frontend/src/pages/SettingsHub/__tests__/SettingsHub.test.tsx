@@ -58,12 +58,12 @@ describe('visibleModules — who sees which settings', () => {
     expect(mods.map((m) => m.key)).toEqual(['emr']);
     expect(mods[0].sections.map((s) => s.key)).toContain('schedules');
   });
-  it('someone ticked for doctors:view sees Organisation → Doctors only (no Team, Roles or Stores)', () => {
+  it('someone ticked for doctors:view sees Organisation → Doctors only (no Users, Roles or Stores)', () => {
     const mods = visibleModules({ role: 'receptionist', permissions: ['doctors:view'] });
     expect(mods.map((m) => m.key)).toEqual(['organisation']);
     expect(mods[0].sections.map((s) => s.key)).toEqual(['doctors']);
   });
-  it('an administrator sees Doctors, Clinics and Pharmacies between Team and Roles in Organisation', () => {
+  it('an administrator sees Doctors, Clinics and Pharmacies between Users and Roles in Organisation', () => {
     expect(visibleModules(ADMIN)[0].sections.map((s) => s.key)).toEqual(['team', 'doctors', 'clinics', 'pharmacies', 'roles']);
   });
   it('someone ticked for clinics sees only Clinics; pharmacies ticks open only Pharmacies', () => {

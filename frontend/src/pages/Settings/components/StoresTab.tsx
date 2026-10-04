@@ -68,7 +68,7 @@ export default function StoresTab() {
           <h3 className="text-lg font-semibold mb-1">Pharmacies</h3>
           <p className="text-sm text-gray-600">
             Add another pharmacy to turn this one into a chain. Once added, use the
-            Team page to grant staff access to it. Clinics are managed separately.
+            Users page to grant staff access to it. Clinics are managed separately.
           </p>
         </div>
         {canCreate && (

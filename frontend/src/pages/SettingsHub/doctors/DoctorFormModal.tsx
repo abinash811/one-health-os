@@ -163,7 +163,7 @@ export default function DoctorFormModal({ open, doctor, clinics, onClose, onSave
                 {loginOptions.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}{u.email ? ` · ${u.email}` : ''}</SelectItem>)}
               </SelectContent>
             </Select>
-            <p className="text-xs text-gray-500 mt-1">Logins are managed in Team. Link one only if this doctor signs in.</p>
+            <p className="text-xs text-gray-500 mt-1">Logins are managed under Users. Link one only if this doctor signs in.</p>
           </div>
 
           <div>

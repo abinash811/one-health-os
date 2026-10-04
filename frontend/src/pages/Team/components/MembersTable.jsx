@@ -31,7 +31,7 @@ export default function MembersTable({ users, loading, currentUser, pagination, 
                 <td colSpan={6} className="py-16 text-center">
                   <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" strokeWidth={1.5} />
                   <p className="text-sm font-medium text-gray-900">No members found</p>
-                  <p className="text-sm text-gray-500 mt-1">Invite your first team member</p>
+                  <p className="text-sm text-gray-500 mt-1">Invite your first user</p>
                 </td>
               </tr>
             ) : users.map((u) => (

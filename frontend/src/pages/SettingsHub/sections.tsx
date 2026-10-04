@@ -50,7 +50,7 @@ export const HUB_MODULES: HubModule[] = [
     key: 'organisation', label: 'Organisation', dot: 'bg-purple-600',
     allowed: (u) => isAdmin(u) || ticked(u, 'doctors:view') || canSeeClinics(u) || canSeePharmacies(u),
     sections: [
-      { key: 'team', label: 'Team', allowed: isAdmin },
+      { key: 'team', label: 'Users', allowed: isAdmin },
       { key: 'doctors', label: 'Doctors', allowed: (u) => isAdmin(u) || ticked(u, 'doctors:view') },
       { key: 'clinics', label: 'Clinics', allowed: canSeeClinics },
       { key: 'pharmacies', label: 'Pharmacies', allowed: canSeePharmacies },
