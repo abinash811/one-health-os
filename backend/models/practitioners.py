@@ -30,9 +30,9 @@ class Practitioner(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    # NULL for a standalone clinic. Informational: who may SEE a doctor is decided from the caller's
+    # The workspace. Informational: who may SEE a doctor is decided from the caller's
     # real store grants (resolve_chain_scope_pids), never from a raw chain_id filter.
-    chain_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("chains.id"))
+    chain_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("chains.id"), nullable=False)
     # The clinic this record was created at.
     pharmacy_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)

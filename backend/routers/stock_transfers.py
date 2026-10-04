@@ -168,8 +168,8 @@ async def create_stock_transfer(
 
     source_pharmacy = await _get_pharmacy(source_pharmacy_id, db)
     destination_pharmacy = await _get_pharmacy(destination_pharmacy_id, db)
-    if source_pharmacy.chain_id is None or destination_pharmacy.chain_id != source_pharmacy.chain_id:
-        raise HTTPException(status_code=403, detail="That store is not in your chain")
+    if destination_pharmacy.chain_id != source_pharmacy.chain_id:
+        raise HTTPException(status_code=403, detail="That store is not in your workspace")
 
     # Moving stock between two different GSTINs is a taxable "supply" under
     # GST law and typically needs a Wholesale Drug License — neither of

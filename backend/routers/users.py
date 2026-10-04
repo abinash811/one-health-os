@@ -369,9 +369,7 @@ async def _same_chain_or_self(target_pharmacy_id: uuid.UUID, admin_pharmacy_id: 
         return
     result = await db.execute(
         select(PharmacyORM.chain_id).where(PharmacyORM.id == admin_pharmacy_id))
-    admin_chain_id = result.scalar_one_or_none()
-    if admin_chain_id is None:
-        raise HTTPException(status_code=400, detail="Your pharmacy is not part of a workspace yet")
+    admin_chain_id = result.scalar_one()
     # chain-scope-safe: single-target membership gate before a grant, not a multi-pharmacy rollup
     target_result = await db.execute(
         select(PharmacyORM).where(

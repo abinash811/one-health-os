@@ -15,17 +15,16 @@ class Role(Base):
     __table_args__ = (
         UniqueConstraint("pharmacy_id", "name"),
         Index("uq_roles_chain_name", "chain_id", "name", unique=True,
-              postgresql_where=text("chain_id IS NOT NULL AND is_active")),
+              postgresql_where=text("is_active")),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     pharmacy_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
-    # Hospital-wide roles (docs/32_CLINICS_SCOPE.md P0): set = this role is owned by
-    # the hospital (chain) and usable at every place in it; `pharmacy_id` is then only
-    # the place it was created at. NULL = a standalone pharmacy's own role.
-    chain_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("chains.id"))
+    # Hospital-wide roles (docs/32 P0): owned by the workspace (chain) and usable at every place in it;
+    # `pharmacy_id` is only the place it was created at.
+    chain_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("chains.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     is_system_role: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -55,9 +54,8 @@ class User(Base):
         UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
     role_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False)
-    # The workspace (hospital) this login belongs to — docs/33_WORKSPACE_SCOPE.md. Nullable until the
-    # contract step (W4); every creation path writes it from W2.
-    chain_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("chains.id"))
+    # The workspace (hospital) this login belongs to — docs/33_WORKSPACE_SCOPE.md (required since W4).
+    chain_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("chains.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     email: Mapped[str] = mapped_column(String(200), nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(String(10))

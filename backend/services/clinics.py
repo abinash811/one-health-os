@@ -1,24 +1,22 @@
 """Clinic lookups scoped to the caller's hospital (docs/32_CLINICS_SCOPE.md).
 
-A clinic is visible to a login when it is in the same hospital as the login's current place. A place
-still standing alone sees only the clinic(s) that share its own id. Every clinic read/write goes here."""
+A clinic is visible to a login when it is in the same workspace as the login's current place.
+Every clinic read/write goes here."""
 from __future__ import annotations
 
 import uuid
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.clinics import Clinic
 from services.role_scope import chain_of
 
 
-def clinic_scope(pharmacy_id: uuid.UUID, chain_id: Optional[uuid.UUID]):
-    if chain_id is not None:
-        return Clinic.chain_id == chain_id
-    return and_(Clinic.linked_pharmacy_id == pharmacy_id, Clinic.chain_id.is_(None))
+def clinic_scope(pharmacy_id: uuid.UUID, chain_id: uuid.UUID):
+    return Clinic.chain_id == chain_id
 
 
 async def list_clinics(db: AsyncSession, pharmacy_id: uuid.UUID, include_inactive: bool = False) -> list[Clinic]:

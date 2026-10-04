@@ -419,6 +419,16 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# ── Rule 25: logins and roles are scoped by workspace, never by one pharmacy ──────────
+# Added Oct 4, 2026 (docs/33 W4). See scripts/check_workspace_identity.py.
+if python3 scripts/check_workspace_identity.py > /tmp/workspace_identity_output 2>&1; then
+  green "Rule 25 PASS: Logins and roles are scoped by workspace"
+else
+  red "Rule 25 FAIL: a login/role query is scoped by a single pharmacy"
+  cat /tmp/workspace_identity_output | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

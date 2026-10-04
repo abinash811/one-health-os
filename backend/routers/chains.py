@@ -24,7 +24,6 @@ from deps import DbSession
 from models.pharmacy import Pharmacy as PharmacyORM, PharmacySettings as PharmacySettingsORM
 from models.users import AuditLog
 from routers.auth_helpers import User, get_current_user, has_permission
-from services.hospital import ensure_chain
 from services.provisioning import create_pharmacy_with_defaults, sync_user_store_role
 
 router = APIRouter(prefix="/api", tags=["chains"])
@@ -63,23 +62,18 @@ async def get_chain_stores(current_user: User = Depends(
         get_current_user), db: AsyncSession = DbSession):
     """Every store in the caller's chain, including their own — for the
     Settings "Stores" tab and the Team page's per-user store-access
-    picker. A standalone (non-chain) pharmacy just gets its one store
-    back, same shape either way.
-    # permission-exempt: read-only, scoped to the caller's own chain (or
-    # their own single pharmacy if not in one)
+    picker. A workspace with one pharmacy just gets that one back.
+    # permission-exempt: read-only, scoped to the caller's own workspace
     """
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     result = await db.execute(select(PharmacyORM).where(PharmacyORM.id == pharmacy_id))
     pharmacy = result.scalar_one()
 
-    if pharmacy.chain_id is None:
-        stores = [pharmacy]
-    else:
-        result = await db.execute(
-            select(PharmacyORM).where(PharmacyORM.chain_id == pharmacy.chain_id)
-            .order_by(PharmacyORM.name)
-        )
-        stores = result.scalars().all()
+    result = await db.execute(
+        select(PharmacyORM).where(PharmacyORM.chain_id == pharmacy.chain_id)
+        .order_by(PharmacyORM.name)
+    )
+    stores = result.scalars().all()
 
     return [
         {"pharmacy_id": str(s.id), "name": s.name, "city": s.city, "state": s.state}
@@ -99,8 +93,6 @@ async def create_chain_store(body: StoreCreate, request: Request, current_user: 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     result = await db.execute(select(PharmacyORM).where(PharmacyORM.id == pharmacy_id))
     pharmacy = result.scalar_one()
-
-    await ensure_chain(db, pharmacy, uuid.UUID(current_user.id))
 
     # Fixed Sep 28, 2026 (docs/15_ROADMAP.md RULE MISSES LOG): a new store
     # used to always get bare PharmacySettings defaults, silently discarding

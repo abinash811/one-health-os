@@ -15,7 +15,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import DbSession
-from models.pharmacy import Pharmacy
 from models.practitioners import Practitioner, PractitionerClinic
 from models.users import AuditLog, User as UserORM
 from routers.auth_helpers import User, get_current_user, has_permission, resolve_chain_scope_pids
@@ -180,8 +179,7 @@ async def create_practitioner(data: PractitionerCreate, request: Request,
     await _check_clinics(db, clinics, pids)
     if data.user_id:
         await _check_login(db, data.user_id, pids, await caller_workspace(db, current_user), None)
-    chain_id = (await db.execute(
-        select(Pharmacy.chain_id).where(Pharmacy.id == home))).scalar()  # tenant-safe: the caller's own clinic
+    chain_id = await caller_workspace(db, current_user)
     fields = data.model_dump(exclude={"clinics"})
     p = Practitioner(pharmacy_id=home, chain_id=chain_id, **fields)
     db.add(p)

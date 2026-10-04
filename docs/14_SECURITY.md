@@ -1,5 +1,5 @@
 # PharmaCare — Security
-# Version: 1.6 | Last updated: September 28, 2026
+# Version: 1.7 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Every route is authenticated. Every query is pharmacy-scoped. No exceptions.
@@ -194,6 +194,8 @@ You never need to manually attach `Authorization` headers in components.
 ---
 
 ## MULTI-TENANCY (pharmacy isolation)
+
+> **Oct 4, 2026 (docs/33):** two boundaries now exist. **Pharmacy data** (stock, bills, purchases, customers) is still isolated by `pharmacy_id`. **Identity** (logins, roles, Team) belongs to the **workspace** (hospital, `chain_id`, required everywhere): a login sees only its own workspace's people and roles, and the audit log shows only places the viewer holds access to. Use `services/workspace.py` and `services/role_scope.py`; design-guard Rule 25 blocks `UserORM.pharmacy_id` / `RoleORM.pharmacy_id` queries.
 
 This is the most critical security rule. Every query must be scoped to the current pharmacy.
 

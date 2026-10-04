@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.24 | Last updated: October 4, 2026
+# Version: 1.25 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -267,7 +267,7 @@ RBAC roles. System roles are seeded on startup, custom roles can be created.
 |--------|------|-------|
 | `id` | UUID PK | — |
 | `pharmacy_id` | UUID FK | Where the role was created |
-| `chain_id` | UUID FK → chains, nullable | Set = owned by the hospital and usable at every place in it; NULL = a standalone pharmacy's own role. Added `a1c4e7d90b36` (Oct 4, 2026, docs/32 P0): each chain's roles merged into one set (same name + same permissions → logins repointed, sibling row switched off; different permissions → kept as `<name> (<place>)`). |
+| `chain_id` | UUID FK → chains, **NOT NULL** (W4) | Owned by the workspace and usable at every place in it. Added `a1c4e7d90b36` (Oct 4, 2026, docs/32 P0): each chain's roles merged into one set (same name + same permissions → logins repointed, sibling row switched off; different permissions → kept as `<name> (<place>)`). |
 | `name` | String(100) | UNIQUE per pharmacy; unique per hospital among active roles (partial index `uq_roles_chain_name`) |
 | `description` | Text | — |
 | `is_system_role` | Boolean | `true` = seeded, cannot delete |
@@ -285,7 +285,7 @@ Pharmacy staff members. One user belongs to one pharmacy and one role.
 |--------|------|-------|
 | `id` | UUID PK | — |
 | `pharmacy_id` | UUID FK | — |
-| `chain_id` | UUID FK → chains, nullable | The login's workspace (hospital) — migration `c3e6a9d2b58f`, Oct 4, 2026, docs/33 W1. Every creation path sets it; NOT NULL arrives at W4. Every pharmacy now has a `chains` row (workspace of one for formerly standalone ones; its roles/clinics/doctors moved under it) |
+| `chain_id` | UUID FK → chains, **NOT NULL** | The login's workspace (hospital) — added `c3e6a9d2b58f` (W1), required by `d4f7b0c3e69a` (W4, Oct 4, 2026). Email is unique per workspace (index `uq_users_workspace_email`, skipped with a warning if a workspace already held a duplicate; the code check always applies). Every pharmacy now has a `chains` row (workspace of one for formerly standalone ones; its roles/clinics/doctors moved under it) |
 | `role_id` | UUID FK → roles | — |
 | `name` | String(200) | — |
 | `email` | String(200) | UNIQUE per pharmacy |
@@ -879,7 +879,7 @@ EMR places, separate from `pharmacies`. Owned by the hospital. Not yet reference
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | UUID PK | Backfilled clinics reuse their pharmacy's id, so P2 moves EMR data with no copying |
-| `chain_id` | UUID FK → chains, nullable | The hospital; NULL only for a standalone place's backfilled clinic |
+| `chain_id` | UUID FK → chains, **NOT NULL** (W4) | The workspace (hospital) |
 | `linked_pharmacy_id` | UUID FK → pharmacies, nullable | Set for backfilled clinics (same id); NULL for clinics created fresh |
 | `name` | String(200) | Unique per hospital among live rows (checked in code, case-insensitive) |
 | `address`, `city`, `state`, `pincode`(6), `phone`(20), `email`, `registration_no` | nullable | Backfilled from `emr_settings` clinic profile, else the pharmacy |

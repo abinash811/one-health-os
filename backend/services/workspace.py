@@ -12,18 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from models.users import User as UserORM
-from services.role_scope import chain_of
 
 
 async def caller_workspace(db: AsyncSession, current_user) -> uuid.UUID:
-    """The caller's workspace id. Every login has one since W1; the fallback only covers a session whose
-    user row has not been backfilled yet."""
-    if current_user.chain_id:
-        return uuid.UUID(str(current_user.chain_id))
-    chain_id = await chain_of(db, uuid.UUID(current_user.pharmacy_id))
-    if chain_id is None:
-        raise HTTPException(status_code=409, detail="Your account is not part of a workspace yet")
-    return chain_id
+    """The caller's workspace id — every login has one (required since W4)."""
+    return uuid.UUID(str(current_user.chain_id))
 
 
 async def list_workspace_users(db: AsyncSession, chain_id: uuid.UUID) -> list[UserORM]:

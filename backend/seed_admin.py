@@ -137,8 +137,6 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
         existing_user = u_result.scalar_one_or_none()
 
         if existing_user:
-            if existing_user.chain_id is None:
-                existing_user.chain_id = pharmacy.chain_id
             if force:
                 existing_user.password_hash = pwd_context.hash(password)
                 existing_user.name = name

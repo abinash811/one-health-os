@@ -11,15 +11,13 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import DbSession
-from models.pharmacy import Pharmacy
 from models.users import AuditLog
 from routers.auth_helpers import User, get_current_user, has_permission
 from services.clinics import get_clinic_or_404, list_clinics, name_taken, shape
-from services.hospital import ensure_chain
+from services.workspace import caller_workspace
 from models.clinics import Clinic
 
 router = APIRouter(prefix="/api", tags=["clinics"])
@@ -114,9 +112,7 @@ async def create_clinic(body: ClinicCreate, request: Request, current_user: User
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     if await name_taken(db, pharmacy_id, body.name):
         raise HTTPException(status_code=409, detail=f"A clinic named '{body.name}' already exists")
-    pharmacy = (await db.execute(select(Pharmacy).where(Pharmacy.id == pharmacy_id))).scalar_one()
-    chain_id = await ensure_chain(db, pharmacy, uuid.UUID(current_user.id))
-    clinic = Clinic(chain_id=chain_id, **body.model_dump())
+    clinic = Clinic(chain_id=await caller_workspace(db, current_user), **body.model_dump())
     db.add(clinic)
     await db.flush()
     await _record_audit(pharmacy_id, uuid.UUID(current_user.id), "create", clinic.id,

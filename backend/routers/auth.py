@@ -95,12 +95,9 @@ class ResetPassword(BaseModel):
 
 
 async def _workspace_of(db: AsyncSession, user: User):
-    chain_id = user.chain_id or await chain_of(db, uuid.UUID(user.pharmacy_id))
-    if not chain_id:
-        return None
     # tenant-safe: the caller's own workspace, taken from their own login row
-    chain = (await db.execute(select(Chain).where(Chain.id == uuid.UUID(str(chain_id))))).scalar_one_or_none()
-    return {"id": str(chain.id), "name": chain.name} if chain else None
+    chain = (await db.execute(select(Chain).where(Chain.id == uuid.UUID(user.chain_id)))).scalar_one()
+    return {"id": str(chain.id), "name": chain.name}
 
 
 @router.post("/auth/register")
@@ -123,10 +120,7 @@ async def register(user_data: UserCreate, db: AsyncSession = DbSession):
         drug_license_number=user_data.drug_license_number,
     )
 
-    role_result = await db.execute(
-        select(RoleORM).where(RoleORM.pharmacy_id == pharmacy.id, RoleORM.name == "admin")
-    )
-    role = role_result.scalar_one()  # created moments ago by create_pharmacy_with_defaults
+    role = await find_role(db, pharmacy.id, "admin")  # created moments ago by create_pharmacy_with_defaults
 
     user = UserORM(
         pharmacy_id=pharmacy.id,

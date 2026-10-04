@@ -1,7 +1,6 @@
-"""Hospital-wide roles (docs/32_CLINICS_SCOPE.md, phase P0).
+"""Workspace-wide roles (docs/32 P0, docs/33).
 
-A role is owned by the hospital (`roles.chain_id`) and works at every place in it.
-A standalone pharmacy (no hospital yet) keeps its own roles (`chain_id` NULL).
+A role is owned by the workspace (`roles.chain_id`) and works at every place in it.
 Every role lookup goes through here so no router decides scope on its own.
 """
 from __future__ import annotations
@@ -10,24 +9,22 @@ import uuid
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import and_, select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.pharmacy import Pharmacy
 from models.users import Role, User, UserStoreRole
 
 
-async def chain_of(db: AsyncSession, pharmacy_id: uuid.UUID) -> Optional[uuid.UUID]:
-    # tenant-safe: reads only the caller's own place to learn its hospital
-    return (await db.execute(
-        select(Pharmacy.chain_id).where(Pharmacy.id == pharmacy_id))).scalar_one_or_none()
+async def chain_of(db: AsyncSession, pharmacy_id: uuid.UUID) -> uuid.UUID:
+    """The workspace a place belongs to (every place has one — docs/33)."""
+    # tenant-safe: reads only the caller's own place to learn its workspace
+    return (await db.execute(select(Pharmacy.chain_id).where(Pharmacy.id == pharmacy_id))).scalar_one()
 
 
-def scope_clause(pharmacy_id: uuid.UUID, chain_id: Optional[uuid.UUID]):
-    """SQL condition: roles usable by this place."""
-    if chain_id is not None:
-        return Role.chain_id == chain_id
-    return and_(Role.pharmacy_id == pharmacy_id, Role.chain_id.is_(None))
+def scope_clause(pharmacy_id: uuid.UUID, chain_id: uuid.UUID):
+    """SQL condition: roles usable by this place — every role of its workspace."""
+    return Role.chain_id == chain_id
 
 
 async def find_role(db: AsyncSession, pharmacy_id: uuid.UUID, name: str,
@@ -57,15 +54,6 @@ async def get_role_or_404(db: AsyncSession, role_id: str, pharmacy_id: uuid.UUID
     if not role:
         raise HTTPException(status_code=404, detail=detail)
     return role
-
-
-async def promote_roles_to_chain(db: AsyncSession, pharmacy_id: uuid.UUID,
-                                 chain_id: uuid.UUID) -> None:
-    """A standalone pharmacy just became part of a hospital: its roles now belong to
-    the hospital. Nobody's permissions change — same rows, new owner."""
-    # tenant-safe: scoped to the one pharmacy that is being promoted
-    await db.execute(update(Role).where(
-        Role.pharmacy_id == pharmacy_id, Role.chain_id.is_(None)).values(chain_id=chain_id))
 
 
 async def role_users_in_chain(db: AsyncSession, role_id: uuid.UUID) -> int:
