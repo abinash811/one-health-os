@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.25 | Last updated: October 4, 2026
+# Version: 1.26 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -887,6 +887,10 @@ EMR places, separate from `pharmacies`. Owned by the hospital. Not yet reference
 | `deleted_at` | Timestamp, nullable | Reserved (soft delete) |
 
 Backfill: every pharmacy that already holds EMR data (settings, patients, appointments, schedules, doctor mappings) gets a clinic row. Same migration gives stored `doctor`/`receptionist` roles `clinics:view`.
+
+### `user_clinic_access` (added Oct 4, 2026 — migration `e6b9d2f5a81c`, docs/32 P2a)
+Which clinics a login can open, with their role there (twin of `user_store_roles`). Unique (user, clinic). Backfill: every store-access row at a place that is also a clinic (same id).
+`users.clinic_id` (nullable FK → clinics) is the clinic being worked at now; backfilled to the home place when it is a clinic.
 
 ### `practitioners` (added Oct 3, 2026 — migration `d4a1f6b8c203`, docs/31_CORE_DOCTOR_SCOPE.md)
 Doctors as their own records, separate from logins. Owned by the hospital, mapped to clinics via `practitioner_clinics`.

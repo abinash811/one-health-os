@@ -11,14 +11,15 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import DbSession
-from models.users import AuditLog
+from models.clinics import Clinic
+from models.users import AuditLog, User as UserORM, UserClinicAccess
 from routers.auth_helpers import User, get_current_user, has_permission
 from services.clinics import get_clinic_or_404, list_clinics, name_taken, shape
 from services.workspace import caller_workspace
-from models.clinics import Clinic
 
 router = APIRouter(prefix="/api", tags=["clinics"])
 
@@ -114,6 +115,13 @@ async def create_clinic(body: ClinicCreate, request: Request, current_user: User
         raise HTTPException(status_code=409, detail=f"A clinic named '{body.name}' already exists")
     clinic = Clinic(chain_id=await caller_workspace(db, current_user), **body.model_dump())
     db.add(clinic)
+    await db.flush()
+    # The creator can open the clinic they just made (with the role they already hold), and it becomes
+    # their active clinic if they had none.
+    db.add(UserClinicAccess(user_id=uuid.UUID(current_user.id), clinic_id=clinic.id,
+                            role_id=uuid.UUID(current_user.role_id)))
+    if current_user.clinic_id is None:
+        await db.execute(update(UserORM).where(UserORM.id == uuid.UUID(current_user.id)).values(clinic_id=clinic.id))
     await db.flush()
     await _record_audit(pharmacy_id, uuid.UUID(current_user.id), "create", clinic.id,
                         {"name": clinic.name, "city": clinic.city}, db, ip_address=_client_ip(request))

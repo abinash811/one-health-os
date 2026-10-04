@@ -56,6 +56,9 @@ class User(Base):
         UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False)
     # The workspace (hospital) this login belongs to — docs/33_WORKSPACE_SCOPE.md (required since W4).
     chain_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("chains.id"), nullable=False)
+    # The clinic this login is working at right now (EMR screens use it) — docs/32 P2. NULL = none chosen
+    # yet; the clinic's own access row is in `user_clinic_access`.
+    clinic_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id"))
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     email: Mapped[str] = mapped_column(String(200), nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(String(10))
@@ -101,6 +104,25 @@ class UserStoreRole(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     pharmacy_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class UserClinicAccess(Base):
+    """One row per (person, clinic) they can open, with their role there — the clinic twin of
+    `UserStoreRole` (docs/32_CLINICS_SCOPE.md P2). Roles are workspace-wide."""
+    __tablename__ = "user_clinic_access"
+    __table_args__ = (UniqueConstraint("user_id", "clinic_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
     role_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False)
     created_at: Mapped[str] = mapped_column(
