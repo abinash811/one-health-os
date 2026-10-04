@@ -16,7 +16,7 @@ from routers.auth_helpers import (
     User, get_current_user, get_owned_or_404, hash_password, require_admin_or_super, verify_password,
 )
 from services.provisioning import sync_user_store_role
-from services.role_scope import find_role
+from services.role_scope import chain_of, find_role
 
 router = APIRouter(prefix="/api", tags=["users"])
 
@@ -120,6 +120,7 @@ async def create_user(user_data: UserCreate, request: Request, current_user: Use
 
     user = UserORM(
         pharmacy_id=pharmacy_id,
+        chain_id=await chain_of(db, pharmacy_id),
         role_id=role.id,
         is_admin=user_data.is_admin,
         name=user_data.name,

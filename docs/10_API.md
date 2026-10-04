@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.37 | Last updated: October 4, 2026
+# Version: 1.38 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -187,6 +187,7 @@ raw column:
 { "id": "uuid", "email": "...", "name": "Rajesh", "role": "doctor", "is_active": true,
   "is_admin": false, "is_super_admin": false, "permissions": ["patient_billing:view", "prescriptions:create"] }
 ```
+`workspace` (Oct 4, 2026, docs/33) is `{id, name}` — the hospital the login belongs to (`null` only for an unmigrated account).
 `permissions` (Oct 3, 2026) is the role's ticks as a flat `module:action` list — `["*"]` for an admin or wildcard
 role. `POST /auth/login`'s `user` object carries the same `is_admin` / `is_super_admin` / `permissions`. The frontend
 shows or hides buttons from this list; the backend still enforces on every call.

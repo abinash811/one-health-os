@@ -1,7 +1,8 @@
 # Workspace — logins, roles and audit belong to the hospital — Build Plan
-# Version: 0.1 | Last updated: October 4, 2026
+# Version: 0.2 | Last updated: October 4, 2026
 # Type: Explanation
-# Status: PLAN ONLY — 🚫 not built until Abinash approves. Direction given Oct 4, 2026: "logins should be based on workspace — at hospital level. Under the hospital there can be multiple clinics, multiple pharmacies, multiple doctors, staff."
+# Status: ✅ APPROVED Oct 4, 2026 ("Yes"). ✅ W1 + W2 BUILT Oct 4, 2026 (migration `c3e6a9d2b58f`, `users.chain_id`, every pharmacy has a workspace, every creation path writes it, `/auth/me` carries `workspace`, gate extended, 7 tests). W3/W4 not started.
+# Deviations from the plan below: (1) NO `audit_logs.chain_id` — an entry already records the place it happened at, so workspace audit is read through the place's workspace (19 writers untouched); (2) `users.clinic_id` moves to P2 (nothing reads it before the switcher). Original status: PLAN ONLY. Direction given Oct 4, 2026: "logins should be based on workspace — at hospital level. Under the hospital there can be multiple clinics, multiple pharmacies, multiple doctors, staff."
 # Supersedes the Oct 2, 2026 decision in docs/27 to keep `pharmacy_id` as the login tenant. Pharmacy DATA (stock, bills, purchases…) keeps `pharmacy_id`; only core identity moves up.
 
 ## Why (product view)

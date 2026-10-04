@@ -10,11 +10,12 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from deps import DbSession
+from models.chains import Chain
 from models.pharmacy import Pharmacy
 from models.users import AuditLog, PasswordResetToken as PasswordResetTokenORM, Role as RoleORM, User as UserORM
 from routers.auth_helpers import (
@@ -93,6 +94,15 @@ class ResetPassword(BaseModel):
     new_password: str = Field(min_length=6)
 
 
+async def _workspace_of(db: AsyncSession, user: User):
+    chain_id = user.chain_id or await chain_of(db, uuid.UUID(user.pharmacy_id))
+    if not chain_id:
+        return None
+    # tenant-safe: the caller's own workspace, taken from their own login row
+    chain = (await db.execute(select(Chain).where(Chain.id == uuid.UUID(str(chain_id))))).scalar_one_or_none()
+    return {"id": str(chain.id), "name": chain.name} if chain else None
+
+
 @router.post("/auth/register")
 async def register(user_data: UserCreate, db: AsyncSession = DbSession):
     # Email uniqueness is checked globally (not per-pharmacy) because login
@@ -120,6 +130,7 @@ async def register(user_data: UserCreate, db: AsyncSession = DbSession):
 
     user = UserORM(
         pharmacy_id=pharmacy.id,
+        chain_id=pharmacy.chain_id,
         role_id=role.id,
         is_admin=True,
         name=user_data.name,
@@ -130,6 +141,8 @@ async def register(user_data: UserCreate, db: AsyncSession = DbSession):
     db.add(user)
     await db.flush()
     await sync_user_store_role(db, user_id=user.id, pharmacy_id=pharmacy.id, role_id=role.id)
+    # The person who creates the workspace owns it.
+    await db.execute(update(Chain).where(Chain.id == pharmacy.chain_id).values(owner_user_id=user.id))
 
     token = create_access_token({"sub": str(user.id), "email": user.email})
     return {
@@ -311,6 +324,7 @@ async def create_session(request: Request, response: Response, db: AsyncSession 
 
         user = UserORM(
             pharmacy_id=pharmacy.id,
+            chain_id=pharmacy.chain_id,
             role_id=role.id,
             is_admin=(role_name == "admin"),
             name=session_data["name"],
@@ -367,4 +381,6 @@ async def get_me(current_user: User = Depends(get_current_user), db: AsyncSessio
         # What the role's ticks actually allow (["*"] = everything) — the frontend shows or hides
         # buttons from this, never from the role's name. The backend still enforces on every call.
         "permissions": flatten_permissions(role_row.permissions if role_row else {}, current_user.is_admin),
+        # The workspace (hospital) the login belongs to — docs/33_WORKSPACE_SCOPE.md.
+        "workspace": await _workspace_of(db, current_user),
     }

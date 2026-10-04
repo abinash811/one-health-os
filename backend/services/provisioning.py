@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 
 from constants import DEFAULT_ROLES
+from models.chains import Chain
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.users import Role as RoleORM, UserStoreRole
 
@@ -48,12 +49,14 @@ async def create_pharmacy_with_defaults(
     drug_license_number: Optional[str] = None,
     source_settings: Optional[PharmacySettings] = None,
     chain_id: Optional[uuid.UUID] = None,
+    workspace_name: Optional[str] = None,
 ) -> Pharmacy:
     """Create a Pharmacy, its PharmacySettings, and the default role set.
 
-    `chain_id`, when given, puts the new pharmacy in that hospital and does NOT create a
-    role set — roles belong to the hospital (docs/32_CLINICS_SCOPE.md P0) and the new place
-    uses the hospital's existing ones.
+    `chain_id`, when given, puts the new pharmacy in that workspace (hospital) and does NOT create a
+    role set — roles belong to the workspace (docs/32 P0, docs/33) and the new place uses the existing
+    ones. When omitted a NEW workspace is formed around this pharmacy (named `workspace_name`, else the
+    pharmacy's name) and it gets the default roles — every pharmacy lives in a workspace.
 
     Does not commit — caller controls the transaction so the pharmacy can be
     created in the same unit of work as the admin user who owns it.
@@ -67,6 +70,12 @@ async def create_pharmacy_with_defaults(
     admin has to manually redo. Omitted/None = today's unchanged behavior,
     every field at its bare column default.
     """
+    new_workspace = chain_id is None
+    if new_workspace:
+        workspace = Chain(name=(workspace_name or name))
+        db.add(workspace)
+        await db.flush()
+        chain_id = workspace.id
     pharmacy = Pharmacy(
         name=name,
         address=address,
@@ -92,9 +101,10 @@ async def create_pharmacy_with_defaults(
     else:
         db.add(PharmacySettings(pharmacy_id=pharmacy.id))
 
-    for role_def in (DEFAULT_ROLES if chain_id is None else []):
+    for role_def in (DEFAULT_ROLES if new_workspace else []):
         db.add(RoleORM(
             pharmacy_id=pharmacy.id,
+            chain_id=chain_id,
             name=role_def["name"],
             description=role_def.get("display_name", role_def["name"]),
             permissions=role_def["permissions"],

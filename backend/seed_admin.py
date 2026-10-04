@@ -16,6 +16,7 @@ Run from the backend/ directory:
 Safe to run multiple times — skips anything that already exists.
 """
 from __future__ import annotations
+from models.chains import Chain
 from models.users import Role, User
 from models.pharmacy import Pharmacy, PharmacySettings
 from database import AsyncSessionLocal, engine
@@ -63,8 +64,12 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
         if pharmacy:
             print(f"  ✅ Pharmacy already exists: {pharmacy.name}  (id={pharmacy.id})")
         else:
+            workspace = Chain(name="PharmaCare Pharmacy")
+            db.add(workspace)
+            await db.flush()
             pharmacy = Pharmacy(
                 id=uuid.uuid4(),
+                chain_id=workspace.id,
                 name="PharmaCare Pharmacy",
                 address="123 Medical Street",
                 city="Bengaluru",
@@ -132,6 +137,8 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
         existing_user = u_result.scalar_one_or_none()
 
         if existing_user:
+            if existing_user.chain_id is None:
+                existing_user.chain_id = pharmacy.chain_id
             if force:
                 existing_user.password_hash = pwd_context.hash(password)
                 existing_user.name = name
@@ -157,6 +164,7 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
             new_user = User(
                 id=uuid.uuid4(),
                 pharmacy_id=pharmacy.id,
+                chain_id=pharmacy.chain_id,
                 role_id=admin_role.id,
                 is_admin=True,
                 name=name,

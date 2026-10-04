@@ -55,6 +55,9 @@ class User(Base):
         UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
     role_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False)
+    # The workspace (hospital) this login belongs to — docs/33_WORKSPACE_SCOPE.md. Nullable until the
+    # contract step (W4); every creation path writes it from W2.
+    chain_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("chains.id"))
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     email: Mapped[str] = mapped_column(String(200), nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(String(10))

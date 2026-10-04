@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **Workspace** (docs/33 W1+W2): every hospital now has a workspace that its logins, roles, pharmacies and clinics belong to. Signing up forms one; places added later join it. Existing standalone pharmacies each got a workspace of one — nothing changed for them.
 - **Settings → Organisation → Clinics** (docs/32 P1): clinics are now their own records, separate from pharmacies. Create, edit and deactivate them; who can is decided by the Clinics ticks in a role (administrators always). Places that already used EMR keep working — each got a clinic with the same id.
 - New role ticks: View / Create / Edit Clinics and View / Create / Edit Pharmacies.
 

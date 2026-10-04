@@ -33,6 +33,7 @@ class User(BaseModel):
     role: str        # role name — for checks like: current_user.role == "admin"
     role_id: str
     pharmacy_id: str
+    chain_id: Optional[str] = None   # the workspace (hospital) — docs/33
     is_active: bool = True
     is_admin: bool = False
 
@@ -96,6 +97,7 @@ async def get_current_user(
         role=user_row.role.name,
         role_id=str(user_row.role_id),
         pharmacy_id=str(user_row.pharmacy_id),
+        chain_id=str(user_row.chain_id) if user_row.chain_id else None,
         is_active=user_row.is_active,
         is_admin=user_row.is_admin,
     )

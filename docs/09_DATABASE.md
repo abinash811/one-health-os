@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.23 | Last updated: October 4, 2026
+# Version: 1.24 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -285,6 +285,7 @@ Pharmacy staff members. One user belongs to one pharmacy and one role.
 |--------|------|-------|
 | `id` | UUID PK | — |
 | `pharmacy_id` | UUID FK | — |
+| `chain_id` | UUID FK → chains, nullable | The login's workspace (hospital) — migration `c3e6a9d2b58f`, Oct 4, 2026, docs/33 W1. Every creation path sets it; NOT NULL arrives at W4. Every pharmacy now has a `chains` row (workspace of one for formerly standalone ones; its roles/clinics/doctors moved under it) |
 | `role_id` | UUID FK → roles | — |
 | `name` | String(200) | — |
 | `email` | String(200) | UNIQUE per pharmacy |

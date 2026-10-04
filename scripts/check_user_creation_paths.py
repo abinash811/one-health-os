@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """check_user_creation_paths.py — fails if backend code creates a `User` row without also writing the matching
-store-access row (`sync_user_store_role`, docs/26_MULTI_CHAIN_SCOPE.md).
+store-access row (`sync_user_store_role`, docs/26_MULTI_CHAIN_SCOPE.md) or without a `chain_id=` (the login's
+workspace, docs/33_WORKSPACE_SCOPE.md — added Oct 4, 2026 so a new creation path can't forget it).
 
 Why: found Oct 3, 2026 — `seed_admin.py` created admins with no `user_store_roles` row, so the sidebar store
 switcher read "Loading…" and the Doctors "Works at" list came up empty for exactly the person who sets the app up.
@@ -29,6 +30,10 @@ def main() -> int:
                     and any(k.arg == "password_hash" for k in node.keywords)
                     and "sync_user_store_role" not in src):
                 bad.append(f"{path.relative_to(BACKEND.parent)}:{node.lineno}: creates a User but never calls sync_user_store_role")
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in ("User", "UserORM")
+                    and any(k.arg == "password_hash" for k in node.keywords)
+                    and not any(k.arg == "chain_id" for k in node.keywords)):
+                bad.append(f"{path.relative_to(BACKEND.parent)}:{node.lineno}: creates a User without chain_id (the workspace)")
     for line in bad:
         print(line)
     return 1 if bad else 0
