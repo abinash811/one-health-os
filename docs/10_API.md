@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.38 | Last updated: October 4, 2026
+# Version: 1.39 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1303,6 +1303,7 @@ List all sequence types (INV, RTN, etc.)
 ## USERS & ROLES
 
 ### `GET /users`
+> **Oct 4, 2026 (docs/33 W3):** Team is the whole **workspace** — every login in the hospital, whichever place you are at. The same applies to `GET/PUT/DELETE /users/{id}`, reset-password and store-access. Adding a login whose email already exists in the workspace is refused (400). `POST /auth/register` still checks the email globally.
 List all users in the pharmacy.
 
 ### `POST /users`
@@ -1500,7 +1501,7 @@ Clinics are EMR places, separate from pharmacies. Visible to the caller's own ho
 ## AUDIT LOGS
 
 ### `GET /audit-logs`
-List audit log entries.
+List audit log entries. **Oct 4, 2026 (docs/33 W3):** covers every place in the caller's workspace the caller has access to (grant-checked) — not just the current place.
 
 **Query params:** `entity_type`, `entity_id`, `action`, `page`, `page_size`
 

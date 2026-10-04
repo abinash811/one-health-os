@@ -16,6 +16,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 - New role ticks: View / Create / Edit Clinics and View / Create / Edit Pharmacies.
 
 ### Changed
+- Team is now the whole workspace (docs/33 W3): every login in the hospital is listed and manageable from any place; the same email can't be added twice in one workspace. The Audit Log shows actions at every place the viewer has access to. Doctors can be linked to any login in the workspace.
 - "Stores & chain" is now **Pharmacies**. Adding a pharmacy needs the Create Pharmacies tick (not administrator only), and the person who adds it gets the role they already have there, never administrator.
 - Roles now belong to the hospital, not to one pharmacy (docs/32 P0): a place added to a hospital uses its existing roles, and a role made once works everywhere. No one's access changed — existing hospitals' roles were merged by name and permissions (migration `a1c4e7d90b36`).
 

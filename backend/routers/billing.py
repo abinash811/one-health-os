@@ -21,7 +21,7 @@ from models.customers import Customer as CustomerORM, Doctor as DoctorORM
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.users import AuditLog, User as UserORM
-from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission
+from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission, resolve_chain_scope_pids
 
 router = APIRouter(prefix="/api", tags=["billing"])
 logger = logging.getLogger(__name__)
@@ -1488,8 +1488,10 @@ async def get_audit_logs(
     if not await has_permission(current_user, "reports:view", db):
         raise HTTPException(
             status_code=403, detail="Your role does not have permission to view the audit log")
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    query = select(AuditLog).where(AuditLog.pharmacy_id == pharmacy_id)
+    # Workspace audit (docs/33 W3): every place in the caller's workspace the caller actually has access
+    # to (grant-checked, never "everything in the hospital"), newest first.
+    place_ids = await resolve_chain_scope_pids(current_user, "chain", db)
+    query = select(AuditLog).where(AuditLog.pharmacy_id.in_(place_ids))
     if entity_type:
         query = query.where(AuditLog.entity_type == entity_type)
     if entity_id:

@@ -13,10 +13,11 @@ from deps import DbSession
 from models.pharmacy import Pharmacy as PharmacyORM
 from models.users import AuditLog, Role as RoleORM, User as UserORM, UserStoreRole
 from routers.auth_helpers import (
-    User, get_current_user, get_owned_or_404, hash_password, require_admin_or_super, verify_password,
+    User, get_current_user, hash_password, require_admin_or_super, verify_password,
 )
 from services.provisioning import sync_user_store_role
-from services.role_scope import chain_of, find_role
+from services.role_scope import find_role
+from services.workspace import caller_workspace, get_workspace_user_or_404, list_workspace_users
 
 router = APIRouter(prefix="/api", tags=["users"])
 
@@ -93,12 +94,8 @@ def _user_response(user: UserORM) -> dict:
 async def get_all_users(current_user: User = Depends(get_current_user),
                         db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
-    result = await db.execute(
-        select(UserORM)
-        .options(joinedload(UserORM.role))
-        .where(UserORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
-    )
-    return [_user_response(u) for u in result.scalars().unique().all()]
+    users = await list_workspace_users(db, await caller_workspace(db, current_user))
+    return [_user_response(u) for u in users]
 
 
 @router.post("/users")
@@ -112,15 +109,16 @@ async def create_user(user_data: UserCreate, request: Request, current_user: Use
     if not role:
         raise HTTPException(status_code=400, detail=f"Role '{user_data.role}' not found")
 
+    workspace_id = await caller_workspace(db, current_user)
     existing = await db.execute(
-        select(UserORM).where(UserORM.pharmacy_id == pharmacy_id, UserORM.email == user_data.email)
+        select(UserORM).where(UserORM.chain_id == workspace_id, UserORM.email == user_data.email)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
 
     user = UserORM(
         pharmacy_id=pharmacy_id,
-        chain_id=await chain_of(db, pharmacy_id),
+        chain_id=workspace_id,
         role_id=role.id,
         is_admin=user_data.is_admin,
         name=user_data.name,
@@ -148,13 +146,7 @@ async def create_user(user_data: UserCreate, request: Request, current_user: Use
 async def get_user(user_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
-    result = await db.execute(
-        select(UserORM).options(joinedload(UserORM.role)).where(
-            UserORM.id == uuid.UUID(user_id), UserORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
-    )
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = await get_workspace_user_or_404(db, user_id, await caller_workspace(db, current_user))
     return _user_response(user)
 
 
@@ -162,11 +154,8 @@ async def get_user(user_id: str, current_user: User = Depends(
 async def update_user(user_id: str, user_update: UserUpdate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
-    result = await db.execute(
-        select(UserORM).options(joinedload(UserORM.role)).where(
-            UserORM.id == uuid.UUID(user_id), UserORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
-    )
-    user = result.scalar_one_or_none()
+    workspace_id = await caller_workspace(db, current_user)
+    user = await get_workspace_user_or_404(db, user_id, workspace_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -182,7 +171,7 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, c
     if user_update.email is not None and user_update.email != user.email:
         dup = await db.execute(
             select(UserORM).where(
-                UserORM.pharmacy_id == user.pharmacy_id,
+                UserORM.chain_id == workspace_id,
                 UserORM.email == user_update.email)
         )
         if dup.scalar_one_or_none():
@@ -221,8 +210,8 @@ async def deactivate_user(user_id: str, request: Request, current_user: User = D
     await require_admin_or_super(current_user, db)
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot deactivate yourself")
-    user = await get_owned_or_404(
-        db, UserORM, user_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="User not found")
+    user = await get_workspace_user_or_404(
+        db, user_id, await caller_workspace(db, current_user))
 
     user.is_active = False
     await db.flush()
@@ -244,8 +233,8 @@ async def admin_reset_password(user_id: str, password_data: AdminResetPassword, 
     cashier previously had no way back in short of a direct DB edit.
     """
     await require_admin_or_super(current_user, db)
-    user = await get_owned_or_404(
-        db, UserORM, user_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="User not found")
+    user = await get_workspace_user_or_404(
+        db, user_id, await caller_workspace(db, current_user))
 
     user.password_hash = hash_password(password_data.new_password)
     await db.flush()
@@ -382,22 +371,22 @@ async def _same_chain_or_self(target_pharmacy_id: uuid.UUID, admin_pharmacy_id: 
         select(PharmacyORM.chain_id).where(PharmacyORM.id == admin_pharmacy_id))
     admin_chain_id = result.scalar_one_or_none()
     if admin_chain_id is None:
-        raise HTTPException(status_code=400, detail="Your pharmacy is not part of a chain yet")
+        raise HTTPException(status_code=400, detail="Your pharmacy is not part of a workspace yet")
     # chain-scope-safe: single-target membership gate before a grant, not a multi-pharmacy rollup
     target_result = await db.execute(
         select(PharmacyORM).where(
             PharmacyORM.id == target_pharmacy_id,
             PharmacyORM.chain_id == admin_chain_id))  # chain-scope-safe: see above
     if not target_result.scalar_one_or_none():
-        raise HTTPException(status_code=403, detail="That store is not in your chain")
+        raise HTTPException(status_code=403, detail="That place is not in your workspace")
 
 
 @router.get("/users/{user_id}/store-access")
 async def get_user_store_access(user_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
-    await get_owned_or_404(
-        db, UserORM, user_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="User not found")
+    await get_workspace_user_or_404(
+        db, user_id, await caller_workspace(db, current_user))
 
     result = await db.execute(
         select(UserStoreRole, PharmacyORM.name, RoleORM.name)
@@ -422,8 +411,8 @@ async def grant_user_store_access(user_id: str, body: GrantStoreAccess, request:
     arbitrary user elsewhere in the system."""
     await require_admin_or_super(current_user, db)
     admin_pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    target_user = await get_owned_or_404(
-        db, UserORM, user_id, admin_pharmacy_id, not_found_detail="User not found")
+    target_user = await get_workspace_user_or_404(
+        db, user_id, await caller_workspace(db, current_user))
 
     target_pharmacy_id = uuid.UUID(body.pharmacy_id)
     await _same_chain_or_self(target_pharmacy_id, admin_pharmacy_id, db)
@@ -456,8 +445,8 @@ async def revoke_user_store_access(user_id: str, pharmacy_id: str, request: Requ
                                    db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
     admin_pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    target_user = await get_owned_or_404(
-        db, UserORM, user_id, admin_pharmacy_id, not_found_detail="User not found")
+    target_user = await get_workspace_user_or_404(
+        db, user_id, await caller_workspace(db, current_user))
 
     target_pharmacy_id = uuid.UUID(pharmacy_id)
     if target_pharmacy_id == target_user.pharmacy_id:

@@ -57,12 +57,12 @@ async def clinics_for(db: AsyncSession, practitioner_ids: list[uuid.UUID], pids:
     return out
 
 
-async def login_for(db: AsyncSession, user_ids: list[uuid.UUID], pids: list[uuid.UUID]) -> dict:
-    """{user_id: (name, email)} for linked logins at clinics the caller can see."""
+async def login_for(db: AsyncSession, user_ids: list[uuid.UUID], chain_id: uuid.UUID) -> dict:
+    """{user_id: (name, email)} for linked logins in the caller's workspace."""
     if not user_ids:
         return {}
     rows = (await db.execute(select(UserORM.id, UserORM.name, UserORM.email).where(
-        UserORM.id.in_(user_ids), UserORM.pharmacy_id.in_(pids)))).all()
+        UserORM.id.in_(user_ids), UserORM.chain_id == chain_id))).all()
     return {r[0]: (r[1], r[2]) for r in rows}
 
 
@@ -79,7 +79,8 @@ def shape(p: Practitioner, clinics: list, login: Optional[tuple]) -> dict:
     }
 
 
-async def shape_many(db: AsyncSession, items: list[Practitioner], pids: list[uuid.UUID]) -> list[dict]:
+async def shape_many(db: AsyncSession, items: list[Practitioner], pids: list[uuid.UUID],
+                     chain_id: uuid.UUID) -> list[dict]:
     clinic_map = await clinics_for(db, [p.id for p in items], pids)
-    logins = await login_for(db, [p.user_id for p in items if p.user_id], pids)
+    logins = await login_for(db, [p.user_id for p in items if p.user_id], chain_id)
     return [shape(p, clinic_map.get(p.id, []), logins.get(p.user_id)) for p in items]

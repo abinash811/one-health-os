@@ -19,6 +19,7 @@ from models.pharmacy import Pharmacy
 from models.practitioners import Practitioner, PractitionerClinic
 from models.users import AuditLog, User as UserORM
 from routers.auth_helpers import User, get_current_user, has_permission, resolve_chain_scope_pids
+from services.workspace import caller_workspace
 from services.practitioners import get_visible_or_404, shape_many, visible_clause
 
 router = APIRouter(prefix="/api", tags=["practitioners"])
@@ -97,10 +98,11 @@ async def _check_clinics(db: AsyncSession, clinics: list[ClinicLink], pids: list
         raise HTTPException(status_code=422, detail="A clinic is listed twice")
 
 
-async def _check_login(db: AsyncSession, user_id: uuid.UUID, pids: list[uuid.UUID],
+async def _check_login(db: AsyncSession, user_id: uuid.UUID, pids: list[uuid.UUID], chain_id: uuid.UUID,
                        this_practitioner: Optional[uuid.UUID]) -> None:
     user = (await db.execute(select(UserORM).where(
-        UserORM.id == user_id, UserORM.pharmacy_id.in_(pids), UserORM.is_active.is_(True)))).scalar_one_or_none()
+        UserORM.id == user_id, UserORM.chain_id == chain_id,
+        UserORM.is_active.is_(True)))).scalar_one_or_none()  # tenant-safe: workspace-scoped login lookup
     if not user:
         raise HTTPException(status_code=404, detail="That login was not found")
     other = (await db.execute(select(Practitioner).where(
@@ -152,18 +154,18 @@ async def list_practitioners(
     if not include_inactive:
         query = query.where(Practitioner.is_active.is_(True))
     items = (await db.execute(query.order_by(Practitioner.name))).scalars().all()
-    return await shape_many(db, list(items), pids)
+    return await shape_many(db, list(items), pids, await caller_workspace(db, current_user))
 
 
 @router.get("/practitioners/linkable-users")
 async def linkable_users(current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
-    """Active logins at the caller's clinics not yet linked to a doctor — for the 'Linked login' picker."""
+    """Active logins in the caller's workspace not yet linked to a doctor — for the 'Linked login' picker."""
     await _require_doctors_permission(current_user, "doctors:edit", db)
-    pids = await resolve_chain_scope_pids(current_user, "chain", db)
     taken = select(Practitioner.user_id).where(
         Practitioner.user_id.is_not(None), Practitioner.deleted_at.is_(None))
     users = (await db.execute(select(UserORM).where(
-        UserORM.pharmacy_id.in_(pids), UserORM.is_active.is_(True), UserORM.id.not_in(taken))
+        UserORM.chain_id == await caller_workspace(db, current_user), UserORM.is_active.is_(True),
+        UserORM.id.not_in(taken))
         .order_by(UserORM.name))).scalars().all()
     return [{"id": str(u.id), "name": u.name, "email": u.email} for u in users]
 
@@ -177,7 +179,7 @@ async def create_practitioner(data: PractitionerCreate, request: Request,
     clinics = data.clinics if data.clinics is not None else [ClinicLink(pharmacy_id=home)]
     await _check_clinics(db, clinics, pids)
     if data.user_id:
-        await _check_login(db, data.user_id, pids, None)
+        await _check_login(db, data.user_id, pids, await caller_workspace(db, current_user), None)
     chain_id = (await db.execute(
         select(Pharmacy.chain_id).where(Pharmacy.id == home))).scalar()  # tenant-safe: the caller's own clinic
     fields = data.model_dump(exclude={"clinics"})
@@ -189,7 +191,7 @@ async def create_practitioner(data: PractitionerCreate, request: Request,
     await _record_audit(home, uuid.UUID(current_user.id), "create", p.id,
                         {**{k: str(v) if isinstance(v, uuid.UUID) else v for k, v in fields.items()},
                          "clinics": [str(c.pharmacy_id) for c in clinics]}, db, ip_address=_client_ip(request))
-    return (await shape_many(db, [p], pids))[0]
+    return (await shape_many(db, [p], pids, await caller_workspace(db, current_user)))[0]
 
 
 @router.get("/practitioners/{practitioner_id}")
@@ -198,7 +200,7 @@ async def get_practitioner(practitioner_id: str, current_user: User = Depends(ge
     await _require_doctors_permission(current_user, "doctors:view", db)
     pids = await resolve_chain_scope_pids(current_user, "chain", db)
     p = await get_visible_or_404(db, practitioner_id, pids)
-    return (await shape_many(db, [p], pids))[0]
+    return (await shape_many(db, [p], pids, await caller_workspace(db, current_user)))[0]
 
 
 @router.put("/practitioners/{practitioner_id}")
@@ -216,7 +218,7 @@ async def update_practitioner(practitioner_id: str, data: PractitionerUpdate, re
     if "is_external" in changes and changes["is_external"] is None:
         changes.pop("is_external")
     if changes.get("user_id"):
-        await _check_login(db, changes["user_id"], pids, p.id)
+        await _check_login(db, changes["user_id"], pids, await caller_workspace(db, current_user), p.id)
     if data.clinics is not None:
         await _check_clinics(db, data.clinics, pids)
     old = {k: (str(getattr(p, k)) if isinstance(getattr(p, k), uuid.UUID) else getattr(p, k)) for k in changes}
@@ -230,7 +232,7 @@ async def update_practitioner(practitioner_id: str, data: PractitionerUpdate, re
         {**{k: str(v) if isinstance(v, uuid.UUID) else v for k, v in changes.items()},
          **({"clinics": [str(c.pharmacy_id) for c in data.clinics]} if data.clinics is not None else {})},
         db, old_values=old or None, ip_address=_client_ip(request))
-    return (await shape_many(db, [p], pids))[0]
+    return (await shape_many(db, [p], pids, await caller_workspace(db, current_user)))[0]
 
 
 @router.delete("/practitioners/{practitioner_id}")

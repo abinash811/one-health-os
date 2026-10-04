@@ -59,6 +59,9 @@ MODULE_ROUTERS_GLOB = (REPO_ROOT / "backend" / "modules").glob("*/routers/*.py")
 EXEMPT_FILES = {"auth_helpers.py", "chains.py"}
 
 CHAIN_ID_QUERY_RE = re.compile(r"\.chain_id\s*(==|\.in_\()")
+# `UserORM.chain_id` is the workspace boundary for LOGINS (docs/33 W3: Team, doctor-login links) — an identity
+# scope, not a pharmacy_id rollup, and the caller's own workspace comes from services/workspace.py.
+WORKSPACE_IDENTITY_RE = re.compile(r"\bUserORM\.chain_id\b")
 SAFE_MARKER = "# chain-scope-safe:"
 
 
@@ -68,7 +71,7 @@ def check_file(path: Path) -> list[str]:
     for i, line in enumerate(lines, start=1):
         if not CHAIN_ID_QUERY_RE.search(line):
             continue
-        if SAFE_MARKER in line:
+        if SAFE_MARKER in line or WORKSPACE_IDENTITY_RE.search(line):
             continue
         violations.append(
             f"{path.relative_to(REPO_ROOT)}:{i}: raw .chain_id query outside "

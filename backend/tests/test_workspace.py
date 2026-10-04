@@ -87,3 +87,71 @@ class TestWorkspace:
         mine = {u["email"] for u in self.s.get(f"{API}/users").json()}
         theirs = {u["email"] for u in other.get(f"{API}/users").json()}
         assert mine and theirs and not (mine & theirs)
+
+
+class TestWorkspaceReads:
+    """W3 — Team, doctor logins and the audit log follow the workspace, not one pharmacy."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.s, self.sfx = _register("w3")
+        r = self.s.post(f"{API}/pharmacies/stores", json={
+            "name": f"Place B {self.sfx}", "address": "2 St", "city": "T", "state": "K", "pincode": "560002",
+            "phone": "9877730001", "drug_license_number": f"DL-W3B-{self.sfx}"})
+        assert r.status_code == 200, r.text
+        self.b = r.json()["pharmacy_id"]
+        stores = self.s.get(f"{API}/pharmacies/stores").json()
+        self.a = next(x["pharmacy_id"] for x in stores if x["pharmacy_id"] != self.b)
+
+    def _switch(self, session, pharmacy_id):
+        assert session.post(f"{API}/users/me/switch-store", json={"pharmacy_id": pharmacy_id}).status_code == 200
+
+    def _member(self, tag, role="cashier", perms=None):
+        role_name = role
+        if perms is not None:
+            role_name = f"r_{tag}_{self.sfx}"
+            assert self.s.post(f"{API}/roles", json={"name": role_name, "display_name": role_name,
+                                                     "permissions": perms}).status_code == 200
+        email = f"{tag}_{self.sfx}@pharmacy.com"
+        r = self.s.post(f"{API}/users", json={
+            "name": tag, "email": email, "password": "Member12345", "role": role_name})
+        assert r.status_code == 200, r.text
+        return r.json(), email
+
+    def test_team_is_the_whole_workspace_whichever_place_you_are_at(self):
+        member, email = self._member("teamw3")
+        self._switch(self.s, self.b)
+        assert email in {u["email"] for u in self.s.get(f"{API}/users").json()}
+        up = self.s.put(f"{API}/users/{member['id']}", json={"name": "Renamed"})
+        assert up.status_code == 200 and up.json()["name"] == "Renamed"
+
+    def test_the_same_email_cannot_be_added_twice_in_one_workspace(self):
+        _, email = self._member("dupw3")
+        self._switch(self.s, self.b)
+        again = self.s.post(f"{API}/users", json={"name": "Dup", "email": email, "password": "Member12345",
+                                                  "role": "cashier"})
+        assert again.status_code == 400 and "already registered" in again.json()["detail"]
+
+    def test_a_login_from_another_place_can_be_linked_to_a_doctor(self):
+        member, _ = self._member("docw3")
+        self._switch(self.s, self.b)
+        linkable = {u["id"] for u in self.s.get(f"{API}/practitioners/linkable-users").json()}
+        assert member["id"] in linkable
+
+    def test_audit_log_covers_every_place_the_viewer_has_access_to_and_no_more(self):
+        _, email = self._member("audw3", perms=["reports:view"])
+        assert self.s.post(f"{API}/clinics", json={"name": "Clinic At A"}).status_code == 200
+        self._switch(self.s, self.b)
+        assert self.s.post(f"{API}/clinics", json={"name": "Clinic At B"}).status_code == 200
+
+        names = lambda sess: {  # noqa: E731
+            (r["new_value"] or {}).get("name") for r in sess.get(
+                f"{API}/audit-logs", params={"entity_type": "clinic"}).json()["data"]}
+        assert {"Clinic At A", "Clinic At B"} <= names(self.s)
+
+        m = requests.Session()
+        m.headers.update({"Content-Type": "application/json"})
+        tok = m.post(f"{API}/auth/login", json={"email": email, "password": "Member12345"}).json()["token"]
+        m.headers.update({"Authorization": f"Bearer {tok}"})
+        seen = names(m)
+        assert "Clinic At B" not in seen
