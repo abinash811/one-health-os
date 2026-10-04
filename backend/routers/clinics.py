@@ -11,13 +11,14 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import DbSession
 from models.clinics import Clinic
 from models.users import AuditLog, User as UserORM, UserClinicAccess
 from routers.auth_helpers import User, get_current_user, has_permission
+from services.clinic_guards import first_open_work
 from services.clinics import get_clinic_or_404, list_clinics, name_taken, shape
 from services.workspace import caller_workspace
 
@@ -98,6 +99,19 @@ class ClinicUpdate(ClinicBase):
         return v
 
 
+async def _move_people_off(db: AsyncSession, clinic_id: uuid.UUID) -> None:
+    """Anyone whose active clinic was just switched off lands on another clinic they can open, or none."""
+    people = (await db.execute(select(UserORM).where(  # tenant-safe: only the people working at this clinic
+        UserORM.clinic_id == clinic_id))).scalars().all()
+    for person in people:
+        other = (await db.execute(
+            select(UserClinicAccess.clinic_id).join(Clinic, Clinic.id == UserClinicAccess.clinic_id)
+            .where(UserClinicAccess.user_id == person.id, Clinic.is_active, Clinic.deleted_at.is_(None),
+                   Clinic.id != clinic_id).limit(1))).scalar_one_or_none()
+        person.clinic_id = other
+    await db.flush()
+
+
 @router.get("/clinics")
 async def list_all_clinics(include_inactive: bool = Query(False), current_user: User = Depends(get_current_user),
                            db: AsyncSession = DbSession):
@@ -148,10 +162,17 @@ async def update_clinic(clinic_id: str, body: ClinicUpdate, request: Request,
         changes.pop("is_active")
     if "name" in changes and await name_taken(db, pharmacy_id, changes["name"], except_id=clinic.id):
         raise HTTPException(status_code=409, detail=f"A clinic named '{changes['name']}' already exists")
+    switching_off = changes.get("is_active") is False and clinic.is_active
+    if switching_off:
+        reason = await first_open_work(db, clinic.id)
+        if reason:
+            raise HTTPException(status_code=409, detail=f"Can't deactivate {clinic.name}: {reason}")
     old = {k: getattr(clinic, k) for k in changes}
     for key, value in changes.items():
         setattr(clinic, key, value)
     await db.flush()
+    if switching_off:
+        await _move_people_off(db, clinic.id)
     await _record_audit(pharmacy_id, uuid.UUID(current_user.id), "update", clinic.id, changes, db,
                         old_values=old, ip_address=_client_ip(request))
     await db.flush()

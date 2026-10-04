@@ -151,3 +151,58 @@ class TestClinicAccess(_Base):
         ids = {p["id"] for g in perms.values() for p in g["permissions"]}
         assert {"clinics:view", "clinics:create", "clinics:edit",
                 "pharmacies:view", "pharmacies:create", "pharmacies:edit"} <= ids
+
+
+class TestSwitchingAClinicOff(_Base):
+    """docs/32 P2d: a clinic with open work cannot be deactivated; people working there are moved off it."""
+
+    def _visit(self, fee_paise=None):
+        doctor = self.s.post(f"{API}/practitioners", json={
+            "name": "Dr Guard", "clinics": [{"clinic_id": self.cid, "consultation_fee_paise": fee_paise}]})
+        assert doctor.status_code == 200, doctor.text
+        patient = self.s.post(f"{API}/emr/patients", json={"name": "Guard Patient", "phone": "9000000009"}).json()
+        from datetime import date
+        appt = self.s.post(f"{API}/emr/appointments", json={
+            "patient_id": patient["id"], "doctor_id": doctor.json()["id"],
+            "appointment_date": date.today().isoformat()})
+        assert appt.status_code == 200, appt.text
+        return appt.json()
+
+    @pytest.fixture(autouse=True)
+    def clinic(self, setup):
+        self.cid = self._create("Guarded Clinic").json()["id"]
+
+    def test_open_appointments_block_deactivation_with_a_plain_reason(self):
+        self._visit()
+        r = self.s.put(f"{API}/clinics/{self.cid}", json={"is_active": False})
+        assert r.status_code == 409
+        assert "Guarded Clinic" in r.json()["detail"] and "appointment" in r.json()["detail"]
+        assert self.s.get(f"{API}/clinics/{self.cid}").json()["is_active"] is True
+
+    def test_finished_work_lets_it_switch_off(self):
+        appt = self._visit()
+        done = self.s.post(f"{API}/emr/appointments/{appt['id']}/status",
+                           json={"status": "cancelled", "cancel_reason": "test"})
+        assert done.status_code == 200, done.text
+        assert self.s.put(f"{API}/clinics/{self.cid}", json={"is_active": False}).status_code == 200
+
+    def test_unbilled_fees_block_it_too(self):
+        appt = self._visit(fee_paise=50000)
+        self.s.post(f"{API}/emr/appointments/{appt['id']}/status", json={"status": "checked_in"})
+        self.s.post(f"{API}/emr/appointments/{appt['id']}/status", json={"status": "in_consult"})
+        self.s.post(f"{API}/emr/appointments/{appt['id']}/status", json={"status": "completed"})
+        r = self.s.put(f"{API}/clinics/{self.cid}", json={"is_active": False})
+        assert r.status_code == 409 and "not yet billed" in r.json()["detail"]
+
+    def test_people_working_there_move_to_another_clinic_or_none(self):
+        other = self._create("Second Guarded").json()["id"]
+        assert self.s.put(f"{API}/clinics/{self.cid}", json={"is_active": False}).status_code == 200
+        active = [c["clinic_id"] for c in self.s.get(f"{API}/users/me/clinics").json() if c["is_active"]]
+        assert active == [other]
+        assert self.s.put(f"{API}/clinics/{other}", json={"is_active": False}).status_code == 200
+        assert self.s.get(f"{API}/users/me/clinics").json() == []
+        assert self.s.get(f"{API}/emr/appointments").status_code == 409  # no clinic selected — plain next step
+
+    def test_switching_back_on_is_never_blocked(self):
+        self.s.put(f"{API}/clinics/{self.cid}", json={"is_active": False})
+        assert self.s.put(f"{API}/clinics/{self.cid}", json={"is_active": True}).status_code == 200

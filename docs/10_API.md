@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.42 | Last updated: October 4, 2026
+# Version: 1.43 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1307,7 +1307,7 @@ List all sequence types (INV, RTN, etc.)
 List all users in the pharmacy.
 
 ### `POST /users`
-Create a new user. Body: `email`, `name`, `password`, `role`, optional `is_admin` (default `false`).
+Create a new user. Body: `email`, `name`, `password`, `role`, optional `is_admin` (default `false`), optional `clinic_ids` (clinics the login may open straight away, with the chosen role; the first becomes their active clinic; an unknown or other-workspace clinic is a 404 and nothing is created).
 
 ### `GET /users/{user_id}`
 Get single user detail. Admin only.
@@ -1497,7 +1497,7 @@ Clinics are EMR places, separate from pharmacies. Visible to the caller's own ho
 | GET | `/clinics?include_inactive=` | Clinics in the caller's hospital. Needs `clinics:view`. Row: `{id, name, address, city, state, pincode, phone, email, registration_no, is_active, has_pharmacy}` |
 | POST | `/clinics` | `name` required; others optional (pincode 6 digits). Needs `clinics:create`. Forms the hospital on first use (roles and the founding place's clinics move under it). 409 if the name exists in the hospital |
 | GET | `/clinics/{id}` | `clinics:view`; 404 for another hospital's clinic |
-| PUT | `/clinics/{id}` | Partial; `is_active=false` deactivates (never deleted). Needs `clinics:edit`; 409 on duplicate name |
+| PUT | `/clinics/{id}` | Partial; `is_active=false` deactivates (never deleted). Needs `clinics:edit`; 409 on duplicate name. **Deactivating is refused (409, plain reason)** while upcoming appointments are open or charges/bills are unsettled; once off, anyone working there is moved to another clinic they can open (or none) |
 
 **Doctors at a clinic (Oct 4, 2026, docs/32 P2c)** — the clinic-side view of the doctor↔clinic mapping:
 | Method | Path | Notes |

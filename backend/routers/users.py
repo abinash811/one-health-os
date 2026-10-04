@@ -11,11 +11,12 @@ from sqlalchemy.orm import joinedload
 
 from deps import DbSession
 from models.pharmacy import Pharmacy as PharmacyORM
-from models.users import AuditLog, Role as RoleORM, User as UserORM, UserStoreRole
+from models.users import AuditLog, Role as RoleORM, User as UserORM, UserClinicAccess, UserStoreRole
 from routers.auth_helpers import (
     User, get_current_user, hash_password, require_admin_or_super, verify_password,
 )
 from services.provisioning import sync_user_store_role
+from services.clinics import get_clinic_or_404
 from services.role_scope import find_role
 from services.workspace import caller_workspace, get_workspace_user_or_404, list_workspace_users
 
@@ -51,6 +52,9 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=6)
     role: str
     is_admin: bool = False
+    # Clinics the new login may open straight away, with the role chosen above (docs/32 P2d). Optional —
+    # more can be granted later under Users → Clinic access.
+    clinic_ids: list[uuid.UUID] = Field(default_factory=list)
 
 
 class UserUpdate(BaseModel):
@@ -128,9 +132,15 @@ async def create_user(user_data: UserCreate, request: Request, current_user: Use
     db.add(user)
     await db.flush()
     await sync_user_store_role(db, user_id=user.id, pharmacy_id=pharmacy_id, role_id=role.id)
+    for clinic_id in dict.fromkeys(user_data.clinic_ids):   # de-duplicated, order kept
+        clinic = await get_clinic_or_404(db, str(clinic_id), pharmacy_id)
+        db.add(UserClinicAccess(user_id=user.id, clinic_id=clinic.id, role_id=role.id))
+        if user.clinic_id is None:
+            user.clinic_id = clinic.id
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "create", "user", user.id,
-        {"name": user.name, "email": user.email, "role": user_data.role, "is_admin": user.is_admin}, db,
+        {"name": user.name, "email": user.email, "role": user_data.role, "is_admin": user.is_admin,
+         **({"clinics": [str(c) for c in user_data.clinic_ids]} if user_data.clinic_ids else {})}, db,
         ip_address=_client_ip(request),
     )
     await db.flush()

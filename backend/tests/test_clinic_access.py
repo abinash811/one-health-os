@@ -116,3 +116,28 @@ class TestClinicAccess:
         cid = self._clinic("Closing Clinic")
         self.s.put(f"{API}/clinics/{cid}", json={"is_active": False})
         assert self.s.get(f"{API}/users/me/clinics").json() == []
+
+    def test_a_new_user_can_get_clinic_access_in_the_same_step(self):
+        c1 = self._clinic("Invite Clinic")
+        email = f"inv_{self.sfx}@pharmacy.com"
+        r = self.s.post(f"{API}/users", json={"name": "Inv", "email": email, "password": "Member12345",
+                                              "role": "receptionist", "clinic_ids": [c1, c1]})
+        assert r.status_code == 200, r.text
+        m = _session(email, "Member12345")
+        mine = m.get(f"{API}/users/me/clinics").json()
+        assert [(c["clinic_id"], c["is_active"], c["role_name"]) for c in mine] == [(c1, True, "receptionist")]
+        assert m.get(f"{API}/emr/appointments").status_code == 200   # works at once, no second step
+
+    def test_an_unknown_or_foreign_clinic_is_refused_and_nothing_is_created(self):
+        r = self.s.post(f"{API}/users", json={"name": "Bad", "email": f"bad_{self.sfx}@pharmacy.com",
+                                              "password": "Member12345", "role": "receptionist",
+                                              "clinic_ids": [str(uuid.uuid4())]})
+        assert r.status_code == 404
+        ghost = requests.post(f"{API}/auth/login", json={
+            "email": f"bad_{self.sfx}@pharmacy.com", "password": "Member12345"})
+        assert ghost.status_code in (400, 401)
+
+    def test_without_clinic_ids_nothing_changes(self):
+        email = f"plain_{self.sfx}@pharmacy.com"
+        self.s.post(f"{API}/users", json={"name": "P", "email": email, "password": "Member12345", "role": "cashier"})
+        assert _session(email, "Member12345").get(f"{API}/users/me/clinics").json() == []

@@ -11,6 +11,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **Invite with clinics**: when adding a user you can tick the clinics they can open (the one you work at is pre-ticked for doctors and receptionists), so they can work straight away.
+- **Clinics can't be switched off with open work**: upcoming appointments or unpaid clinic bills block it with a plain reason; people working there are moved to another clinic they can open.
 - **Place switcher in the top bar** (docs/32 P2c): shows the clinic or pharmacy you are working at and lists all your clinics and pharmacies in two groups. It replaces the switcher in the sidebar footer.
 - **Doctors at this clinic**: on Settings → Organisation → Clinics, tick which doctors practise at a clinic and set the fee there.
 - **Team → Clinic access**: grant or revoke a person's access to each clinic, with their role there.
@@ -20,6 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 - New role ticks: View / Create / Edit Clinics and View / Create / Edit Pharmacies.
 
 ### Changed
+- Audit Log now names clinic, doctor-at-clinic and pharmacy entries and lets you filter by them.
 - The clinic / pharmacy switcher now sits in the page header, right next to the page title ("Appointments | Sunrise Clinic ▾"); the separate top bar is gone. On phones it stays in the top bar.
 - In Settings → Organisation, "Team" is now called **Users** (page links unchanged).
 - EMR pages (Appointments, Calendar, Patients) no longer repeat the sidebar as tabs, and their titles now name the page instead of "Clinic".

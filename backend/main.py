@@ -15,6 +15,8 @@ from routers import (
     purchase_returns, purchases, reports, sales_returns,
     settings, stock_transfers, suppliers, users,
 )
+import modules.emr.clinic_guard  # noqa: F401  (registers EMR's say in switching a clinic off)
+import modules.patient_billing.clinic_guard  # noqa: F401
 from modules.emr.routers import appointments as emr_appointments
 from modules.emr.routers import patients as emr_patients
 from modules.emr.routers import prescriptions as emr_prescriptions
