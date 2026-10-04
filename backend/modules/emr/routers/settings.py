@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import DbSession
-from models.pharmacy import Pharmacy
+from models.clinics import Clinic
 from models.practitioners import PractitionerClinic
 from modules.emr.common import _client_ip, _record_audit, _require_emr_permission
 from modules.emr.constants import FIELD_STATES, MAX_SLOT_MINUTES, MIN_SLOT_MINUTES, PATIENT_FORM_DEFAULTS
@@ -24,6 +24,7 @@ from modules.emr.models import EmrSettings
 from modules.emr.settings_service import effective_patient_form, get_or_create_settings
 from modules.patient_billing.constants import MAX_AMOUNT_PAISE
 from routers.auth_helpers import User, get_current_user
+from services.clinics import active_clinic_id
 
 router = APIRouter(prefix="/api/emr", tags=["emr-settings"])
 
@@ -49,7 +50,8 @@ class ClinicDoctorFee(BaseModel):
 
 
 async def _settings_response(db, s: EmrSettings) -> dict:
-    ph = (await db.execute(select(Pharmacy).where(Pharmacy.id == s.pharmacy_id))).scalar_one()
+    ph = (await db.execute(  # tenant-safe: settings row is clinic-scoped
+        select(Clinic).where(Clinic.id == s.clinic_id))).scalar_one()
     return {
         "clinic_name": s.clinic_name, "clinic_address": s.clinic_address, "clinic_phone": s.clinic_phone,
         "clinic_email": s.clinic_email, "registration_no": s.registration_no, "rx_footer": s.rx_footer,
@@ -64,7 +66,7 @@ async def _settings_response(db, s: EmrSettings) -> dict:
 @router.get("/settings")
 async def get_settings(current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:view", db)
-    s = await get_or_create_settings(db, uuid.UUID(current_user.pharmacy_id))
+    s = await get_or_create_settings(db, active_clinic_id(current_user))
     return await _settings_response(db, s)
 
 
@@ -72,8 +74,8 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
 async def update_settings(data: SettingsUpdate, request: Request,
                           current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "emr_settings:edit", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    s = await get_or_create_settings(db, pharmacy_id)
+    clinic_id = active_clinic_id(current_user)
+    s = await get_or_create_settings(db, clinic_id)
     changes = data.model_dump(exclude_unset=True)
     for key in ("rx_prefix", "uhid_prefix"):
         if key in changes and not _PREFIX.match(changes[key] or ""):
@@ -100,7 +102,7 @@ async def update_settings(data: SettingsUpdate, request: Request,
         setattr(s, k, v.strip() if isinstance(v, str) and k not in ("clinic_address", "rx_footer") else v)
     await db.flush()
     await db.refresh(s)
-    await _record_audit(pharmacy_id, uuid.UUID(current_user.id), "update", "emr_settings", s.id,
+    await _record_audit(clinic_id, uuid.UUID(current_user.id), "update", "emr_settings", s.id,
                         changes, db, old_values=old, ip_address=_client_ip(request))
     return await _settings_response(db, s)
 
@@ -115,8 +117,8 @@ async def list_clinic_doctors(current_user: User = Depends(get_current_user),
                               db: AsyncSession = DbSession):
     """The doctors mapped to this clinic, with this clinic's consultation fee for each."""
     await _require_emr_permission(current_user, "patients:view", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    return [_clinic_doctor_dict(p, fee) for p, fee in await clinic_doctors(db, pharmacy_id)]
+    clinic_id = active_clinic_id(current_user)
+    return [_clinic_doctor_dict(p, fee) for p, fee in await clinic_doctors(db, clinic_id)]
 
 
 @router.put("/clinic-doctors/{practitioner_id}")
@@ -125,15 +127,15 @@ async def update_clinic_doctor_fee(practitioner_id: uuid.UUID, data: ClinicDocto
                                    db: AsyncSession = DbSession):
     """Set THIS clinic's consultation fee for a doctor mapped here (blank / 0 = no fee at check-in)."""
     await _require_emr_permission(current_user, "emr_settings:edit", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    doctor = await get_clinic_doctor(db, pharmacy_id, practitioner_id)
+    clinic_id = active_clinic_id(current_user)
+    doctor = await get_clinic_doctor(db, clinic_id, practitioner_id)
     link = (await db.execute(select(PractitionerClinic).where(
-        PractitionerClinic.practitioner_id == doctor.id, PractitionerClinic.pharmacy_id == pharmacy_id,
+        PractitionerClinic.practitioner_id == doctor.id, PractitionerClinic.clinic_id == clinic_id,
         PractitionerClinic.deleted_at.is_(None)))).scalar_one()
     old = {"consultation_fee_paise": link.consultation_fee_paise}
     link.consultation_fee_paise = data.consultation_fee_paise
     await db.flush()
-    await _record_audit(pharmacy_id, uuid.UUID(current_user.id), "update", "practitioner_clinic", link.id,
+    await _record_audit(clinic_id, uuid.UUID(current_user.id), "update", "practitioner_clinic", link.id,
                         {"consultation_fee_paise": link.consultation_fee_paise, "practitioner_id": str(doctor.id)},
                         db, old_values=old, ip_address=_client_ip(request))
     return _clinic_doctor_dict(doctor, link.consultation_fee_paise)

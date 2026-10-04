@@ -7,7 +7,7 @@ Design decisions (Abinash, Oct 2, 2026):
   link used only when both modules are on (matched by phone number).
 - A doctor is a `users` row (logs in with their own account), not the
   per-pharmacy `doctors` directory, for the same independence reason.
-- `pharmacy_id` stays the tenant key (docs/27_PLATFORM_MODULE_MAP.md).
+- `clinic_id` is the tenant key here (docs/32_CLINICS_SCOPE.md): EMR data belongs to a clinic, not a pharmacy.
 """
 from __future__ import annotations
 import uuid
@@ -30,18 +30,18 @@ from modules.emr.constants import (
 class EmrPatient(Base):
     __tablename__ = "emr_patients"
     __table_args__ = (
-        Index("idx_emr_patients_pharmacy", "pharmacy_id"),
-        Index("idx_emr_patients_phone", "pharmacy_id", "phone"),
-        Index("idx_emr_patients_name", "pharmacy_id", "name"),
+        Index("idx_emr_patients_clinic", "clinic_id"),
+        Index("idx_emr_patients_phone", "clinic_id", "phone"),
+        Index("idx_emr_patients_name", "clinic_id", "name"),
         Index("idx_emr_patients_customer", "customer_id"),
         # UHID = the clinic's own patient ID; unique per clinic, never reused.
-        Index("uq_emr_patients_uhid", "pharmacy_id", "uhid", unique=True,
+        Index("uq_emr_patients_uhid", "clinic_id", "uhid", unique=True,
               postgresql_where=text("uhid IS NOT NULL")),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
     uhid: Mapped[Optional[str]] = mapped_column(String(30))
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(String(10))
@@ -73,12 +73,12 @@ class EmrDoctorSchedule(Base):
     A doctor with morning + evening clinic has two rows for the same day."""
     __tablename__ = "emr_doctor_schedules"
     __table_args__ = (
-        Index("idx_emr_doctor_schedules_practitioner", "pharmacy_id", "practitioner_id", "weekday"),
+        Index("idx_emr_doctor_schedules_practitioner", "clinic_id", "practitioner_id", "weekday"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
     # Legacy login id from before doctors became their own records (docs/31, P2). No longer written;
     # kept readable for history until phase 4 drops it.
     doctor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
@@ -102,20 +102,20 @@ class EmrAppointment(Base):
     two receptionists being handed the same token."""
     __tablename__ = "emr_appointments"
     __table_args__ = (
-        UniqueConstraint("pharmacy_id", "practitioner_id", "appointment_date", "token_number",
+        UniqueConstraint("clinic_id", "practitioner_id", "appointment_date", "token_number",
                          name="uq_emr_appointments_token"),
         # No two live bookings for the same doctor/day/time slot.
-        Index("uq_emr_appointments_slot", "pharmacy_id", "practitioner_id", "appointment_date",
+        Index("uq_emr_appointments_slot", "clinic_id", "practitioner_id", "appointment_date",
               "start_time", unique=True,
               postgresql_where=text("deleted_at IS NULL AND start_time IS NOT NULL "
                                     "AND status NOT IN ('cancelled', 'no_show')")),
-        Index("idx_emr_appointments_day", "pharmacy_id", "appointment_date"),
+        Index("idx_emr_appointments_day", "clinic_id", "appointment_date"),
         Index("idx_emr_appointments_patient", "patient_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
     patient_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("emr_patients.id"), nullable=False)
     # Legacy login id from before doctors became their own records (docs/31, P2). No longer written;
@@ -152,17 +152,17 @@ class EmrPrescription(Base):
     prescription"). There is deliberately no separate consultation table."""
     __tablename__ = "emr_prescriptions"
     __table_args__ = (
-        UniqueConstraint("pharmacy_id", "rx_number", name="uq_emr_prescriptions_number"),
+        UniqueConstraint("clinic_id", "rx_number", name="uq_emr_prescriptions_number"),
         # One live (non-cancelled) Rx per appointment; cancelling frees it for a replacement.
         Index("uq_emr_prescriptions_appointment", "appointment_id", unique=True,
               postgresql_where=text("status <> 'cancelled' AND deleted_at IS NULL")),
         Index("idx_emr_prescriptions_patient", "patient_id"),
-        Index("idx_emr_prescriptions_pharmacy", "pharmacy_id"),
+        Index("idx_emr_prescriptions_clinic", "clinic_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
     appointment_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("emr_appointments.id"), nullable=False)
     patient_id: Mapped[uuid.UUID] = mapped_column(
@@ -199,12 +199,12 @@ class EmrPrescriptionItem(Base):
     __tablename__ = "emr_prescription_items"
     __table_args__ = (
         Index("idx_emr_prescription_items_rx", "prescription_id"),
-        Index("idx_emr_prescription_items_name", "pharmacy_id", "medicine_name"),
+        Index("idx_emr_prescription_items_name", "clinic_id", "medicine_name"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
     prescription_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("emr_prescriptions.id", ondelete="CASCADE"), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
@@ -225,9 +225,9 @@ class EmrSettings(Base):
     __tablename__ = "emr_settings"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False, unique=True)
-    # Blank = fall back to the pharmacy's own name / address / phone on printouts.
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False, unique=True)
+    # Blank = fall back to the clinic record's own name / address / phone on printouts.
     clinic_name: Mapped[Optional[str]] = mapped_column(String(200))
     clinic_address: Mapped[Optional[str]] = mapped_column(Text)
     clinic_phone: Mapped[Optional[str]] = mapped_column(String(20))

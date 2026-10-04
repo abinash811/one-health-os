@@ -1,5 +1,5 @@
 # EMR Module — v1 Scope (clinic-day flow)
-# Version: 0.8 | Last updated: October 3, 2026
+# Version: 0.9 | Last updated: October 4, 2026
 # Type: Explanation
 # Status: Steps 1–2 built (Oct 2, 2026); steps 3–5 not started. Schema decisions live in docs/09_DATABASE.md
 
@@ -74,5 +74,5 @@
 
 ## Open questions for Abinash
 - Does the doctor log in with their own user account? (Assumed yes.)
-- Clinic with no linked pharmacy — deferred.
+- Clinic with no linked pharmacy — ✅ solved Oct 4, 2026: clinics are their own records (docs/32); EMR data belongs to a clinic (`clinic_id`), no pharmacy needed.
 - Is the WhatsApp send in v1 or step 4 as written?

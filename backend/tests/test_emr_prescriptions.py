@@ -8,7 +8,7 @@ import uuid
 
 import requests
 
-from test_emr_appointments import BASE_URL, _EmrBase, _next_weekday_date
+from test_emr_appointments import BASE_URL, _EmrBase, _clinic_for_token, _next_weekday_date
 
 
 class TestPrescriptions(_EmrBase):
@@ -106,6 +106,7 @@ class TestPrescriptions(_EmrBase):
             "state": "Karnataka", "pincode": "560002",
             "drug_license_number": f"DL-EMRRX-{self.suffix}"})
         assert other.status_code == 200, other.text
+        _clinic_for_token(other.json()["token"])
         h = {"Authorization": f"Bearer {other.json()['token']}"}
         u = f"{BASE_URL}/api/emr/prescriptions/{rx['id']}"
         assert requests.get(u, headers=h).status_code == 404

@@ -1,6 +1,6 @@
 export interface DoctorClinic {
-  pharmacy_id: string;
-  pharmacy_name: string;
+  clinic_id: string;
+  clinic_name: string;
   /** Integer paise; null = no fee at this clinic. */
   consultation_fee_paise: number | null;
   is_active: boolean;
@@ -24,5 +24,5 @@ export interface Doctor {
   clinics: DoctorClinic[];
 }
 
-export interface ClinicOption { pharmacy_id: string; pharmacy_name: string; is_current?: boolean }
+export interface ClinicOption { clinic_id: string; clinic_name: string; is_current?: boolean }
 export interface LinkableUser { id: string; name: string; email: string }

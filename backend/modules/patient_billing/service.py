@@ -4,7 +4,7 @@ The HTTP routers and in-process callers (e.g. EMR posting a consultation fee at
 check-in) all go through these functions, so there is one set of rules for
 charges, invoices and payments. All money is integer paise. Callers pass
 already-authorised, tenant-scoped ids; every query here is scoped by
-`pharmacy_id` as well."""
+`clinic_id` as well."""
 from __future__ import annotations
 
 import re
@@ -28,10 +28,10 @@ def rupees(paise: int) -> str:
     return f"₹{paise / 100:,.2f}"
 
 
-async def _next_number(db: AsyncSession, column, pharmacy_id: uuid.UUID, prefix: str) -> str:
+async def _next_number(db: AsyncSession, column, clinic_id: uuid.UUID, prefix: str) -> str:
     """Highest trailing number ever issued + 1 — numbers are never reused or restarted."""
     rows = (await db.execute(select(column).where(
-        column.class_.pharmacy_id == pharmacy_id))).scalars().all()
+        column.class_.clinic_id == clinic_id))).scalars().all()
     top = max((int(m.group()) for r in rows if (m := re.search(r"\d+$", r))), default=0)
     return f"{prefix}{top + 1:06d}"
 
@@ -39,7 +39,7 @@ async def _next_number(db: AsyncSession, column, pharmacy_id: uuid.UUID, prefix:
 # ── Charges ──────────────────────────────────────────────────────────────────
 
 async def post_charge(
-    db: AsyncSession, *, pharmacy_id: uuid.UUID, user_id: uuid.UUID, patient_id: uuid.UUID,
+    db: AsyncSession, *, clinic_id: uuid.UUID, user_id: uuid.UUID, patient_id: uuid.UUID,
     patient_name: str, patient_uhid: Optional[str], source_module: str, description: str,
     unit_price_paise: int, quantity: int = 1, source_ref: Optional[str] = None,
     encounter_ref: Optional[str] = None, encounter_type: Optional[str] = None,
@@ -64,13 +64,13 @@ async def post_charge(
 
     async def _existing():
         return (await db.execute(select(PbChargeItem).where(
-            PbChargeItem.pharmacy_id == pharmacy_id,
+            PbChargeItem.clinic_id == clinic_id,
             PbChargeItem.idempotency_key == idempotency_key))).scalar_one_or_none()
 
     if idempotency_key and (found := await _existing()):
         return found, False
     charge = PbChargeItem(
-        pharmacy_id=pharmacy_id, patient_id=patient_id, patient_name=patient_name.strip(),
+        clinic_id=clinic_id, patient_id=patient_id, patient_name=patient_name.strip(),
         patient_uhid=patient_uhid, source_module=source_module, source_ref=source_ref,
         encounter_ref=encounter_ref, encounter_type=encounter_type, description=description.strip(),
         quantity=quantity, unit_price_paise=unit_price_paise, total_paise=unit_price_paise * quantity,
@@ -101,12 +101,12 @@ async def void_charge(db: AsyncSession, charge: PbChargeItem, reason: str) -> No
     await db.refresh(charge)
 
 
-async def void_unbilled_by_key(db: AsyncSession, pharmacy_id: uuid.UUID, idempotency_key: str,
+async def void_unbilled_by_key(db: AsyncSession, clinic_id: uuid.UUID, idempotency_key: str,
                                reason: str) -> Optional[PbChargeItem]:
     """For other modules: withdraw the charge they posted under `idempotency_key`, but only if it is
     still unbilled. Returns the voided charge, or None when there is nothing safe to void."""
     charge = (await db.execute(select(PbChargeItem).where(
-        PbChargeItem.pharmacy_id == pharmacy_id, PbChargeItem.idempotency_key == idempotency_key,
+        PbChargeItem.clinic_id == clinic_id, PbChargeItem.idempotency_key == idempotency_key,
         PbChargeItem.status == CHG_UNBILLED).with_for_update())).scalar_one_or_none()
     if not charge:
         return None
@@ -114,33 +114,33 @@ async def void_unbilled_by_key(db: AsyncSession, pharmacy_id: uuid.UUID, idempot
     return charge
 
 
-async def open_balance_paise(db: AsyncSession, pharmacy_id: uuid.UUID, patient_id: uuid.UUID) -> int:
+async def open_balance_paise(db: AsyncSession, clinic_id: uuid.UUID, patient_id: uuid.UUID) -> int:
     """What this patient still owes on their account: unbilled charges + the unpaid part of open invoices.
     For other modules that must not act on a patient who owes money (e.g. EMR refusing to delete them)."""
     unbilled = (await db.execute(select(func.coalesce(func.sum(PbChargeItem.total_paise), 0)).where(
-        PbChargeItem.pharmacy_id == pharmacy_id, PbChargeItem.patient_id == patient_id,
+        PbChargeItem.clinic_id == clinic_id, PbChargeItem.patient_id == patient_id,
         PbChargeItem.status == CHG_UNBILLED, PbChargeItem.deleted_at.is_(None)))).scalar()
     unpaid = (await db.execute(select(func.coalesce(func.sum(PbInvoice.net_paise - PbInvoice.paid_paise), 0)).where(
-        PbInvoice.pharmacy_id == pharmacy_id, PbInvoice.patient_id == patient_id,
+        PbInvoice.clinic_id == clinic_id, PbInvoice.patient_id == patient_id,
         PbInvoice.status.in_(INVOICE_OPEN_STATUSES), PbInvoice.deleted_at.is_(None)))).scalar()
     return int(unbilled) + int(unpaid)
 
 
-async def snapshots_by_key(db: AsyncSession, pharmacy_id: uuid.UUID, keys: list[str]) -> dict[str, dict]:
+async def snapshots_by_key(db: AsyncSession, clinic_id: uuid.UUID, keys: list[str]) -> dict[str, dict]:
     """For other modules: where do the charges they posted (by idempotency key) stand right now?
     key -> {charge_id, amount_paise, charge_status, invoice_id, invoice_number, invoice_status,
     paid_paise, balance_paise, mode}. Keys with no charge are simply absent."""
     if not keys:
         return {}
     charges = (await db.execute(select(PbChargeItem).where(
-        PbChargeItem.pharmacy_id == pharmacy_id, PbChargeItem.idempotency_key.in_(keys)))).scalars().all()
+        PbChargeItem.clinic_id == clinic_id, PbChargeItem.idempotency_key.in_(keys)))).scalars().all()
     inv_ids = [c.invoice_id for c in charges if c.invoice_id]
     invoices = {i.id: i for i in (await db.execute(select(PbInvoice).where(
-        PbInvoice.pharmacy_id == pharmacy_id, PbInvoice.id.in_(inv_ids)))).scalars().all()} if inv_ids else {}
+        PbInvoice.clinic_id == clinic_id, PbInvoice.id.in_(inv_ids)))).scalars().all()} if inv_ids else {}
     mode_of: dict = {}
     if inv_ids:
         for p in (await db.execute(select(PbPayment).where(
-                PbPayment.pharmacy_id == pharmacy_id, PbPayment.invoice_id.in_(inv_ids))
+                PbPayment.clinic_id == clinic_id, PbPayment.invoice_id.in_(inv_ids))
                 .order_by(PbPayment.created_at))).scalars().all():
             mode_of[p.invoice_id] = p.mode          # the latest payment's mode wins
     out = {}
@@ -166,7 +166,7 @@ def _line(c: PbChargeItem) -> dict:
 
 
 async def create_invoice(
-    db: AsyncSession, *, pharmacy_id: uuid.UUID, user_id: uuid.UUID, patient_id: uuid.UUID,
+    db: AsyncSession, *, clinic_id: uuid.UUID, user_id: uuid.UUID, patient_id: uuid.UUID,
     charge_ids: list[uuid.UUID], discount_paise: int, counter: str,
 ) -> PbInvoice:
     """Freezes the chosen UNBILLED charges of one patient into a numbered invoice."""
@@ -176,7 +176,7 @@ async def create_invoice(
     if counter not in COUNTERS:
         raise HTTPException(status_code=422, detail=f"counter must be one of {', '.join(COUNTERS)}")
     charges = (await db.execute(select(PbChargeItem).where(
-        PbChargeItem.pharmacy_id == pharmacy_id, PbChargeItem.patient_id == patient_id,
+        PbChargeItem.clinic_id == clinic_id, PbChargeItem.patient_id == patient_id,
         PbChargeItem.id.in_(ids), PbChargeItem.deleted_at.is_(None)).with_for_update())).scalars().all()
     if len(charges) != len(ids):
         raise HTTPException(status_code=404, detail="One or more charges were not found for this patient")
@@ -192,11 +192,11 @@ async def create_invoice(
     invoice = None
     for _ in range(3):
         candidate = PbInvoice(
-            pharmacy_id=pharmacy_id, patient_id=patient_id, patient_name=first.patient_name,
+            clinic_id=clinic_id, patient_id=patient_id, patient_name=first.patient_name,
             patient_uhid=first.patient_uhid, counter=counter, gross_paise=gross,
             discount_paise=discount_paise, net_paise=net, paid_paise=0,
             status=INV_PAID if net == 0 else INV_ISSUED, lines=[_line(c) for c in charges],
-            invoice_number=await _next_number(db, PbInvoice.invoice_number, pharmacy_id, INVOICE_PREFIX),
+            invoice_number=await _next_number(db, PbInvoice.invoice_number, clinic_id, INVOICE_PREFIX),
             created_by=user_id)
         try:
             async with db.begin_nested():
@@ -258,9 +258,9 @@ async def add_payment(
     payment = None
     for _ in range(3):
         candidate = PbPayment(
-            pharmacy_id=invoice.pharmacy_id, patient_id=invoice.patient_id, invoice_id=invoice.id,
+            clinic_id=invoice.clinic_id, patient_id=invoice.patient_id, invoice_id=invoice.id,
             amount_paise=amount_paise, mode=mode, reference=(reference or "").strip() or None,
-            receipt_number=await _next_number(db, PbPayment.receipt_number, invoice.pharmacy_id, RECEIPT_PREFIX),
+            receipt_number=await _next_number(db, PbPayment.receipt_number, invoice.clinic_id, RECEIPT_PREFIX),
             paid_on=date.today(), received_by=user_id)
         try:
             async with db.begin_nested():

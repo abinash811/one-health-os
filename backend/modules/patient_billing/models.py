@@ -23,14 +23,14 @@ class PbInvoice(Base):
     edits to a charge can never change an issued invoice."""
     __tablename__ = "pb_invoices"
     __table_args__ = (
-        UniqueConstraint("pharmacy_id", "invoice_number", name="uq_pb_invoices_number"),
-        Index("idx_pb_invoices_patient", "pharmacy_id", "patient_id"),
-        Index("idx_pb_invoices_status", "pharmacy_id", "status"),
+        UniqueConstraint("clinic_id", "invoice_number", name="uq_pb_invoices_number"),
+        Index("idx_pb_invoices_patient", "clinic_id", "patient_id"),
+        Index("idx_pb_invoices_status", "clinic_id", "status"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
     patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     patient_name: Mapped[str] = mapped_column(String(200), nullable=False)
     patient_uhid: Mapped[Optional[str]] = mapped_column(String(30))
@@ -58,15 +58,15 @@ class PbChargeItem(Base):
     __tablename__ = "pb_charge_items"
     __table_args__ = (
         # A retried post (same key) never double-charges; keys are never reused, even after a void.
-        Index("uq_pb_charge_items_key", "pharmacy_id", "idempotency_key", unique=True,
+        Index("uq_pb_charge_items_key", "clinic_id", "idempotency_key", unique=True,
               postgresql_where=text("idempotency_key IS NOT NULL")),
-        Index("idx_pb_charge_items_patient", "pharmacy_id", "patient_id", "status"),
+        Index("idx_pb_charge_items_patient", "clinic_id", "patient_id", "status"),
         Index("idx_pb_charge_items_invoice", "invoice_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
     patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     patient_name: Mapped[str] = mapped_column(String(200), nullable=False)
     patient_uhid: Mapped[Optional[str]] = mapped_column(String(30))
@@ -97,14 +97,14 @@ class PbPayment(Base):
     """Money received against one invoice; each has its own receipt number."""
     __tablename__ = "pb_payments"
     __table_args__ = (
-        UniqueConstraint("pharmacy_id", "receipt_number", name="uq_pb_payments_receipt"),
+        UniqueConstraint("clinic_id", "receipt_number", name="uq_pb_payments_receipt"),
         Index("idx_pb_payments_invoice", "invoice_id"),
-        Index("idx_pb_payments_day", "pharmacy_id", "paid_on"),
+        Index("idx_pb_payments_day", "clinic_id", "paid_on"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
     patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     invoice_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pb_invoices.id"), nullable=False)

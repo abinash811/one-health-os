@@ -53,11 +53,11 @@ export default function DoctorFormModal({ open, doctor, clinics, onClose, onSave
     setF({ name: d?.name || '', specialty: d?.specialty || '', qualification: d?.qualification || '',
       registration_no: d?.registration_no || '', phone: d?.phone || '', email: d?.email || '',
       hospital: d?.hospital || '', notes: d?.notes || '', is_external: d?.is_external || false, is_active: d?.is_active ?? true });
-    const mapped = new Map((d?.clinics || []).map((c) => [c.pharmacy_id, c]));
+    const mapped = new Map((d?.clinics || []).map((c) => [c.clinic_id, c]));
     setRows(Object.fromEntries(clinics.map((c) => {
-      const m = mapped.get(c.pharmacy_id);
+      const m = mapped.get(c.clinic_id);
       const on = d ? !!m : !!c.is_current;
-      return [c.pharmacy_id, { on, fee: m?.consultation_fee_paise ? String(toRupees(m.consultation_fee_paise)) : '' }];
+      return [c.clinic_id, { on, fee: m?.consultation_fee_paise ? String(toRupees(m.consultation_fee_paise)) : '' }];
     })));
     setLogin(d?.user_id || NO_LOGIN);
     api.get(apiUrl.practitionerLinkableUsers()).then((r: { data: LinkableUser[] }) => setLinkable(r.data || []))
@@ -79,9 +79,9 @@ export default function DoctorFormModal({ open, doctor, clinics, onClose, onSave
     const body = {
       ...f, name: f.name.trim(), hospital: f.is_external ? f.hospital : '',
       user_id: login === NO_LOGIN ? null : login,
-      clinics: clinics.filter((c) => rows[c.pharmacy_id]?.on).map((c) => ({
-        pharmacy_id: c.pharmacy_id,
-        consultation_fee_paise: rows[c.pharmacy_id].fee.trim() === '' ? null : toPaise(rows[c.pharmacy_id].fee),
+      clinics: clinics.filter((c) => rows[c.clinic_id]?.on).map((c) => ({
+        clinic_id: c.clinic_id,
+        consultation_fee_paise: rows[c.clinic_id].fee.trim() === '' ? null : toPaise(rows[c.clinic_id].fee),
       })),
     };
     try {
@@ -133,18 +133,18 @@ export default function DoctorFormModal({ open, doctor, clinics, onClose, onSave
             <p className={labelCls}>Works at *</p>
             <ul className="border border-gray-200 rounded-lg divide-y" data-testid="doc-clinics">
               {clinics.map((c) => {
-                const r = rows[c.pharmacy_id] || { on: false, fee: '' };
+                const r = rows[c.clinic_id] || { on: false, fee: '' };
                 return (
-                  <li key={c.pharmacy_id} className="flex items-center gap-3 px-3 py-2">
-                    <input id={`clinic-${c.pharmacy_id}`} type="checkbox" checked={r.on}
-                      onChange={(e) => setRows((s) => ({ ...s, [c.pharmacy_id]: { ...r, on: e.target.checked } }))}
-                      className="h-4 w-4 rounded border-gray-300 accent-brand" data-testid={`clinic-on-${c.pharmacy_id}`} />
-                    <label htmlFor={`clinic-${c.pharmacy_id}`} className="flex-1 text-sm text-gray-900">{c.pharmacy_name}</label>
-                    <label htmlFor={`fee-${c.pharmacy_id}`} className="text-xs text-gray-500">Fee ₹</label>
-                    <input id={`fee-${c.pharmacy_id}`} type="number" min="0" step="1" disabled={!r.on} value={r.fee}
-                      onChange={(e) => setRows((s) => ({ ...s, [c.pharmacy_id]: { ...r, fee: e.target.value } }))}
+                  <li key={c.clinic_id} className="flex items-center gap-3 px-3 py-2">
+                    <input id={`clinic-${c.clinic_id}`} type="checkbox" checked={r.on}
+                      onChange={(e) => setRows((s) => ({ ...s, [c.clinic_id]: { ...r, on: e.target.checked } }))}
+                      className="h-4 w-4 rounded border-gray-300 accent-brand" data-testid={`clinic-on-${c.clinic_id}`} />
+                    <label htmlFor={`clinic-${c.clinic_id}`} className="flex-1 text-sm text-gray-900">{c.clinic_name}</label>
+                    <label htmlFor={`fee-${c.clinic_id}`} className="text-xs text-gray-500">Fee ₹</label>
+                    <input id={`fee-${c.clinic_id}`} type="number" min="0" step="1" disabled={!r.on} value={r.fee}
+                      onChange={(e) => setRows((s) => ({ ...s, [c.clinic_id]: { ...r, fee: e.target.value } }))}
                       placeholder="no fee" className="w-24 px-2 py-1 border border-gray-200 rounded-lg text-sm disabled:bg-gray-50"
-                      data-testid={`clinic-fee-${c.pharmacy_id}`} aria-invalid={r.on && r.fee.trim() !== '' && !(Number(r.fee) >= 0)} />
+                      data-testid={`clinic-fee-${c.clinic_id}`} aria-invalid={r.on && r.fee.trim() !== '' && !(Number(r.fee) >= 0)} />
                   </li>
                 );
               })}

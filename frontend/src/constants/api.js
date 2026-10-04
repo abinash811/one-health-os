@@ -158,6 +158,8 @@ export const API_ENDPOINTS = {
     CHANGE_PASSWORD: 'users/me/change-password',
     MY_STORES:       'users/me/stores',
     SWITCH_STORE:    'users/me/switch-store',
+    MY_CLINICS:      'users/me/clinics',
+    SWITCH_CLINIC:   'users/me/switch-clinic',
   },
 
   CHAINS: {
@@ -307,6 +309,8 @@ export const apiUrl = {
   changePassword:   () => API_ENDPOINTS.USERS.CHANGE_PASSWORD,
   myStores:         () => API_ENDPOINTS.USERS.MY_STORES,
   switchStore:      () => API_ENDPOINTS.USERS.SWITCH_STORE,
+  myClinics:        () => API_ENDPOINTS.USERS.MY_CLINICS,
+  switchClinic:     () => API_ENDPOINTS.USERS.SWITCH_CLINIC,
   chainStores:      () => API_ENDPOINTS.CHAINS.STORES,
   stockTransfers:   () => API_ENDPOINTS.STOCK_TRANSFERS.LIST_CREATE,
   reverseStockTransfer: (id) => `stock-transfers/${id}/reverse`,

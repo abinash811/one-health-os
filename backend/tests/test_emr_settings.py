@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 import requests
 
-from test_emr_appointments import BASE_URL, _EmrBase, _next_weekday_date
+from test_emr_appointments import BASE_URL, _EmrBase, _clinic_for_token, _next_weekday_date
 
 
 class _Clinic(_EmrBase):
@@ -30,6 +30,8 @@ class _Clinic(_EmrBase):
         self.session.headers.update({"Content-Type": "application/json",
                                      "Authorization": f"Bearer {reg.json()['token']}"})
         self.name = f"Settings Clinic {sfx}"
+        made = self.session.post(f"{BASE_URL}/api/clinics", json={"name": self.name})
+        assert made.status_code == 200, made.text
 
     def _put(self, body, session=None):
         return (session or self.session).put(f"{BASE_URL}/api/emr/settings", json=body)
@@ -64,6 +66,7 @@ class TestSettings(_Clinic):
             "phone": "9855555584", "pharmacy_name": f"Other Set {self.suffix}", "address": "1 St",
             "city": "Testville", "state": "Karnataka", "pincode": "560004",
             "drug_license_number": f"DL-EMRSETO-{self.suffix}"})
+        _clinic_for_token(other.json()["token"])
         h = {"Authorization": f"Bearer {other.json()['token']}"}
         assert requests.get(f"{BASE_URL}/api/emr/settings", headers=h).json()["uhid_prefix"] == "UH-"
 
@@ -173,6 +176,7 @@ class TestClinicDoctors(_Clinic):
             "phone": "9855555585", "pharmacy_name": f"Other Doc {self.suffix}", "address": "1 St",
             "city": "Testville", "state": "Karnataka", "pincode": "560005",
             "drug_license_number": f"DL-EMRDP-{self.suffix}"})
+        _clinic_for_token(other.json()["token"])
         h = {"Authorization": f"Bearer {other.json()['token']}"}
         r = requests.put(f"{BASE_URL}/api/emr/clinic-doctors/{doctor_id}",
                          json={"consultation_fee_paise": 1}, headers=h)

@@ -18,11 +18,12 @@ from modules.patient_billing.constants import (
 from modules.patient_billing.models import PbChargeItem, PbInvoice, PbPayment
 from modules.patient_billing.responses import charge_dict, invoice_dict, payment_dict
 from routers.auth_helpers import User, get_current_user, paginate_response
+from services.clinics import active_clinic_id
 
 router = APIRouter(prefix="/api/patient-billing", tags=["patient-billing-accounts"])
 
 
-async def _owed(db, pharmacy_id) -> dict:
+async def _owed(db, clinic_id) -> dict:
     """patient_id -> what they owe, split into not-invoiced and invoiced-unpaid."""
     out: dict = {}
 
@@ -35,7 +36,7 @@ async def _owed(db, pharmacy_id) -> dict:
             select(PbChargeItem.patient_id, func.max(PbChargeItem.patient_name),
                    func.max(PbChargeItem.patient_uhid), func.sum(PbChargeItem.total_paise),
                    func.max(PbChargeItem.created_at)).where(
-                PbChargeItem.pharmacy_id == pharmacy_id, PbChargeItem.status == CHG_UNBILLED,
+                PbChargeItem.clinic_id == clinic_id, PbChargeItem.status == CHG_UNBILLED,
                 PbChargeItem.deleted_at.is_(None)).group_by(PbChargeItem.patient_id))).all():
         s = slot(pid)
         s.update(patient_name=name, patient_uhid=uhid, not_invoiced_paise=int(total), last_activity=last)
@@ -43,7 +44,7 @@ async def _owed(db, pharmacy_id) -> dict:
             select(PbInvoice.patient_id, func.max(PbInvoice.patient_name), func.max(PbInvoice.patient_uhid),
                    func.sum(PbInvoice.net_paise - PbInvoice.paid_paise),
                    func.bool_or(PbInvoice.status == INV_PART_PAID), func.max(PbInvoice.updated_at)).where(
-                PbInvoice.pharmacy_id == pharmacy_id, PbInvoice.status.in_(INVOICE_OPEN_STATUSES),
+                PbInvoice.clinic_id == clinic_id, PbInvoice.status.in_(INVOICE_OPEN_STATUSES),
                 PbInvoice.deleted_at.is_(None)).group_by(PbInvoice.patient_id))).all():
         s = slot(pid)
         s.update(patient_name=s["patient_name"] or name, patient_uhid=s["patient_uhid"] or uhid,
@@ -51,7 +52,7 @@ async def _owed(db, pharmacy_id) -> dict:
         s["last_activity"] = max(filter(None, [s["last_activity"], last]))
     for pid, src in (await db.execute(
             select(PbChargeItem.patient_id, PbChargeItem.source_module).where(
-                PbChargeItem.pharmacy_id == pharmacy_id,
+                PbChargeItem.clinic_id == clinic_id,
                 PbChargeItem.status.in_((CHG_UNBILLED, CHG_INVOICED)),
                 PbChargeItem.deleted_at.is_(None)).distinct())).all():
         if pid in out:
@@ -67,7 +68,7 @@ async def list_accounts(status: str = ACC_PENDING, source: Optional[str] = None,
     await _require_billing_permission(current_user, "patient_billing:view", db)
     if status not in ACCOUNT_FILTERS:
         raise HTTPException(status_code=422, detail=f"status must be one of {', '.join(ACCOUNT_FILTERS)}")
-    owed = await _owed(db, uuid.UUID(current_user.pharmacy_id))
+    owed = await _owed(db, active_clinic_id(current_user))
     rows = []
     for a in owed.values():
         a["balance_paise"] = a["not_invoiced_paise"] + a["invoiced_unpaid_paise"]
@@ -98,16 +99,16 @@ async def get_account(patient_id: uuid.UUID, current_user: User = Depends(get_cu
                       db: AsyncSession = DbSession):
     """One patient's complete bill: every charge, invoice and payment, with totals."""
     await _require_billing_permission(current_user, "patient_billing:view", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    clinic_id = active_clinic_id(current_user)
     charges = (await db.execute(select(PbChargeItem).where(
-        PbChargeItem.pharmacy_id == pharmacy_id, PbChargeItem.patient_id == patient_id,
+        PbChargeItem.clinic_id == clinic_id, PbChargeItem.patient_id == patient_id,
         PbChargeItem.deleted_at.is_(None)).order_by(PbChargeItem.created_at))).scalars().all()
     invoices = (await db.execute(select(PbInvoice).where(
-        PbInvoice.pharmacy_id == pharmacy_id, PbInvoice.patient_id == patient_id,
+        PbInvoice.clinic_id == clinic_id, PbInvoice.patient_id == patient_id,
         PbInvoice.deleted_at.is_(None)).order_by(PbInvoice.created_at))).scalars().all()
     pays = (await db.execute(
         select(PbPayment, PbInvoice.invoice_number).join(PbInvoice, PbInvoice.id == PbPayment.invoice_id)
-        .where(PbPayment.pharmacy_id == pharmacy_id, PbPayment.patient_id == patient_id,
+        .where(PbPayment.clinic_id == clinic_id, PbPayment.patient_id == patient_id,
                PbPayment.deleted_at.is_(None)).order_by(PbPayment.created_at))).all()
     if not charges and not invoices:
         raise HTTPException(status_code=404, detail="No billing account for this patient yet")
@@ -132,11 +133,11 @@ async def summary_today(on_date: Optional[date] = Query(None, alias="date"),
                         current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     """What was collected on a day, by payment mode and by counter (feeds Day closing + the queue card)."""
     await _require_billing_permission(current_user, "patient_billing:view", db)
-    pharmacy_id, day = uuid.UUID(current_user.pharmacy_id), on_date or date.today()
+    clinic_id, day = active_clinic_id(current_user), on_date or date.today()
     rows = (await db.execute(
         select(PbPayment.mode, PbInvoice.counter, func.sum(PbPayment.amount_paise), func.count())
         .join(PbInvoice, PbInvoice.id == PbPayment.invoice_id)
-        .where(PbPayment.pharmacy_id == pharmacy_id, PbPayment.paid_on == day,
+        .where(PbPayment.clinic_id == clinic_id, PbPayment.paid_on == day,
                PbPayment.deleted_at.is_(None)).group_by(PbPayment.mode, PbInvoice.counter))).all()
     by_mode: dict = {}
     by_counter: dict = {}

@@ -126,7 +126,8 @@ def check_file(path: Path) -> list[str]:
     for line_no, stmt in find_statements(source):
         if not ID_EQ_RE.search(stmt):
             continue
-        if "pharmacy_id" in stmt:
+        # `clinic_id` is the tenant key of the EMR / patient-billing tables (docs/32 P2b).
+        if "pharmacy_id" in stmt or "clinic_id" in stmt:
             continue
         # A "# tenant-safe: ..." comment anywhere within the statement's own
         # span, or on the line immediately before it (a long statement often

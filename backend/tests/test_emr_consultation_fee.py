@@ -8,7 +8,7 @@ from datetime import date
 
 import requests
 
-from test_emr_appointments import BASE_URL
+from test_emr_appointments import BASE_URL, _clinic_for_token
 from test_patient_billing import API, _Billing
 
 
@@ -106,6 +106,7 @@ class TestConsultationFee(_Fee):
             "phone": "9855555587", "pharmacy_name": f"Fee Other {self.suffix}", "address": "1 St",
             "city": "Testville", "state": "Karnataka", "pincode": "560007",
             "drug_license_number": f"DL-FEEO-{self.suffix}"})
+        _clinic_for_token(other.json()["token"])
         h = {"Authorization": f"Bearer {other.json()['token']}"}
         assert requests.get(f"{API}/accounts/{patient['id']}", headers=h).status_code == 404
         assert requests.get(f"{API}/accounts", headers=h).json()["totals"]["patients"] == 0

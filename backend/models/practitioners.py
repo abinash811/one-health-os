@@ -58,15 +58,15 @@ class PractitionerClinic(Base):
     """Which clinic a doctor practises at, and their consultation fee there (integer paise)."""
     __tablename__ = "practitioner_clinics"
     __table_args__ = (
-        UniqueConstraint("practitioner_id", "pharmacy_id", name="uq_practitioner_clinics"),
-        Index("idx_practitioner_clinics_pharmacy", "pharmacy_id"),
+        UniqueConstraint("practitioner_id", "clinic_id", name="uq_practitioner_clinics"),
+        Index("idx_practitioner_clinics_clinic", "clinic_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     practitioner_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("practitioners.id"), nullable=False)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
     consultation_fee_paise: Mapped[Optional[int]] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     deleted_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))

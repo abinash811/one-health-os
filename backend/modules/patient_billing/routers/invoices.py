@@ -17,7 +17,8 @@ from modules.patient_billing.constants import (
     COUNTER_BILLING_DESK, INV_CANCELLED, MAX_AMOUNT_PAISE)
 from modules.patient_billing.models import PbInvoice, PbPayment
 from modules.patient_billing.responses import invoice_dict, payment_dict
-from routers.auth_helpers import User, get_current_user, get_owned_or_404, paginate_response
+from routers.auth_helpers import User, get_current_user, paginate_response
+from services.clinics import active_clinic_id, get_clinic_owned_or_404
 
 router = APIRouter(prefix="/api/patient-billing", tags=["patient-billing-invoices"])
 
@@ -49,9 +50,9 @@ class CancelBody(BaseModel):
     reason: str = Field(min_length=1)
 
 
-async def _locked_invoice(db, invoice_id, pharmacy_id) -> PbInvoice:
-    inv = await get_owned_or_404(
-        db, PbInvoice, invoice_id, pharmacy_id, not_found_detail="Invoice not found",
+async def _locked_invoice(db, invoice_id, clinic_id) -> PbInvoice:
+    inv = await get_clinic_owned_or_404(
+        db, PbInvoice, invoice_id, clinic_id, not_found_detail="Invoice not found",
         extra_conditions=[PbInvoice.deleted_at.is_(None)])
     await db.refresh(inv, with_for_update=True)  # two simultaneous payments can never overpay
     return inv
@@ -61,12 +62,12 @@ async def _locked_invoice(db, invoice_id, pharmacy_id) -> PbInvoice:
 async def create_invoice(data: InvoiceCreate, request: Request,
                          current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     await _require_billing_permission(current_user, "patient_billing:invoice", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    clinic_id = active_clinic_id(current_user)
     inv = await service.create_invoice(
-        db, pharmacy_id=pharmacy_id, user_id=uuid.UUID(current_user.id), patient_id=data.patient_id,
+        db, clinic_id=clinic_id, user_id=uuid.UUID(current_user.id), patient_id=data.patient_id,
         charge_ids=data.charge_item_ids, discount_paise=data.discount_paise, counter=data.counter)
     await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "create", "pb_invoice", inv.id,
+        clinic_id, uuid.UUID(current_user.id), "create", "pb_invoice", inv.id,
         {"invoice_number": inv.invoice_number, "net_paise": inv.net_paise,
          "discount_paise": inv.discount_paise, "charges": len(inv.lines)}, db,
         ip_address=_client_ip(request))
@@ -78,7 +79,7 @@ async def list_invoices(status: Optional[str] = None, patient_id: Optional[uuid.
                         search: Optional[str] = None, page: int = 1, page_size: int = Query(25, le=100),
                         current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     await _require_billing_permission(current_user, "patient_billing:view", db)
-    q = select(PbInvoice).where(PbInvoice.pharmacy_id == uuid.UUID(current_user.pharmacy_id),
+    q = select(PbInvoice).where(PbInvoice.clinic_id == active_clinic_id(current_user),
                                 PbInvoice.deleted_at.is_(None))
     if status:
         q = q.where(PbInvoice.status == status)
@@ -98,12 +99,12 @@ async def list_invoices(status: Optional[str] = None, patient_id: Optional[uuid.
 async def get_invoice(invoice_id: uuid.UUID, current_user: User = Depends(get_current_user),
                       db: AsyncSession = DbSession):
     await _require_billing_permission(current_user, "patient_billing:view", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    inv = await get_owned_or_404(
-        db, PbInvoice, invoice_id, pharmacy_id, not_found_detail="Invoice not found",
+    clinic_id = active_clinic_id(current_user)
+    inv = await get_clinic_owned_or_404(
+        db, PbInvoice, invoice_id, clinic_id, not_found_detail="Invoice not found",
         extra_conditions=[PbInvoice.deleted_at.is_(None)])
     pays = (await db.execute(select(PbPayment).where(
-        PbPayment.pharmacy_id == pharmacy_id, PbPayment.invoice_id == inv.id)
+        PbPayment.clinic_id == clinic_id, PbPayment.invoice_id == inv.id)
         .order_by(PbPayment.created_at))).scalars().all()
     return {**invoice_dict(inv), "payments": [payment_dict(p, inv.invoice_number) for p in pays]}
 
@@ -112,12 +113,12 @@ async def get_invoice(invoice_id: uuid.UUID, current_user: User = Depends(get_cu
 async def pay_invoice(invoice_id: uuid.UUID, data: PaymentCreate, request: Request,
                       current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     await _require_billing_permission(current_user, "patient_billing:collect", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    inv = await _locked_invoice(db, invoice_id, pharmacy_id)
+    clinic_id = active_clinic_id(current_user)
+    inv = await _locked_invoice(db, invoice_id, clinic_id)
     pay = await service.add_payment(db, inv, user_id=uuid.UUID(current_user.id),
                                     amount_paise=data.amount_paise, mode=data.mode, reference=data.reference)
     await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "payment", "pb_payment", pay.id,
+        clinic_id, uuid.UUID(current_user.id), "payment", "pb_payment", pay.id,
         {"receipt_number": pay.receipt_number, "amount_paise": pay.amount_paise, "mode": pay.mode,
          "invoice_number": inv.invoice_number}, db, ip_address=_client_ip(request))
     return {"payment": payment_dict(pay, inv.invoice_number), "invoice": invoice_dict(inv)}
@@ -127,11 +128,11 @@ async def pay_invoice(invoice_id: uuid.UUID, data: PaymentCreate, request: Reque
 async def cancel_invoice(invoice_id: uuid.UUID, data: CancelBody, request: Request,
                          current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     await _require_billing_permission(current_user, "patient_billing:void", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    inv = await _locked_invoice(db, invoice_id, pharmacy_id)
+    clinic_id = active_clinic_id(current_user)
+    inv = await _locked_invoice(db, invoice_id, clinic_id)
     await service.cancel_invoice(db, inv, data.reason)
     await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "cancel", "pb_invoice", inv.id,
+        clinic_id, uuid.UUID(current_user.id), "cancel", "pb_invoice", inv.id,
         {"invoice_number": inv.invoice_number, "reason": inv.cancel_reason}, db,
         old_values={"status": "issued"}, ip_address=_client_ip(request))
     return invoice_dict(inv)
@@ -144,9 +145,9 @@ async def collect(patient_id: uuid.UUID, data: CollectBody, request: Request,
     Needs both the invoice and the collect permission."""
     await _require_billing_permission(current_user, "patient_billing:invoice", db)
     await _require_billing_permission(current_user, "patient_billing:collect", db)
-    pharmacy_id, uid = uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id)
+    clinic_id, uid = active_clinic_id(current_user), uuid.UUID(current_user.id)
     inv = await service.create_invoice(
-        db, pharmacy_id=pharmacy_id, user_id=uid, patient_id=patient_id,
+        db, clinic_id=clinic_id, user_id=uid, patient_id=patient_id,
         charge_ids=data.charge_item_ids, discount_paise=data.discount_paise, counter=data.counter)
     pay = None
     if inv.net_paise > 0:
@@ -154,12 +155,12 @@ async def collect(patient_id: uuid.UUID, data: CollectBody, request: Request,
             db, inv, user_id=uid, amount_paise=data.amount_paise or inv.net_paise,
             mode=data.mode, reference=data.reference)
     await _record_audit(
-        pharmacy_id, uid, "create", "pb_invoice", inv.id,
+        clinic_id, uid, "create", "pb_invoice", inv.id,
         {"invoice_number": inv.invoice_number, "net_paise": inv.net_paise,
          "discount_paise": inv.discount_paise, "collected": True}, db, ip_address=_client_ip(request))
     if pay:
         await _record_audit(
-            pharmacy_id, uid, "payment", "pb_payment", pay.id,
+            clinic_id, uid, "payment", "pb_payment", pay.id,
             {"receipt_number": pay.receipt_number, "amount_paise": pay.amount_paise, "mode": pay.mode,
              "invoice_number": inv.invoice_number}, db, ip_address=_client_ip(request))
     return {"invoice": invoice_dict(inv), "payment": payment_dict(pay, inv.invoice_number) if pay else None}
@@ -172,10 +173,10 @@ async def list_payments(on_date: Optional[date] = Query(None, alias="date"),
                         current_user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     """Receipts, newest first."""
     await _require_billing_permission(current_user, "patient_billing:view", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    clinic_id = active_clinic_id(current_user)
     q = (select(PbPayment, PbInvoice.invoice_number, PbInvoice.patient_name, PbInvoice.patient_uhid)
          .join(PbInvoice, PbInvoice.id == PbPayment.invoice_id)
-         .where(PbPayment.pharmacy_id == pharmacy_id, PbPayment.deleted_at.is_(None),
+         .where(PbPayment.clinic_id == clinic_id, PbPayment.deleted_at.is_(None),
                 PbInvoice.status != INV_CANCELLED))
     if on_date:
         q = q.where(PbPayment.paid_on == on_date)

@@ -26,21 +26,21 @@ async def post_consultation_fee(db: AsyncSession, appt: EmrAppointment, user_id:
                                 ip_address: str | None = None) -> None:
     """Posts the doctor's consultation fee for this visit. No fee set (or ₹0) = nothing posted.
     Safe to call twice: the idempotency key means one visit is only ever charged once."""
-    fee = await clinic_fee_paise(db, appt.pharmacy_id, appt.practitioner_id)   # this clinic's fee for this doctor
+    fee = await clinic_fee_paise(db, appt.clinic_id, appt.practitioner_id)   # this clinic's fee for this doctor
     if not fee:
         return
     patient = (await db.execute(select(EmrPatient).where(
-        EmrPatient.id == appt.patient_id, EmrPatient.pharmacy_id == appt.pharmacy_id))).scalar_one()
+        EmrPatient.id == appt.patient_id, EmrPatient.clinic_id == appt.clinic_id))).scalar_one()
     doctor = getattr(await doctor_for_record(db, appt.practitioner_id), "name", None)
     charge, created = await billing.post_charge(
-        db, pharmacy_id=appt.pharmacy_id, user_id=user_id, patient_id=patient.id,
+        db, clinic_id=appt.clinic_id, user_id=user_id, patient_id=patient.id,
         patient_name=patient.name, patient_uhid=patient.uhid, source_module=SRC_EMR,
         description=f"Consultation — {doctor}" if doctor else "Consultation", unit_price_paise=fee,
         source_ref=str(appt.id), encounter_ref=str(appt.id), encounter_type="appointment",
         idempotency_key=_fee_key(appt))
     if created:
         await _record_audit(
-            appt.pharmacy_id, user_id, "create", "pb_charge_item", charge.id,
+            appt.clinic_id, user_id, "create", "pb_charge_item", charge.id,
             {"description": charge.description, "total_paise": charge.total_paise,
              "source_module": SRC_EMR, "appointment_id": str(appt.id)}, db, ip_address=ip_address)
 
@@ -49,10 +49,10 @@ async def withdraw_consultation_fee(db: AsyncSession, appt: EmrAppointment, user
                                     reason: str, ip_address: str | None = None) -> None:
     """Visit cancelled: take the fee off the account — but only if it is still unbilled. Once an
     invoice exists, undoing it is a billing-desk decision (cancel the invoice / refund), not ours."""
-    charge = await billing.void_unbilled_by_key(db, appt.pharmacy_id, _fee_key(appt), reason)
+    charge = await billing.void_unbilled_by_key(db, appt.clinic_id, _fee_key(appt), reason)
     if charge:
         await _record_audit(
-            appt.pharmacy_id, user_id, "void", "pb_charge_item", charge.id,
+            appt.clinic_id, user_id, "void", "pb_charge_item", charge.id,
             {"reason": reason, "total_paise": charge.total_paise, "appointment_id": str(appt.id)},
             db, ip_address=ip_address)
 
@@ -61,12 +61,12 @@ async def withdraw_consultation_fee(db: AsyncSession, appt: EmrAppointment, user
 FEE_UNPAID, FEE_PART_PAID, FEE_PAID = "unpaid", "part_paid", "paid"
 
 
-async def fee_for_appointments(db: AsyncSession, pharmacy_id: uuid.UUID,
+async def fee_for_appointments(db: AsyncSession, clinic_id: uuid.UUID,
                                appts: list[EmrAppointment]) -> dict[uuid.UUID, dict]:
     """appointment id -> its consultation fee as the front desk sees it (amount, unpaid / part-paid /
     paid, who/how it was paid, and the invoice to collect against). Visits with no fee, or whose fee
     was withdrawn, are absent."""
-    snaps = await billing.snapshots_by_key(db, pharmacy_id, [_fee_key(a) for a in appts])
+    snaps = await billing.snapshots_by_key(db, clinic_id, [_fee_key(a) for a in appts])
     out = {}
     for a in appts:
         s = snaps.get(_fee_key(a))

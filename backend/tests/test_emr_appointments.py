@@ -17,12 +17,31 @@ import requests
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 
+def _clinic_for_token(token: str, name="Other Clinic"):
+    """Give a freshly registered admin (identified by token) a clinic of their own."""
+    s = requests.Session()
+    s.headers.update({"Content-Type": "application/json", "Authorization": f"Bearer {token}"})
+    return _ensure_clinic(s, name)
+
+
 def _next_weekday_date(weekday: int) -> date:
     """The first date at least 7 days ahead that falls on `weekday` (Mon=0)."""
     d = date.today() + timedelta(days=7)
     while d.weekday() != weekday:
         d += timedelta(days=1)
     return d
+
+
+def _ensure_clinic(session, name="Test Clinic"):
+    """The id of the clinic this login is working at — created (and made active) if they have none yet.
+    EMR belongs to a clinic (docs/32 P2b), so every EMR test needs one."""
+    mine = session.get(f"{BASE_URL}/api/users/me/clinics").json()
+    active = [c["clinic_id"] for c in mine if c["is_active"]]
+    if active:
+        return active[0]
+    r = session.post(f"{BASE_URL}/api/clinics", json={"name": f"{name} {uuid.uuid4().hex[:6]}"})
+    assert r.status_code == 200, r.text
+    return r.json()["id"]
 
 
 class _EmrBase:
@@ -36,6 +55,7 @@ class _EmrBase:
         if login.status_code != 200:
             pytest.skip("Authentication failed - skipping EMR tests")
         self.session.headers.update({"Authorization": f"Bearer {login.json()['token']}"})
+        _ensure_clinic(self.session)
 
     # ── helpers ──
     def _user(self, role):
@@ -43,6 +63,9 @@ class _EmrBase:
         resp = self.session.post(f"{BASE_URL}/api/users", json={
             "email": email, "name": f"EMR {role} {self.suffix}", "password": "EmrTest123", "role": role})
         assert resp.status_code == 200, resp.text
+        grant = self.session.post(f"{BASE_URL}/api/users/{resp.json()['id']}/clinic-access", json={
+            "clinic_id": self._clinic_id(), "role": role})
+        assert grant.status_code == 200, grant.text
         s = requests.Session()
         s.headers.update({"Content-Type": "application/json"})
         lg = s.post(f"{BASE_URL}/api/auth/login", json={"email": email, "password": "EmrTest123"})
@@ -57,8 +80,7 @@ class _EmrBase:
         return resp.json()
 
     def _clinic_id(self):
-        stores = self.session.get(f"{BASE_URL}/api/users/me/stores").json()
-        return next(s["pharmacy_id"] for s in stores if s["is_active"])
+        return _ensure_clinic(self.session)
 
     def _doctor(self, fee_paise=None, session=None, clinic_id=None, **extra):
         """A doctor profile (not a login) mapped to this clinic — docs/31_CORE_DOCTOR_SCOPE.md."""
@@ -66,7 +88,7 @@ class _EmrBase:
         clinic = clinic_id or self._clinic_id()
         r = s.post(f"{BASE_URL}/api/practitioners", json={
             "name": f"Dr Test {uuid.uuid4().hex[:6]}",
-            "clinics": [{"pharmacy_id": clinic, "consultation_fee_paise": fee_paise}], **extra})
+            "clinics": [{"clinic_id": clinic, "consultation_fee_paise": fee_paise}], **extra})
         assert r.status_code == 200, r.text
         return r.json()["id"]
 
@@ -121,6 +143,7 @@ class TestPatients(_EmrBase):
             "state": "Karnataka", "pincode": "560002",
             "drug_license_number": f"DL-EMROTHER-{self.suffix}"})
         assert other.status_code == 200, other.text
+        _clinic_for_token(other.json()["token"])
         h = {"Authorization": f"Bearer {other.json()['token']}"}
         assert requests.get(f"{BASE_URL}/api/emr/patients/{p['id']}", headers=h).status_code == 404
         assert requests.put(f"{BASE_URL}/api/emr/patients/{p['id']}", json={"city": "X"},
@@ -271,6 +294,7 @@ class TestAppointments(_EmrBase):
             "pharmacy_name": f"EMR Other2 {self.suffix}", "address": "2 St", "city": "Testville",
             "state": "Karnataka", "pincode": "560002",
             "drug_license_number": f"DL-EMROTHER2-{self.suffix}"})
+        _clinic_for_token(other.json()["token"])
         h = {"Authorization": f"Bearer {other.json()['token']}"}
         assert requests.get(f"{BASE_URL}/api/emr/appointments/{appt['id']}", headers=h).status_code == 404
         r = requests.post(f"{BASE_URL}/api/emr/appointments/{appt['id']}/status",
@@ -329,6 +353,7 @@ class TestDoctorRecords(_EmrBase):
         assert r.status_code == 200, r.text
         s = requests.Session()
         s.headers.update({"Content-Type": "application/json", "Authorization": f"Bearer {r.json()['token']}"})
+        _ensure_clinic(s)
         return s
 
     def test_a_doctor_with_no_login_can_be_scheduled_and_booked(self):
@@ -341,8 +366,7 @@ class TestDoctorRecords(_EmrBase):
     def test_doctor_list_has_only_this_clinics_active_doctors(self):
         mine = self._doctor()
         elsewhere_clinic = self._other_pharmacy()
-        theirs = self._doctor(session=elsewhere_clinic, clinic_id=elsewhere_clinic.get(
-            f"{BASE_URL}/api/users/me/stores").json()[0]["pharmacy_id"])
+        theirs = self._doctor(session=elsewhere_clinic, clinic_id=_ensure_clinic(elsewhere_clinic))
         listed = {d["id"] for d in self.session.get(f"{BASE_URL}/api/emr/doctors").json()}
         assert mine in listed and theirs not in listed
         assert self.session.put(f"{BASE_URL}/api/practitioners/{mine}", json={"is_active": False}).status_code == 200
@@ -350,7 +374,7 @@ class TestDoctorRecords(_EmrBase):
 
     def test_cannot_schedule_or_book_a_doctor_not_mapped_to_this_clinic(self):
         other = self._other_pharmacy()
-        their_clinic = other.get(f"{BASE_URL}/api/users/me/stores").json()[0]["pharmacy_id"]
+        their_clinic = _ensure_clinic(other)
         foreign = self._doctor(session=other, clinic_id=their_clinic)
         r = self.session.post(f"{BASE_URL}/api/emr/schedules", json={
             "doctor_id": foreign, "weekday": 0, "start_time": "09:00", "end_time": "10:00"})

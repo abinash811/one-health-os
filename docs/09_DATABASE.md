@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.26 | Last updated: October 4, 2026
+# Version: 1.27 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -810,6 +810,8 @@ Prescribing doctors. Required for Schedule H1 billing.
 > EMR is module #2 (`docs/28_EMR_SCOPE.md`). Models live in `backend/modules/emr/models.py`,
 > not `backend/models/`. These tables never reference pharmacy-module tables, so EMR runs
 > with the pharmacy module off. `pharmacy_id` is still the tenant key.
+
+> **Oct 4, 2026 (docs/32 P2b, migration `f7c0e3a6b92d`):** on `emr_patients`, `emr_doctor_schedules`, `emr_appointments`, `emr_prescriptions`, `emr_prescription_items`, `emr_settings`, `practitioner_clinics`, `pb_invoices`, `pb_charge_items` and `pb_payments` the column `pharmacy_id` is now **`clinic_id`** (FK → `clinics`; index names `*pharmacy*` → `*clinic*`). No data was copied — every place with EMR data already had a clinic with the same id. Wherever the column tables below say `pharmacy_id` for these tables, read `clinic_id`. `emr_doctor_profiles` (deprecated) still has `pharmacy_id`.
 
 ### `emr_patients`
 | Column | Type | Notes |

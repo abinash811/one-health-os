@@ -17,7 +17,8 @@ from modules.emr.common import _client_ip, _record_audit, _require_emr_permissio
 from modules.emr.constants import MAX_SLOT_MINUTES, MIN_SLOT_MINUTES
 from modules.emr.doctors import clinic_doctors, get_clinic_doctor
 from modules.emr.models import EmrDoctorSchedule
-from routers.auth_helpers import User, get_current_user, get_owned_or_404
+from routers.auth_helpers import User, get_current_user
+from services.clinics import active_clinic_id, get_clinic_owned_or_404
 
 router = APIRouter(prefix="/api/emr", tags=["emr-schedules"])
 
@@ -49,9 +50,9 @@ def _validate_block(weekday: int, start: time, end: time, slot_minutes: int) -> 
             detail=f"slot_minutes must be between {MIN_SLOT_MINUTES} and {MAX_SLOT_MINUTES}")
 
 
-async def _assert_no_overlap(db, pharmacy_id, practitioner_id, weekday, start, end, ignore_id=None):
+async def _assert_no_overlap(db, clinic_id, practitioner_id, weekday, start, end, ignore_id=None):
     rows = (await db.execute(select(EmrDoctorSchedule).where(
-        EmrDoctorSchedule.pharmacy_id == pharmacy_id,
+        EmrDoctorSchedule.clinic_id == clinic_id,
         EmrDoctorSchedule.practitioner_id == practitioner_id,
         EmrDoctorSchedule.weekday == weekday,
         EmrDoctorSchedule.deleted_at.is_(None)))).scalars().all()
@@ -67,9 +68,9 @@ async def list_doctors(current_user: User = Depends(get_current_user),
                        db: AsyncSession = DbSession):
     """The doctors you can book, schedule and prescribe under at THIS clinic."""
     await _require_emr_permission(current_user, "appointments:view", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    clinic_id = active_clinic_id(current_user)
     return [{"id": str(p.id), "name": p.name, "specialty": p.specialty}
-            for p, _ in await clinic_doctors(db, pharmacy_id)]
+            for p, _ in await clinic_doctors(db, clinic_id)]
 
 
 @router.get("/schedules")
@@ -78,7 +79,7 @@ async def list_schedules(doctor_id: Optional[uuid.UUID] = None,
                          db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "schedules:view", db)
     query = select(EmrDoctorSchedule).where(
-        EmrDoctorSchedule.pharmacy_id == uuid.UUID(current_user.pharmacy_id),
+        EmrDoctorSchedule.clinic_id == active_clinic_id(current_user),
         EmrDoctorSchedule.deleted_at.is_(None))
     if doctor_id:
         query = query.where(EmrDoctorSchedule.practitioner_id == doctor_id)
@@ -92,18 +93,18 @@ async def create_schedule(data: ScheduleCreate, request: Request,
                           current_user: User = Depends(get_current_user),
                           db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "schedules:edit", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    clinic_id = active_clinic_id(current_user)
     _validate_block(data.weekday, data.start_time, data.end_time, data.slot_minutes)
-    await get_clinic_doctor(db, pharmacy_id, data.doctor_id)
+    await get_clinic_doctor(db, clinic_id, data.doctor_id)
     await _assert_no_overlap(
-        db, pharmacy_id, data.doctor_id, data.weekday, data.start_time, data.end_time)
+        db, clinic_id, data.doctor_id, data.weekday, data.start_time, data.end_time)
     block = EmrDoctorSchedule(
-        pharmacy_id=pharmacy_id, practitioner_id=data.doctor_id,
+        clinic_id=clinic_id, practitioner_id=data.doctor_id,
         **data.model_dump(exclude={"doctor_id"}))
     db.add(block)
     await db.flush()
     await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "create", "emr_schedule", block.id,
+        clinic_id, uuid.UUID(current_user.id), "create", "emr_schedule", block.id,
         _schedule_response(block), db, ip_address=_client_ip(request))
     return _schedule_response(block)
 
@@ -113,9 +114,9 @@ async def update_schedule(schedule_id: str, data: dict, request: Request,
                           current_user: User = Depends(get_current_user),
                           db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "schedules:edit", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    block = await get_owned_or_404(
-        db, EmrDoctorSchedule, schedule_id, pharmacy_id, not_found_detail="Schedule not found",
+    clinic_id = active_clinic_id(current_user)
+    block = await get_clinic_owned_or_404(
+        db, EmrDoctorSchedule, schedule_id, clinic_id, not_found_detail="Schedule not found",
         extra_conditions=[EmrDoctorSchedule.deleted_at.is_(None)])
     old = _schedule_response(block)
     try:
@@ -126,13 +127,13 @@ async def update_schedule(schedule_id: str, data: dict, request: Request,
     slot = data.get("slot_minutes", block.slot_minutes)
     weekday = data.get("weekday", block.weekday)
     _validate_block(weekday, start, end, slot)
-    await _assert_no_overlap(db, pharmacy_id, block.practitioner_id, weekday, start, end, block.id)
+    await _assert_no_overlap(db, clinic_id, block.practitioner_id, weekday, start, end, block.id)
     block.start_time, block.end_time, block.slot_minutes, block.weekday = start, end, slot, weekday
     if "is_active" in data:
         block.is_active = bool(data["is_active"])
     await db.flush()
     await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "update", "emr_schedule", block.id,
+        clinic_id, uuid.UUID(current_user.id), "update", "emr_schedule", block.id,
         _schedule_response(block), db, old_values=old, ip_address=_client_ip(request))
     return _schedule_response(block)
 
@@ -142,13 +143,13 @@ async def delete_schedule(schedule_id: str, request: Request,
                           current_user: User = Depends(get_current_user),
                           db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "schedules:edit", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    block = await get_owned_or_404(
-        db, EmrDoctorSchedule, schedule_id, pharmacy_id, not_found_detail="Schedule not found",
+    clinic_id = active_clinic_id(current_user)
+    block = await get_clinic_owned_or_404(
+        db, EmrDoctorSchedule, schedule_id, clinic_id, not_found_detail="Schedule not found",
         extra_conditions=[EmrDoctorSchedule.deleted_at.is_(None)])
     block.deleted_at = datetime.now(timezone.utc)
     block.is_active = False
     await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "delete", "emr_schedule", block.id,
+        clinic_id, uuid.UUID(current_user.id), "delete", "emr_schedule", block.id,
         _schedule_response(block), db, ip_address=_client_ip(request))
     return {"message": "Schedule block removed"}

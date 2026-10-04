@@ -23,7 +23,8 @@ from modules.emr.constants import (
     APPT_IN_CONSULT, APPT_NO_SHOW, APPT_TYPE_SCHEDULED, APPT_TYPE_WALK_IN)
 from modules.emr.models import EmrAppointment, EmrPatient
 from modules.emr.slots import _booked_starts, _check_patient_doctor, _next_token, _resolve_slot, _slot_grid
-from routers.auth_helpers import User, get_current_user, get_owned_or_404
+from routers.auth_helpers import User, get_current_user
+from services.clinics import active_clinic_id, get_clinic_owned_or_404
 
 router = APIRouter(prefix="/api/emr", tags=["emr-appointments"])
 
@@ -60,7 +61,7 @@ def _appt_response(a: EmrAppointment, patient_name=None, doctor_name=None, fee=N
 async def _names(db, a: EmrAppointment):
     """Patient and doctor display names, both re-scoped to the appointment's own pharmacy."""
     p = (await db.execute(select(EmrPatient.name).where(
-        EmrPatient.id == a.patient_id, EmrPatient.pharmacy_id == a.pharmacy_id))).scalar()
+        EmrPatient.id == a.patient_id, EmrPatient.clinic_id == a.clinic_id))).scalar()
     d = getattr(await doctor_for_record(db, a.practitioner_id), "name", None)
     return p, d
 
@@ -70,9 +71,9 @@ async def available_slots(doctor_id: uuid.UUID, on_date: date = Query(..., alias
                           current_user: User = Depends(get_current_user),
                           db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "appointments:view", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    grid = await _slot_grid(db, pharmacy_id, doctor_id, on_date)
-    taken = await _booked_starts(db, pharmacy_id, doctor_id, on_date)
+    clinic_id = active_clinic_id(current_user)
+    grid = await _slot_grid(db, clinic_id, doctor_id, on_date)
+    taken = await _booked_starts(db, clinic_id, doctor_id, on_date)
     return [{"start_time": s.strftime("%H:%M"), "end_time": e.strftime("%H:%M"),
              "available": s not in taken} for s, e in grid]
 
@@ -82,10 +83,10 @@ async def create_appointment(data: AppointmentCreate, request: Request,
                              current_user: User = Depends(get_current_user),
                              db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "appointments:create", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    clinic_id = active_clinic_id(current_user)
     if data.appointment_date < date.today():
         raise HTTPException(status_code=422, detail="Cannot book an appointment in the past")
-    await _check_patient_doctor(db, pharmacy_id, data.patient_id, data.doctor_id)
+    await _check_patient_doctor(db, clinic_id, data.patient_id, data.doctor_id)
 
     end_time = None
     if data.start_time is None:
@@ -95,13 +96,13 @@ async def create_appointment(data: AppointmentCreate, request: Request,
     else:
         appt_type = APPT_TYPE_SCHEDULED
         end_time = await _resolve_slot(
-            db, pharmacy_id, data.doctor_id, data.appointment_date, data.start_time)
+            db, clinic_id, data.doctor_id, data.appointment_date, data.start_time)
 
     appt = EmrAppointment(
-        pharmacy_id=pharmacy_id, patient_id=data.patient_id, practitioner_id=data.doctor_id,
+        clinic_id=clinic_id, patient_id=data.patient_id, practitioner_id=data.doctor_id,
         appointment_date=data.appointment_date, start_time=data.start_time, end_time=end_time,
         token_number=await _next_token(
-            db, pharmacy_id, data.doctor_id, data.appointment_date),
+            db, clinic_id, data.doctor_id, data.appointment_date),
         appointment_type=appt_type, reason=data.reason, created_by=uuid.UUID(current_user.id))
     db.add(appt)
     try:
@@ -110,7 +111,7 @@ async def create_appointment(data: AppointmentCreate, request: Request,
         raise HTTPException(
             status_code=409, detail="Someone just booked that slot or token — please try again")
     await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "create", "emr_appointment", appt.id,
+        clinic_id, uuid.UUID(current_user.id), "create", "emr_appointment", appt.id,
         _appt_response(appt), db, ip_address=_client_ip(request))
     return _appt_response(appt, *await _names(db, appt))
 
@@ -134,7 +135,7 @@ async def list_appointments(
         select(EmrAppointment, EmrPatient.name, Practitioner.name)
         .join(EmrPatient, EmrPatient.id == EmrAppointment.patient_id)
         .join(Practitioner, Practitioner.id == EmrAppointment.practitioner_id)
-        .where(EmrAppointment.pharmacy_id == uuid.UUID(current_user.pharmacy_id),
+        .where(EmrAppointment.clinic_id == active_clinic_id(current_user),
                EmrAppointment.deleted_at.is_(None)))
     if date_from and date_to:
         query = query.where(EmrAppointment.appointment_date.between(date_from, date_to))
@@ -150,7 +151,7 @@ async def list_appointments(
         query = query.where(EmrAppointment.status == status)
     rows = (await db.execute(query.order_by(
         EmrAppointment.appointment_date.desc(), EmrAppointment.token_number))).all()
-    fees = await fee_for_appointments(db, uuid.UUID(current_user.pharmacy_id), [a for a, _, _ in rows])
+    fees = await fee_for_appointments(db, active_clinic_id(current_user), [a for a, _, _ in rows])
     return [_appt_response(a, pn, dn, fees.get(a.id)) for a, pn, dn in rows]
 
 
@@ -158,8 +159,8 @@ async def list_appointments(
 async def get_appointment(appointment_id: str, current_user: User = Depends(get_current_user),
                           db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "appointments:view", db)
-    appt = await get_owned_or_404(
-        db, EmrAppointment, appointment_id, uuid.UUID(current_user.pharmacy_id),
+    appt = await get_clinic_owned_or_404(
+        db, EmrAppointment, appointment_id, active_clinic_id(current_user),
         not_found_detail="Appointment not found",
         extra_conditions=[EmrAppointment.deleted_at.is_(None)])
     return _appt_response(appt, *await _names(db, appt))
@@ -171,9 +172,9 @@ async def reschedule_appointment(appointment_id: str, data: dict, request: Reque
                                  db: AsyncSession = DbSession):
     """Move a still-`booked` visit to another doctor/date/slot, or edit its reason."""
     await _require_emr_permission(current_user, "appointments:edit", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    appt = await get_owned_or_404(
-        db, EmrAppointment, appointment_id, pharmacy_id, not_found_detail="Appointment not found",
+    clinic_id = active_clinic_id(current_user)
+    appt = await get_clinic_owned_or_404(
+        db, EmrAppointment, appointment_id, clinic_id, not_found_detail="Appointment not found",
         extra_conditions=[EmrAppointment.deleted_at.is_(None)])
     if appt.status != APPT_BOOKED:
         raise HTTPException(
@@ -187,13 +188,13 @@ async def reschedule_appointment(appointment_id: str, data: dict, request: Reque
         raise HTTPException(status_code=422, detail="Invalid date, time or doctor id")
     if day < date.today():
         raise HTTPException(status_code=422, detail="Cannot move an appointment into the past")
-    await _check_patient_doctor(db, pharmacy_id, appt.patient_id, doctor_id)
+    await _check_patient_doctor(db, clinic_id, appt.patient_id, doctor_id)
     moved = (day, start, doctor_id) != (appt.appointment_date, appt.start_time, appt.practitioner_id)
     if moved:
         if start is None:
             raise HTTPException(status_code=422, detail="Pick a time slot to reschedule")
-        appt.end_time = await _resolve_slot(db, pharmacy_id, doctor_id, day, start, appt.id)
-        appt.token_number = await _next_token(db, pharmacy_id, doctor_id, day)
+        appt.end_time = await _resolve_slot(db, clinic_id, doctor_id, day, start, appt.id)
+        appt.token_number = await _next_token(db, clinic_id, doctor_id, day)
         appt.appointment_date, appt.start_time, appt.practitioner_id = day, start, doctor_id
         appt.appointment_type = APPT_TYPE_SCHEDULED
     if "reason" in data:
@@ -204,7 +205,7 @@ async def reschedule_appointment(appointment_id: str, data: dict, request: Reque
         raise HTTPException(
             status_code=409, detail="Someone just booked that slot — please pick another")
     await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "update", "emr_appointment", appt.id,
+        clinic_id, uuid.UUID(current_user.id), "update", "emr_appointment", appt.id,
         _appt_response(appt), db, old_values=old, ip_address=_client_ip(request))
     return _appt_response(appt, *await _names(db, appt))
 
@@ -217,9 +218,9 @@ async def change_appointment_status(appointment_id: str, data: StatusChange, req
     cancelling = data.status == APPT_CANCELLED
     await _require_emr_permission(
         current_user, "appointments:cancel" if cancelling else "appointments:edit", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    appt = await get_owned_or_404(
-        db, EmrAppointment, appointment_id, pharmacy_id, not_found_detail="Appointment not found",
+    clinic_id = active_clinic_id(current_user)
+    appt = await get_clinic_owned_or_404(
+        db, EmrAppointment, appointment_id, clinic_id, not_found_detail="Appointment not found",
         extra_conditions=[EmrAppointment.deleted_at.is_(None)])
     if data.status not in APPOINTMENT_TRANSITIONS.get(appt.status, ()):
         raise HTTPException(
@@ -245,7 +246,7 @@ async def change_appointment_status(appointment_id: str, data: StatusChange, req
         await withdraw_consultation_fee(
             db, appt, uid, f"Appointment {data.status.replace('_', ' ')}", _client_ip(request))
     await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "status_change", "emr_appointment", appt.id,
+        clinic_id, uuid.UUID(current_user.id), "status_change", "emr_appointment", appt.id,
         {"status": appt.status, "cancel_reason": appt.cancel_reason}, db, old_values=old,
         ip_address=_client_ip(request))
     return _appt_response(appt, *await _names(db, appt))

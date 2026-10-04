@@ -56,3 +56,30 @@ def shape(c: Clinic) -> dict:
         "pincode": c.pincode, "phone": c.phone, "email": c.email, "registration_no": c.registration_no,
         "is_active": c.is_active, "has_pharmacy": c.linked_pharmacy_id is not None,
     }
+
+
+def active_clinic_id(current_user) -> uuid.UUID:
+    """The clinic the caller is working at (EMR / clinic billing). 409 with a plain next step when none is
+    chosen — the login has no clinic access yet, or has not picked one."""
+    if not current_user.clinic_id:
+        raise HTTPException(
+            status_code=409,
+            detail="No clinic selected. Pick a clinic from the switcher, or ask an administrator to give you "
+                   "access to one (Settings → Organisation → Clinics).")
+    return uuid.UUID(str(current_user.clinic_id))
+
+
+async def get_clinic_owned_or_404(db: AsyncSession, model, record_id, clinic_id: uuid.UUID, *,
+                                  not_found_detail: str = "Not found", extra_conditions=None):
+    """The clinic twin of `get_owned_or_404`: one row of `model` by id, only if it belongs to this clinic."""
+    try:
+        rid = record_id if isinstance(record_id, uuid.UUID) else uuid.UUID(str(record_id))
+    except ValueError:
+        raise HTTPException(status_code=404, detail=not_found_detail)
+    conditions = [model.id == rid, model.clinic_id == clinic_id]
+    if extra_conditions:
+        conditions.extend(extra_conditions)
+    row = (await db.execute(select(model).where(*conditions))).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail=not_found_detail)
+    return row

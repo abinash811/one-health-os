@@ -19,6 +19,7 @@ const TH = 'px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase trac
 
 export default function DoctorsPanel() {
   const { user } = useContext(AuthContext) as unknown as { user: { role?: string; is_super_admin?: boolean; permissions?: string[] } | null };
+  const canSeeAll = !!user && (user.role === 'admin' || !!user.is_super_admin || hasPermission(user.permissions, 'clinics:view'));
   const canEdit = !!user && (user.role === 'admin' || !!user.is_super_admin || hasPermission(user.permissions, 'doctors:edit'));
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [clinics, setClinics] = useState<ClinicOption[]>([]);
@@ -45,11 +46,19 @@ export default function DoctorsPanel() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    api.get(apiUrl.myStores())
-      .then((res: { data: { pharmacy_id: string; pharmacy_name: string; is_active: boolean }[] }) =>
-        setClinics((res.data || []).map((s) => ({ pharmacy_id: s.pharmacy_id, pharmacy_name: s.pharmacy_name, is_current: s.is_active }))))
-      .catch((err: Error) => toast.error(err.message));
-  }, []);
+    // Options: an administrator may map a doctor to any clinic of the workspace; everyone else only to the
+    // clinics they can open. The clinic being worked at is pre-ticked for a new doctor.
+    type Row = { clinic_id?: string; clinic_name?: string; id?: string; name?: string; is_active?: boolean };
+    const mine = api.get(apiUrl.myClinics()).then((r: { data: Row[] }) => r.data || []);
+    const all = canSeeAll ? api.get(apiUrl.clinics()).then((r: { data: Row[] }) => r.data || []) : mine;
+    Promise.all([mine, all]).then(([m, a]) => {
+      const current = new Set(m.filter((c) => c.is_active).map((c) => c.clinic_id));
+      setClinics(a.map((c) => {
+        const id = (c.clinic_id || c.id) as string;
+        return { clinic_id: id, clinic_name: (c.clinic_name || c.name) as string, is_current: current.has(id) };
+      }));
+    }).catch((err: Error) => toast.error(err.message));
+  }, [canSeeAll]);
 
   const open = (d: Doctor | null) => { setEditing(d); setFormOpen(true); };
 
@@ -69,9 +78,9 @@ export default function DoctorsPanel() {
   };
 
   const fees = (d: Doctor) => d.clinics.map((c) => (
-    <span key={c.pharmacy_id} className="inline-flex items-center rounded-full bg-brand-subtle text-brand text-xs px-2 py-0.5 mr-1 mb-1"
+    <span key={c.clinic_id} className="inline-flex items-center rounded-full bg-brand-subtle text-brand text-xs px-2 py-0.5 mr-1 mb-1"
       title={c.consultation_fee_paise ? `Fee ${formatCurrency(toRupees(c.consultation_fee_paise))}` : 'No fee'}>
-      {c.pharmacy_name}{c.consultation_fee_paise ? ` · ${formatCurrency(toRupees(c.consultation_fee_paise))}` : ''}
+      {c.clinic_name}{c.consultation_fee_paise ? ` · ${formatCurrency(toRupees(c.consultation_fee_paise))}` : ''}
     </span>
   ));
 

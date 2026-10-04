@@ -17,6 +17,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 - New role ticks: View / Create / Edit Clinics and View / Create / Edit Pharmacies.
 
 ### Changed
+- **EMR now belongs to clinics** (docs/32 P2b): patients, appointments, schedules, prescriptions, clinic settings and clinic billing are stored per clinic, not per pharmacy. Existing data kept its place automatically. Without a selected clinic, EMR asks you to pick one. Doctors are mapped to clinics (the Doctors form's "Works at" lists clinics).
 - Workspace is now required everywhere (docs/33 W4): every pharmacy, login, role, clinic and doctor belongs to one; role names and emails are unique inside a workspace. The old "standalone pharmacy" special cases are gone. New check (Rule 25) stops anyone scoping logins or roles by a single pharmacy again.
 - Team is now the whole workspace (docs/33 W3): every login in the hospital is listed and manageable from any place; the same email can't be added twice in one workspace. The Audit Log shows actions at every place the viewer has access to. Doctors can be linked to any login in the workspace.
 - "Stores & chain" is now **Pharmacies**. Adding a pharmacy needs the Create Pharmacies tick (not administrator only), and the person who adds it gets the role they already have there, never administrator.

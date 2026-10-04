@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 import requests
 
-from test_emr_appointments import BASE_URL
+from test_emr_appointments import BASE_URL, _clinic_for_token
 from test_emr_settings import _Clinic
 
 API = f"{BASE_URL}/api/patient-billing"
@@ -98,6 +98,7 @@ class TestCharges(_Billing):
             "phone": "9855555586", "pharmacy_name": f"PB Other {self.suffix}", "address": "1 St",
             "city": "Testville", "state": "Karnataka", "pincode": "560006",
             "drug_license_number": f"DL-PBO-{self.suffix}"})
+        _clinic_for_token(other.json()["token"])
         h = {"Authorization": f"Bearer {other.json()['token']}"}
         assert requests.post(f"{API}/charges/{a['id']}/void", json={"reason": "x"}, headers=h).status_code == 404
         r = requests.post(f"{API}/invoices", json={"patient_id": p, "charge_item_ids": [a["id"]]}, headers=h)

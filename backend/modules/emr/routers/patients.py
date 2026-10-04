@@ -18,7 +18,8 @@ from modules.emr.constants import FIELD_REQUIRED
 from modules.patient_billing import service as billing
 from modules.emr.models import EmrPatient
 from modules.emr.settings_service import effective_patient_form, get_or_create_settings, next_uhid
-from routers.auth_helpers import User, get_current_user, get_owned_or_404, paginate_response
+from routers.auth_helpers import User, get_current_user, paginate_response
+from services.clinics import active_clinic_id, get_clinic_owned_or_404
 
 router = APIRouter(prefix="/api/emr", tags=["emr-patients"])
 
@@ -58,10 +59,10 @@ FIELD_LABELS = {
 }
 
 
-async def _enforce_required(db, pharmacy_id, values: dict, only_keys=None) -> None:
+async def _enforce_required(db, clinic_id, values: dict, only_keys=None) -> None:
     """The clinic's patient-form settings decide which fields must be filled. On create every
     required field is checked; on edit only the fields actually being sent are."""
-    form = effective_patient_form(await get_or_create_settings(db, pharmacy_id))
+    form = effective_patient_form(await get_or_create_settings(db, clinic_id))
     missing = [FIELD_LABELS[f] for f, state in form.items()
                if state == FIELD_REQUIRED and (only_keys is None or f in only_keys)
                and values.get(f) in (None, "")]
@@ -93,13 +94,13 @@ async def create_patient(data: PatientCreate, request: Request,
                          current_user: User = Depends(get_current_user),
                          db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:create", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    await _enforce_required(db, pharmacy_id, data.model_dump())
-    patient = EmrPatient(pharmacy_id=pharmacy_id, uhid=await next_uhid(db, pharmacy_id), **data.model_dump())
+    clinic_id = active_clinic_id(current_user)
+    await _enforce_required(db, clinic_id, data.model_dump())
+    patient = EmrPatient(clinic_id=clinic_id, uhid=await next_uhid(db, clinic_id), **data.model_dump())
     db.add(patient)
     await db.flush()
     await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "create", "emr_patient", patient.id,
+        clinic_id, uuid.UUID(current_user.id), "create", "emr_patient", patient.id,
         _audit_safe(data.model_dump()), db, ip_address=_client_ip(request))
     return _patient_response(patient)
 
@@ -109,9 +110,9 @@ async def list_patients(page: int = 1, page_size: int = 50, search: Optional[str
                         current_user: User = Depends(get_current_user),
                         db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:view", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    clinic_id = active_clinic_id(current_user)
     query = select(EmrPatient).where(
-        EmrPatient.pharmacy_id == pharmacy_id, EmrPatient.deleted_at.is_(None))
+        EmrPatient.clinic_id == clinic_id, EmrPatient.deleted_at.is_(None))
     if search:
         pattern = f"%{search}%"
         query = query.where(or_(
@@ -128,8 +129,8 @@ async def list_patients(page: int = 1, page_size: int = 50, search: Optional[str
 async def get_patient(patient_id: str, current_user: User = Depends(get_current_user),
                       db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:view", db)
-    patient = await get_owned_or_404(
-        db, EmrPatient, patient_id, uuid.UUID(current_user.pharmacy_id),
+    patient = await get_clinic_owned_or_404(
+        db, EmrPatient, patient_id, active_clinic_id(current_user),
         not_found_detail="Patient not found",
         extra_conditions=[EmrPatient.deleted_at.is_(None)])
     return _patient_response(patient)
@@ -140,12 +141,12 @@ async def update_patient(patient_id: str, data: dict, request: Request,
                          current_user: User = Depends(get_current_user),
                          db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:edit", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    patient = await get_owned_or_404(
-        db, EmrPatient, patient_id, pharmacy_id, not_found_detail="Patient not found",
+    clinic_id = active_clinic_id(current_user)
+    patient = await get_clinic_owned_or_404(
+        db, EmrPatient, patient_id, clinic_id, not_found_detail="Patient not found",
         extra_conditions=[EmrPatient.deleted_at.is_(None)])
     sent = {k: v for k, v in data.items() if k in PATIENT_EDITABLE}
-    await _enforce_required(db, pharmacy_id, sent, only_keys=set(sent))
+    await _enforce_required(db, clinic_id, sent, only_keys=set(sent))
     old_values: dict = {}
     new_values: dict = {}
     for key, value in data.items():
@@ -167,7 +168,7 @@ async def update_patient(patient_id: str, data: dict, request: Request,
     await db.refresh(patient)  # updated_at is set by the DB on UPDATE; reload before responding
     if new_values:
         await _record_audit(
-            pharmacy_id, uuid.UUID(current_user.id), "update", "emr_patient", patient.id,
+            clinic_id, uuid.UUID(current_user.id), "update", "emr_patient", patient.id,
             _audit_safe(new_values), db, old_values=_audit_safe(old_values),
             ip_address=_client_ip(request))
     return _patient_response(patient)
@@ -178,11 +179,11 @@ async def delete_patient(patient_id: str, request: Request,
                          current_user: User = Depends(get_current_user),
                          db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "patients:delete", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    patient = await get_owned_or_404(
-        db, EmrPatient, patient_id, pharmacy_id, not_found_detail="Patient not found",
+    clinic_id = active_clinic_id(current_user)
+    patient = await get_clinic_owned_or_404(
+        db, EmrPatient, patient_id, clinic_id, not_found_detail="Patient not found",
         extra_conditions=[EmrPatient.deleted_at.is_(None)])
-    owed = await billing.open_balance_paise(db, pharmacy_id, patient.id)
+    owed = await billing.open_balance_paise(db, clinic_id, patient.id)
     if owed > 0:
         raise HTTPException(
             status_code=409,
@@ -191,6 +192,6 @@ async def delete_patient(patient_id: str, request: Request,
     patient.deleted_at = datetime.now(timezone.utc)
     patient.is_active = False
     await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "delete", "emr_patient", patient.id,
+        clinic_id, uuid.UUID(current_user.id), "delete", "emr_patient", patient.id,
         {"name": patient.name}, db, ip_address=_client_ip(request))
     return {"message": "Patient deleted"}

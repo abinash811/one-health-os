@@ -13,23 +13,25 @@ jest.mock('@/lib/axios', () => ({
 }));
 jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 
-const STORES = [
-  { pharmacy_id: 'c1', pharmacy_name: 'Main Clinic', role_name: 'admin', is_active: true },
-  { pharmacy_id: 'c2', pharmacy_name: 'Branch Clinic', role_name: 'admin', is_active: false },
+const MY_CLINICS = [
+  { clinic_id: 'c1', clinic_name: 'Main Clinic', role_name: 'admin', is_active: true },
+  { clinic_id: 'c2', clinic_name: 'Branch Clinic', role_name: 'admin', is_active: false },
 ];
+const ALL_CLINICS = [{ id: 'c1', name: 'Main Clinic' }, { id: 'c2', name: 'Branch Clinic' }];
 const RAO = {
   id: 'p1', name: 'Dr Rao', specialty: 'Cardiology', qualification: 'MD', registration_no: 'MH-1', phone: null, email: null,
   is_external: false, hospital: null, notes: null, is_active: true, user_id: 'u1', user_name: 'Rao Login',
   user_email: 'rao@clinic.com', clinics: [
-    { pharmacy_id: 'c1', pharmacy_name: 'Main Clinic', consultation_fee_paise: 50000, is_active: true },
-    { pharmacy_id: 'c2', pharmacy_name: 'Branch Clinic', consultation_fee_paise: null, is_active: true }],
+    { clinic_id: 'c1', clinic_name: 'Main Clinic', consultation_fee_paise: 50000, is_active: true },
+    { clinic_id: 'c2', clinic_name: 'Branch Clinic', consultation_fee_paise: null, is_active: true }],
 };
 const VISITING = { ...RAO, id: 'p2', name: 'Dr Visiting', is_external: true, hospital: 'City Hospital', user_id: null,
   user_name: null, user_email: null, clinics: [], registration_no: null, specialty: null, qualification: null };
 
 function mockApi(doctors: unknown[] = [RAO, VISITING]) {
   (api.get as jest.Mock).mockImplementation((url: string) => {
-    if (url.startsWith('users/me/stores')) return Promise.resolve({ data: STORES });
+    if (url.startsWith('users/me/clinics')) return Promise.resolve({ data: MY_CLINICS });
+    if (url.startsWith('clinics')) return Promise.resolve({ data: ALL_CLINICS });
     if (url.startsWith('practitioners/linkable-users')) return Promise.resolve({ data: [{ id: 'u9', name: 'Free Login', email: 'free@clinic.com' }] });
     if (url.startsWith('practitioners')) return Promise.resolve({ data: doctors });
     return Promise.resolve({ data: [] });
@@ -75,7 +77,7 @@ describe('Doctors panel', () => {
   it('shows the real reason when loading fails', async () => {
     (api.get as jest.Mock).mockImplementation((url: string) =>
       url.startsWith('practitioners') ? Promise.reject(new Error('Your role does not have the \'doctors:view\' permission'))
-        : Promise.resolve({ data: STORES }));
+        : Promise.resolve({ data: MY_CLINICS }));
     renderPanel();
     expect(await screen.findByText(/doctors:view/)).toBeInTheDocument();
   });
@@ -102,7 +104,7 @@ describe('Doctors panel', () => {
     await userEvent.click(save);
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('practitioners', expect.objectContaining({
       name: 'Dr New', user_id: null, is_external: false,
-      clinics: [{ pharmacy_id: 'c1', consultation_fee_paise: 50000 }],
+      clinics: [{ clinic_id: 'c1', consultation_fee_paise: 50000 }],
     })));
   });
 
@@ -136,7 +138,7 @@ describe('Doctors panel', () => {
     await userEvent.click(screen.getByTestId('doc-save-btn'));
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('practitioners/p1', expect.objectContaining({
       name: 'Dr Rao', user_id: 'u1', is_active: true,
-      clinics: [{ pharmacy_id: 'c1', consultation_fee_paise: 50000 }],
+      clinics: [{ clinic_id: 'c1', consultation_fee_paise: 50000 }],
     })));
   });
 
