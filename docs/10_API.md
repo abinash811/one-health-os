@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.41 | Last updated: October 4, 2026
+# Version: 1.42 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1498,6 +1498,13 @@ Clinics are EMR places, separate from pharmacies. Visible to the caller's own ho
 | POST | `/clinics` | `name` required; others optional (pincode 6 digits). Needs `clinics:create`. Forms the hospital on first use (roles and the founding place's clinics move under it). 409 if the name exists in the hospital |
 | GET | `/clinics/{id}` | `clinics:view`; 404 for another hospital's clinic |
 | PUT | `/clinics/{id}` | Partial; `is_active=false` deactivates (never deleted). Needs `clinics:edit`; 409 on duplicate name |
+
+**Doctors at a clinic (Oct 4, 2026, docs/32 P2c)** — the clinic-side view of the doctor↔clinic mapping:
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/clinics/{id}/doctors` | Needs `clinics:view` + `doctors:view`; the clinic must be one the caller can open (403). Every visible active doctor: `{id, name, specialty, registration_no, is_external, mapped, consultation_fee_paise}` |
+| PUT | `/clinics/{id}/doctors/{doctor_id}` | `doctors:edit`. Body `{consultation_fee_paise?, is_active?}` — maps the doctor here or updates the fee (revives a removed mapping). Fee ≥ 0 (422) |
+| DELETE | `/clinics/{id}/doctors/{doctor_id}` | `doctors:edit`. Soft-unmaps; 404 if not mapped |
 
 **Clinic access (Oct 4, 2026, docs/32 P2a):** the clinic twin of store access.
 | Method | Path | Notes |

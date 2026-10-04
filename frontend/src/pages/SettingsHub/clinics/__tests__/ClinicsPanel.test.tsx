@@ -83,6 +83,13 @@ describe('Clinics panel', () => {
     expect(screen.queryByTestId('edit-clinic-c1')).not.toBeInTheDocument();
   });
 
+  it('opens "Doctors at this clinic" from the row', async () => {
+    renderPanel();
+    await userEvent.click(await screen.findByTestId('clinic-doctors-c1'));
+    expect(await screen.findByText('Doctors at Sunrise Clinic')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('clinics/c1/doctors');
+  });
+
   it('shows the server reason when clinics cannot be loaded', async () => {
     (api.get as jest.Mock).mockRejectedValue(new Error("Your role does not have the 'clinics:view' permission"));
     renderPanel();

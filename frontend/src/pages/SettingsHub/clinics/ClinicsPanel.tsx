@@ -5,13 +5,14 @@
  */
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Building2, Pencil, Plus, Power } from 'lucide-react';
+import { Building2, Pencil, Plus, Power, Stethoscope } from 'lucide-react';
 import { AppButton, DataCard, EmptyState, ErrorState, StatusBadge, TableSkeleton } from '@/components/shared';
 import { AuthContext } from '@/App';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { hasPermission } from '@/utils/clinicAccess';
 import ClinicFormModal from './ClinicFormModal';
+import ClinicDoctorsModal from './ClinicDoctorsModal';
 import type { Clinic } from './types';
 
 const TH = 'px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider';
@@ -27,6 +28,9 @@ export default function ClinicsPanel() {
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<Clinic | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [doctorsFor, setDoctorsFor] = useState<Clinic | null>(null);
+  const canMapDoctors = admin || (!!user && hasPermission(user.permissions, 'doctors:edit'));
+  const canSeeDoctors = admin || (!!user && hasPermission(user.permissions, 'doctors:view'));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,13 +107,19 @@ export default function ClinicsPanel() {
                     <td className="px-4 py-3 text-gray-700">{c.phone || '—'}</td>
                     <td className="px-4 py-3"><StatusBadge status={c.is_active ? 'active' : 'inactive'} /></td>
                     <td className="px-4 py-3">
-                      {canEdit && (
+                      {(canEdit || canSeeDoctors) && (
                         <div className="flex justify-end gap-1">
+                          {canSeeDoctors && (
+                            <AppButton variant="ghost" size="sm" iconOnly icon={<Stethoscope className="w-4 h-4" />}
+                              aria-label={`Doctors at ${c.name}`} onClick={() => setDoctorsFor(c)} data-testid={`clinic-doctors-${c.id}`} />
+                          )}
+                          {canEdit && (<>
                           <AppButton variant="ghost" size="sm" iconOnly icon={<Pencil className="w-4 h-4" />}
                             aria-label={`Edit ${c.name}`} onClick={() => open(c)} data-testid={`edit-clinic-${c.id}`} />
                           <AppButton variant="ghost" size="sm" iconOnly icon={<Power className="w-4 h-4" />}
                             aria-label={c.is_active ? `Deactivate ${c.name}` : `Reactivate ${c.name}`}
                             onClick={() => toggleActive(c)} data-testid={`toggle-clinic-${c.id}`} />
+                          </>)}
                         </div>
                       )}
                     </td>
@@ -122,6 +132,7 @@ export default function ClinicsPanel() {
       )}
 
       <ClinicFormModal open={formOpen} clinic={editing} onClose={() => setFormOpen(false)} onSaved={load} />
+      <ClinicDoctorsModal clinic={doctorsFor} canEdit={canMapDoctors} onClose={() => setDoctorsFor(null)} />
     </div>
   );
 }

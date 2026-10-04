@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import {
-  PageHeader, PageTabs, DataCard, TableSkeleton, PaginationBar, AppButton,
+  PageHeader, DataCard, TableSkeleton, PaginationBar, AppButton,
   EmptyState, SearchInput, DeleteConfirmDialog,
 } from '@/components/shared';
 import api from '@/lib/axios';
@@ -16,7 +16,6 @@ import { apiUrl } from '@/constants/api';
 import usePagination from '@/hooks/usePagination';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
 import { ROUTES } from '@/constants/routes';
-import { EMR_TABS, emrTabRoute } from '../emrTabs';
 import PatientFormModal from '../components/PatientFormModal';
 import type { EmrPatient } from '../types';
 
@@ -75,14 +74,13 @@ export default function Patients() {
   return (
     <div className="px-8 py-6 min-h-screen bg-page" data-testid="emr-patients-page">
       <PageHeader
-        title="Clinic"
+        title="Patients"
         actions={(
           <AppButton icon={<UserPlus className="w-4 h-4" />} onClick={() => openForm(null)} data-testid="add-patient-btn">
             Register Patient
           </AppButton>
         )}
       />
-      <PageTabs tabs={EMR_TABS} activeTab="patients" onChange={(k) => navigate(emrTabRoute(k))} />
 
       <div className="mb-4 max-w-sm">
         <SearchInput value={search} onChange={(v) => { setSearch(v); applySearch(v); }}

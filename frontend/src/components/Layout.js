@@ -11,7 +11,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { AuthContext } from '@/App';
 import { AppButton } from '@/components/shared';
 import SidebarNav from '@/components/SidebarNav';
-import StoreSwitcher from '@/components/StoreSwitcher';
+import PlaceSwitcher from '@/components/PlaceSwitcher';
 import { visibleNavModules, ROLE_BADGE, ROLE_LABEL } from '@/components/navConfig';
 import {
   LogOut,
@@ -72,7 +72,6 @@ function SidebarShell({ collapsed, visibleGroups, user, roleBadge, roleLabel, on
 
       {/* User footer */}
       <div className="flex-shrink-0 border-t border-white/10 px-3 py-3">
-        <StoreSwitcher collapsed={collapsed} />
         <div className={`flex items-center gap-2 mb-2 ${collapsed ? 'justify-center' : ''}`}>
           <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
             <span className="text-[11px] font-semibold text-gray-300">
@@ -197,6 +196,11 @@ export default function Layout() {
       {/* ── Main area ──────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
+        {/* Desktop top bar — where you are working (clinic / pharmacy) */}
+        <header className="hidden md:flex items-center gap-3 px-6 h-12 bg-white border-b border-gray-200 flex-shrink-0" data-testid="top-bar">
+          <PlaceSwitcher />
+        </header>
+
         {/* Mobile top bar */}
         <header className="md:hidden flex items-center gap-3 px-4 h-14 bg-sidebar border-b border-white/10 flex-shrink-0">
           <AppButton
@@ -218,6 +222,7 @@ export default function Layout() {
             <span className="text-sm font-semibold text-white">PharmaCare</span>
           </div>
           <div className="flex-1" />
+          <PlaceSwitcher />
           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${roleBadge}`}>{roleLabel}</span>
         </header>
 

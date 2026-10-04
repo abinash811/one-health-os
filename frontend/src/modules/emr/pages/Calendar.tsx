@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { PageHeader, PageTabs, DataCard, TableSkeleton, AppButton, EmptyState, FilterPills } from '@/components/shared';
+import { PageHeader, DataCard, TableSkeleton, AppButton, EmptyState, FilterPills } from '@/components/shared';
 import { useClinicAccess } from '@/utils/clinicAccess';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
@@ -15,7 +15,6 @@ import { APPOINTMENT_STATUS } from '@/constants/domainConstants';
 import { ROUTES } from '@/constants/routes';
 import { today } from '@/utils/dates';
 import CollectPaymentDialog from '@/modules/patient_billing/components/CollectPaymentDialog';
-import { EMR_TABS, emrTabRoute } from '../emrTabs';
 import { addDays, buildColumns, dayLabel, isLive, STATUS_LEGEND, STATUS_CARD, toHHMM, visibleRange, weekDates, type CalColumn, type CalendarView, type Slot } from '../calendarUtils';
 import { useCalendarData } from '../useCalendarData';
 import { to12h } from '../timeFormat';
@@ -101,12 +100,11 @@ export default function Calendar() {
 
   return (
     <div className="px-8 py-6 min-h-screen bg-page" data-testid="emr-calendar-page">
-      <PageHeader title="Clinic" actions={(
+      <PageHeader title="Calendar" actions={(
         <AppButton icon={<CalendarPlus className="w-4 h-4" />} onClick={() => { setBooking(null); setBookOpen(true); }} data-testid="book-appointment-btn">
           Book Appointment
         </AppButton>
       )} />
-      <PageTabs tabs={EMR_TABS} activeTab="calendar" onChange={(k) => navigate(emrTabRoute(k))} />
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex items-center gap-1">

@@ -11,12 +11,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **Place switcher in the top bar** (docs/32 P2c): shows the clinic or pharmacy you are working at and lists all your clinics and pharmacies in two groups. It replaces the switcher in the sidebar footer.
+- **Doctors at this clinic**: on Settings → Organisation → Clinics, tick which doctors practise at a clinic and set the fee there.
+- **Team → Clinic access**: grant or revoke a person's access to each clinic, with their role there.
 - **Clinic access** (docs/32 P2a): each login now has a list of clinics it can open (with a role at each) and an active clinic. Admins grant or revoke access; whoever creates a clinic can open it straight away. EMR screens switch over in the next steps.
 - **Workspace** (docs/33 W1+W2): every hospital now has a workspace that its logins, roles, pharmacies and clinics belong to. Signing up forms one; places added later join it. Existing standalone pharmacies each got a workspace of one — nothing changed for them.
 - **Settings → Organisation → Clinics** (docs/32 P1): clinics are now their own records, separate from pharmacies. Create, edit and deactivate them; who can is decided by the Clinics ticks in a role (administrators always). Places that already used EMR keep working — each got a clinic with the same id.
 - New role ticks: View / Create / Edit Clinics and View / Create / Edit Pharmacies.
 
 ### Changed
+- EMR pages (Appointments, Calendar, Patients) no longer repeat the sidebar as tabs, and their titles now name the page instead of "Clinic".
 - **EMR now belongs to clinics** (docs/32 P2b): patients, appointments, schedules, prescriptions, clinic settings and clinic billing are stored per clinic, not per pharmacy. Existing data kept its place automatically. Without a selected clinic, EMR asks you to pick one. Doctors are mapped to clinics (the Doctors form's "Works at" lists clinics).
 - Workspace is now required everywhere (docs/33 W4): every pharmacy, login, role, clinic and doctor belongs to one; role names and emails are unique inside a workspace. The old "standalone pharmacy" special cases are gone. New check (Rule 25) stops anyone scoping logins or roles by a single pharmacy again.
 - Team is now the whole workspace (docs/33 W3): every login in the hospital is listed and manageable from any place; the same email can't be added twice in one workspace. The Audit Log shows actions at every place the viewer has access to. Doctors can be linked to any login in the workspace.

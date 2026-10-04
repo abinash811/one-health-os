@@ -9,6 +9,7 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import MembersTable from './MembersTable';
 import StoreAccessModal from './StoreAccessModal';
+import ClinicAccessModal from './ClinicAccessModal';
 import AdminCheckbox from './AdminCheckbox';
 
 const inputCls = 'w-full h-10 px-3 rounded-lg border border-gray-300 text-sm focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none placeholder:text-gray-400';
@@ -26,6 +27,7 @@ export default function MembersTab({ currentUser }) {
   const [selectedUser, setSelectedUser]           = useState(null);
   const [deactivateDialog, setDeactivateDialog]   = useState({ open: false, userId: null, loading: false });
   const [storeAccessMember, setStoreAccessMember] = useState(null);
+  const [clinicAccessMember, setClinicAccessMember] = useState(null);
 
   const [formData, setFormData]     = useState({ name: '', email: '', password: '', role: '', is_admin: false });
   const [passwordData, setPasswordData] = useState({ current_password: '', new_password: '', confirm_password: '' });
@@ -141,13 +143,18 @@ export default function MembersTab({ currentUser }) {
           onEdit={handleEditClick} onDeactivate={(id) => setDeactivateDialog({ open: true, userId: id, loading: false })}
           onActivate={async (id) => { try { await api.put(apiUrl.user(id), { is_active: true }); toast.success('User activated'); fetchUsers(); } catch (err) { toast.error(err.response?.data?.detail || 'Failed'); } }}
           onResetPassword={(u) => { setResetTarget(u); setResetData({ new_password: '', confirm_password: '' }); setShowResetDialog(true); }}
-          onStoreAccess={(u) => setStoreAccessMember(u)} />
+          onStoreAccess={(u) => setStoreAccessMember(u)} onClinicAccess={(u) => setClinicAccessMember(u)} />
       )}
 
       <StoreAccessModal
         member={storeAccessMember}
         open={!!storeAccessMember}
         onClose={() => setStoreAccessMember(null)}
+      />
+      <ClinicAccessModal
+        member={clinicAccessMember}
+        open={!!clinicAccessMember}
+        onClose={() => setClinicAccessMember(null)}
       />
 
       {/* Invite Dialog */}

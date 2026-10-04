@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
-  PageHeader, PageTabs, DataCard, TableSkeleton, AppButton, EmptyState, FilterPills, StatusBadge,
+  PageHeader, DataCard, TableSkeleton, AppButton, EmptyState, FilterPills, StatusBadge,
 } from '@/components/shared';
 import { useClinicAccess } from '@/utils/clinicAccess';
 import api from '@/lib/axios';
@@ -16,7 +16,6 @@ import { apiUrl } from '@/constants/api';
 import { APPOINTMENT_STATUS, APPOINTMENT_TYPE } from '@/constants/domainConstants';
 import { formatDate, today } from '@/utils/dates';
 import { ROUTES } from '@/constants/routes';
-import { EMR_TABS, emrTabRoute } from '../emrTabs';
 import { to12h } from '../timeFormat';
 import BookAppointmentModal from '../components/BookAppointmentModal';
 import CancelAppointmentDialog from '../components/CancelAppointmentDialog';
@@ -109,14 +108,13 @@ export default function Appointments() {
   return (
     <div className="px-8 py-6 min-h-screen bg-page" data-testid="emr-appointments-page">
       <PageHeader
-        title="Clinic"
+        title="Appointments"
         actions={(
           <AppButton icon={<CalendarPlus className="w-4 h-4" />} onClick={() => setBookOpen(true)} data-testid="book-appointment-btn">
             Book Appointment
           </AppButton>
         )}
       />
-      <PageTabs tabs={EMR_TABS} activeTab="appointments" onChange={(k) => navigate(emrTabRoute(k))} />
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex items-center gap-1">

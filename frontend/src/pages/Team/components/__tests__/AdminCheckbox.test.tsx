@@ -24,7 +24,7 @@ describe('MembersTable admin badge', () => {
   const renderTable = (users: unknown[]) => render(
     <MemoryRouter>
       <MembersTable users={users} loading={false} currentUser={{ id: 'me' }} pagination={{ page: 1, totalPages: 1 }}
-        onEdit={jest.fn()} onDeactivate={jest.fn()} onActivate={jest.fn()} onResetPassword={jest.fn()} onStoreAccess={jest.fn()} />
+        onEdit={jest.fn()} onDeactivate={jest.fn()} onActivate={jest.fn()} onResetPassword={jest.fn()} onStoreAccess={jest.fn()} onClinicAccess={jest.fn()} />
     </MemoryRouter>);
 
   it('shows Doctor + Admin for a doctor who is also an admin', () => {
