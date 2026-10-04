@@ -301,7 +301,8 @@ async def get_my_stores(current_user: User = Depends(
         select(UserStoreRole, PharmacyORM.name, RoleORM.name, PharmacyORM.gstin)
         .join(PharmacyORM, PharmacyORM.id == UserStoreRole.pharmacy_id)
         .join(RoleORM, RoleORM.id == UserStoreRole.role_id)
-        .where(UserStoreRole.user_id == uuid.UUID(current_user.id))
+        .where(UserStoreRole.user_id == uuid.UUID(current_user.id),
+               PharmacyORM.is_active | (PharmacyORM.id == uuid.UUID(current_user.pharmacy_id)))
         .order_by(PharmacyORM.name)
     )
     current_pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -348,6 +349,8 @@ async def switch_store(body: SwitchStore, request: Request, current_user: User =
     access = result.scalar_one_or_none()
     if not access:
         raise HTTPException(status_code=403, detail="You do not have access to that store")
+    if not (await db.execute(select(PharmacyORM.is_active).where(PharmacyORM.id == target_pharmacy_id))).scalar_one():
+        raise HTTPException(status_code=409, detail="That pharmacy is archived")
 
     user_result = await db.execute(
         # tenant-safe: id is the caller's own JWT subject, not user-supplied

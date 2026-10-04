@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.27 | Last updated: October 4, 2026
+# Version: 1.28 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -92,7 +92,7 @@ The root entity. Every piece of data belongs to a pharmacy.
 | `pan_number` | String(10) | PAN for IT filings |
 | `logo_url` | Text | Logo image URL — used on printed/digital bills |
 | `chain_id` | UUID FK → `chains.id`, nullable | `NULL` = standalone single-store pharmacy (every pharmacy today). Added `3bc60ce0ce95` for Phase 2 multi-chain (`docs/26_MULTI_CHAIN_SCOPE.md`) — not read by any login/permission code yet. |
-| `is_active` | Boolean | Soft disable |
+| `is_active` | Boolean | Soft disable — `false` = **archived** (Oct 4, 2026): hidden from switchers/pickers, never deleted; set via `PUT /pharmacies/stores/{id}` with guards |
 | `created_at`, `updated_at` | TIMESTAMP | — |
 
 ---

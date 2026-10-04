@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.44 | Last updated: October 4, 2026
+# Version: 1.45 | Last updated: October 4, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1515,7 +1515,8 @@ Clinics are EMR places, separate from pharmacies. Visible to the caller's own ho
 | DELETE | `/users/{id}/clinic-access/{clinic_id}` | Administrator. Moves the active clinic to another one they have, or clears it |
 Creating a clinic gives its creator access (their current role) and makes it their active clinic if they had none. `/auth/me` is unchanged.
 
-**Pharmacies:** `POST /pharmacies/stores` now needs `pharmacies:create` (was administrator-only). The creator gets the role they already hold at the new pharmacy — never administrator. `GET /pharmacies/stores` is unchanged (read-only, own hospital).
+**Pharmacies:** `POST /pharmacies/stores` now needs `pharmacies:create` (was administrator-only). The creator gets the role they already hold at the new pharmacy — never administrator. `GET /pharmacies/stores` (read-only, own workspace) now returns only **active** pharmacies by default, with the edit fields (`address, pincode, phone, email, gstin, drug_license_number, is_active`); `?include_archived=true` adds archived ones.
+**Edit / archive (Oct 4, 2026):** `PUT /pharmacies/stores/{id}` — partial body (`name, address, city, state, pincode, phone, email, gstin, drug_license_number, is_active`). Needs `pharmacies:edit`; the pharmacy must be in the caller's workspace (404 otherwise) and, unless the caller holds every permission, one they can open (403). `is_active=false` **archives** (soft; audited as `archive`; `true` restores, audited as `restore`). Archiving is refused (409, plain reason) when it is the workspace's only active pharmacy, has unfinished (draft/parked) bills or draft purchases, or would leave someone with no other pharmacy to open; people working there are moved to another pharmacy they can open. An archived pharmacy is hidden from `/users/me/stores`, the switcher and pickers; `POST /users/me/switch-store` and `POST /stock-transfers` refuse it (409).
 
 ## AUDIT LOGS
 

@@ -168,6 +168,8 @@ async def create_stock_transfer(
 
     source_pharmacy = await _get_pharmacy(source_pharmacy_id, db)
     destination_pharmacy = await _get_pharmacy(destination_pharmacy_id, db)
+    if not destination_pharmacy.is_active:
+        raise HTTPException(status_code=409, detail="That pharmacy is archived — pick an active destination")
     if destination_pharmacy.chain_id != source_pharmacy.chain_id:
         raise HTTPException(status_code=403, detail="That store is not in your workspace")
 

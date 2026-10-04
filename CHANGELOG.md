@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **Edit and archive pharmacies** (Settings → Organisation → Pharmacies): change a pharmacy's details, archive it (and restore it later). Archiving is refused with a plain reason while it has unfinished bills or draft purchases, is your only active pharmacy, or would leave someone with nowhere to work; people working there are moved to another pharmacy. Archived pharmacies disappear from the switcher and pickers but are never deleted.
 - **Invite with clinics**: when adding a user you can tick the clinics they can open (the one you work at is pre-ticked for doctors and receptionists), so they can work straight away.
 - **Clinics can't be switched off with open work**: upcoming appointments or unpaid clinic bills block it with a plain reason; people working there are moved to another clinic they can open.
 - **Place switcher in the top bar** (docs/32 P2c): shows the clinic or pharmacy you are working at and lists all your clinics and pharmacies in two groups. It replaces the switcher in the sidebar footer.
@@ -22,6 +23,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 - New role ticks: View / Create / Edit Clinics and View / Create / Edit Pharmacies.
 
 ### Changed
+- The header dropdown now lists only what fits the page: clinics on EMR pages, pharmacies on pharmacy pages, and nothing on workspace-wide pages (Users, Audit Log, Organisation settings).
 - **Create Bill now starts blank.** An unfinished bill is kept only for the same login at the same pharmacy, offered as "You have an unfinished bill · Resume / Discard", and dropped after a day. Before, the last bill's customer details appeared in every new bill — even for another user or pharmacy on the same computer.
 - Audit Log now names clinic, doctor-at-clinic and pharmacy entries and lets you filter by them.
 - The clinic / pharmacy switcher now sits in the page header, right next to the page title ("Appointments | Sunrise Clinic ▾"); the separate top bar is gone. On phones it stays in the top bar.

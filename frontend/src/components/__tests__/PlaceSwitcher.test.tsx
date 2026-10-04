@@ -47,14 +47,30 @@ describe('PlaceSwitcher', () => {
     expect(await screen.findByText('Main Pharmacy')).toBeInTheDocument();
   });
 
-  it('lists clinics and pharmacies in two groups', async () => {
+  it('EMR pages list clinics only', async () => {
     renderAt('/emr/appointments');
     await screen.findByText('Sunrise Clinic');
     await userEvent.click(screen.getByTestId('place-switcher-trigger'));
     expect(await screen.findByTestId('place-option-clinic-c2')).toBeInTheDocument();
-    expect(screen.getByTestId('place-option-pharmacy-p2')).toBeInTheDocument();
-    expect(screen.getByText('Clinics')).toBeInTheDocument();
-    expect(screen.getByText('Pharmacies')).toBeInTheDocument();
+    expect(screen.queryByTestId('place-option-pharmacy-p2')).not.toBeInTheDocument();
+  });
+
+  it('pharmacy pages list pharmacies only', async () => {
+    renderAt('/billing');
+    await screen.findByText('Main Pharmacy');
+    await userEvent.click(screen.getByTestId('place-switcher-trigger'));
+    expect(await screen.findByTestId('place-option-pharmacy-p2')).toBeInTheDocument();
+    expect(screen.queryByTestId('place-option-clinic-c2')).not.toBeInTheDocument();
+  });
+
+  it('workspace-wide pages (Users, Audit Log, Organisation settings) show no switcher', async () => {
+    const { container, unmount } = renderAt('/settings/organisation/team');
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    expect(container.querySelector('[data-testid="place-switcher-trigger"]')).not.toBeInTheDocument();
+    unmount();
+    const again = renderAt('/audit-log');
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    expect(again.container.querySelector('[data-testid="place-switcher-trigger"]')).not.toBeInTheDocument();
   });
 
   it('switching clinic calls the clinic endpoint, then reloads', async () => {

@@ -1,69 +1,61 @@
 /**
- * StoresTab — Settings → Organisation → Pharmacies. Add another pharmacy, turning a standalone
- * pharmacy into a chain (docs/26_MULTI_CHAIN_SCOPE.md Step 3). Clinics are separate (docs/32).
- * Adding follows the `pharmacies:create` tick. No persisted settings — self-contained action, same
- * pattern as DataBackupTab (no generic "Save Settings" button shown for this tab).
+ * StoresTab — Settings → Organisation → Pharmacies. Add another pharmacy (turning a standalone pharmacy into a
+ * chain, docs/26 Step 3), edit one's details, archive or restore it. Clinics are separate (docs/32).
+ * Add follows `pharmacies:create`, edit / archive `pharmacies:edit`. An archived pharmacy is hidden everywhere
+ * (switcher, pickers) but never deleted — its bills and stock stay for audits.
  */
-import React, { useContext, useEffect, useState } from 'react';
-import { Plus, Building2 } from 'lucide-react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
+import { Plus, Building2, Pencil, Archive, ArchiveRestore } from 'lucide-react';
 import { toast } from 'sonner';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AppButton, InlineLoader } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { AuthContext } from '@/App';
 import { hasPermission } from '@/utils/clinicAccess';
+import StoreFormModal, { type Store } from './StoreFormModal';
 
-const inputCls = 'w-full h-10 px-3 rounded-lg border border-gray-300 text-sm focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none placeholder:text-gray-400';
-
-const BLANK_STORE = {
-  name: '', address: '', city: '', state: '', pincode: '', phone: '', email: '',
-  gstin: '', drug_license_number: '',
-};
-
-interface Store { pharmacy_id: string; name: string; city: string; state: string; }
+type Me = { role?: string; is_super_admin?: boolean; permissions?: string[] } | null | undefined;
 
 export default function StoresTab() {
-  const user = (useContext(AuthContext) as unknown as { user?: { role?: string; is_super_admin?: boolean; permissions?: string[] } | null } | null)?.user;
-  const canCreate = !!user && (user.role === 'admin' || !!user.is_super_admin || hasPermission(user.permissions, 'pharmacies:create'));
+  const user: Me = (useContext(AuthContext) as unknown as { user?: Me } | null)?.user;
+  const admin = !!user && (user.role === 'admin' || !!user.is_super_admin);
+  const canCreate = admin || (!!user && hasPermission(user.permissions, 'pharmacies:create'));
+  const canEdit = admin || (!!user && hasPermission(user.permissions, 'pharmacies:edit'));
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState(BLANK_STORE);
+  const [showArchived, setShowArchived] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Store | null>(null);
 
-  const fetchStores = async () => {
+  const fetchStores = useCallback(async () => {
     try {
-      const res = await api.get(apiUrl.chainStores());
+      const res = await api.get(`${apiUrl.chainStores()}${showArchived ? '?include_archived=true' : ''}`);
       setStores(res.data || []);
-    } catch (error: any) {
-      toast.error(error.message || 'Could not load pharmacies');
+    } catch (error) {
+      toast.error((error as Error).message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [showArchived]);
 
-  useEffect(() => { fetchStores(); }, []);
+  useEffect(() => { fetchStores(); }, [fetchStores]);
 
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
+  const open = (s: Store | null) => { setEditing(s); setFormOpen(true); };
+
+  const toggleArchive = async (s: Store) => {
+    const archiving = s.is_active !== false;
     try {
-      await api.post(apiUrl.chainStores(), form);
-      toast.success('Pharmacy added');
-      setShowAdd(false);
-      setForm(BLANK_STORE);
+      await api.put(apiUrl.chainStore(s.pharmacy_id), { is_active: !archiving });
+      toast.success(archiving ? `${s.name} archived` : `${s.name} is active again`);
       fetchStores();
-    } catch (error: any) {
-      toast.error(error.message || 'Could not add the pharmacy');
-    } finally {
-      setSaving(false);
+    } catch (error) {
+      toast.error((error as Error).message);
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold mb-1">Pharmacies</h3>
           <p className="text-sm text-gray-600">
@@ -71,64 +63,56 @@ export default function StoresTab() {
             Users page to grant staff access to it. Clinics are managed separately.
           </p>
         </div>
-        {canCreate && (
-          <AppButton icon={<Plus className="w-4 h-4" strokeWidth={1.5} />} onClick={() => setShowAdd(true)} data-testid="add-store-btn">
-            Add Pharmacy
-          </AppButton>
-        )}
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer whitespace-nowrap" htmlFor="show-archived-stores">
+            <input id="show-archived-stores" type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 accent-brand" data-testid="show-archived-stores" />
+            Show archived
+          </label>
+          {canCreate && (
+            <AppButton icon={<Plus className="w-4 h-4" strokeWidth={1.5} />} onClick={() => open(null)} data-testid="add-store-btn">
+              Add Pharmacy
+            </AppButton>
+          )}
+        </div>
       </div>
 
       {loading ? (
         <div className="py-8 flex justify-center"><InlineLoader text="Loading pharmacies..." /></div>
       ) : (
         <div className="space-y-2" data-testid="stores-list">
-          {stores.map(store => (
-            <div key={store.pharmacy_id} className="flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 bg-white">
-              <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand shrink-0">
-                <Building2 className="w-4 h-4" strokeWidth={1.5} />
+          {stores.map((store) => {
+            const archived = store.is_active === false;
+            return (
+              <div key={store.pharmacy_id} data-testid={`store-row-${store.pharmacy_id}`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 bg-white ${archived ? 'opacity-70' : ''}`}>
+                <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand shrink-0">
+                  <Building2 className="w-4 h-4" strokeWidth={1.5} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">
+                    {store.name}{archived && <span className="ml-2 text-xs font-normal text-gray-500">Archived</span>}
+                  </div>
+                  <div className="text-xs text-gray-500">{store.city}, {store.state}</div>
+                </div>
+                {canEdit && (
+                  <div className="flex gap-1">
+                    {!archived && (
+                      <AppButton variant="ghost" size="sm" iconOnly icon={<Pencil className="w-4 h-4" />}
+                        aria-label={`Edit ${store.name}`} onClick={() => open(store)} data-testid={`edit-store-${store.pharmacy_id}`} />
+                    )}
+                    <AppButton variant="ghost" size="sm" iconOnly data-testid={`archive-store-${store.pharmacy_id}`}
+                      icon={archived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                      aria-label={archived ? `Restore ${store.name}` : `Archive ${store.name}`} onClick={() => toggleArchive(store)} />
+                  </div>
+                )}
               </div>
-              <div>
-                <div className="text-sm font-medium text-gray-900">{store.name}</div>
-                <div className="text-xs text-gray-500">{store.city}, {store.state}</div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Add Pharmacy</DialogTitle></DialogHeader>
-          <p className="text-xs text-gray-500 -mt-2">
-            This pharmacy's branding, GST defaults, and thresholds will be copied to the new
-            one — invoice and return numbering always starts fresh there, as GST requires.
-          </p>
-          <form onSubmit={handleAdd} className="space-y-4 mt-2">
-            <div><label htmlFor="store-name" className="block text-xs font-medium text-gray-700 mb-1">Store Name *</label>
-              <input id="store-name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} required /></div>
-            <div><label htmlFor="store-phone" className="block text-xs font-medium text-gray-700 mb-1">Phone *</label>
-              <input id="store-phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={inputCls} maxLength={10} required /></div>
-            <div><label htmlFor="store-address" className="block text-xs font-medium text-gray-700 mb-1">Address *</label>
-              <input id="store-address" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className={inputCls} required /></div>
-            <div className="grid grid-cols-3 gap-3">
-              <div><label htmlFor="store-city" className="block text-xs font-medium text-gray-700 mb-1">City *</label>
-                <input id="store-city" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} className={inputCls} required /></div>
-              <div><label htmlFor="store-state" className="block text-xs font-medium text-gray-700 mb-1">State *</label>
-                <input id="store-state" value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} className={inputCls} required /></div>
-              <div><label htmlFor="store-pincode" className="block text-xs font-medium text-gray-700 mb-1">Pincode *</label>
-                <input id="store-pincode" value={form.pincode} onChange={e => setForm({ ...form, pincode: e.target.value })} className={inputCls} maxLength={6} required /></div>
-            </div>
-            <div><label htmlFor="store-gstin" className="block text-xs font-medium text-gray-700 mb-1">GSTIN</label>
-              <input id="store-gstin" value={form.gstin} onChange={e => setForm({ ...form, gstin: e.target.value.toUpperCase() })} className={inputCls} maxLength={15} placeholder="This store's own GST registration" /></div>
-            <div><label htmlFor="store-dl" className="block text-xs font-medium text-gray-700 mb-1">Drug License Number</label>
-              <input id="store-dl" value={form.drug_license_number} onChange={e => setForm({ ...form, drug_license_number: e.target.value })} className={inputCls} /></div>
-            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-              <AppButton type="button" variant="secondary" onClick={() => setShowAdd(false)}>Cancel</AppButton>
-              <AppButton type="submit" loading={saving}>Add Pharmacy</AppButton>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <StoreFormModal open={formOpen} store={editing} onClose={() => setFormOpen(false)} onSaved={fetchStores} />
     </div>
   );
 }

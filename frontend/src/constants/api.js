@@ -312,6 +312,7 @@ export const apiUrl = {
   myClinics:        () => API_ENDPOINTS.USERS.MY_CLINICS,
   switchClinic:     () => API_ENDPOINTS.USERS.SWITCH_CLINIC,
   chainStores:      () => API_ENDPOINTS.CHAINS.STORES,
+  chainStore:       (id) => `${API_ENDPOINTS.CHAINS.STORES}/${id}`,
   stockTransfers:   () => API_ENDPOINTS.STOCK_TRANSFERS.LIST_CREATE,
   reverseStockTransfer: (id) => `stock-transfers/${id}/reverse`,
   userStoreAccess:  (userId) => `users/${userId}/store-access`,

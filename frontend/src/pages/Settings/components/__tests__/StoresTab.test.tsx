@@ -10,11 +10,12 @@ import api from '@/lib/axios';
 
 jest.mock('@/lib/axios', () => ({
   __esModule: true,
-  default: { get: jest.fn(), post: jest.fn() },
+  default: { get: jest.fn(), post: jest.fn(), put: jest.fn() },
 }));
 jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 
-const ONE_STORE = [{ pharmacy_id: 'p1', name: 'Main Store', city: 'Bengaluru', state: 'Karnataka' }];
+const ONE_STORE = [{ pharmacy_id: 'p1', name: 'Main Store', city: 'Bengaluru', state: 'Karnataka', address: '1 St',
+  pincode: '560001', phone: '9800000000', gstin: null, drug_license_number: null, is_active: true }];
 const TWO_STORES = [
   ...ONE_STORE,
   { pharmacy_id: 'p2', name: 'Second Store', city: 'Mysuru', state: 'Karnataka' },
@@ -94,5 +95,50 @@ describe('StoresTab', () => {
     await userEvent.click(screen.getByText('Add Pharmacy', { selector: 'button[type="submit"]' }));
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Admin access required'));
+  });
+
+  it('edits a pharmacy: the form opens filled in and saves with PUT', async () => {
+    (api.get as jest.Mock).mockResolvedValue({ data: ONE_STORE });
+    (api.put as jest.Mock).mockResolvedValue({ data: {} });
+    renderTab();
+    await userEvent.click(await screen.findByTestId('edit-store-p1'));
+    expect(screen.getByLabelText('Store Name *')).toHaveValue('Main Store');
+    await userEvent.clear(screen.getByLabelText('City *'));
+    await userEvent.type(screen.getByLabelText('City *'), 'Mysuru');
+    await userEvent.click(screen.getByTestId('store-save-btn'));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('pharmacies/stores/p1', expect.objectContaining({ city: 'Mysuru' })));
+  });
+
+  it('archives in one click, no confirmation (it can be undone), and shows the reason when refused', async () => {
+    const { toast } = require('sonner');
+    (api.get as jest.Mock).mockResolvedValue({ data: ONE_STORE });
+    (api.put as jest.Mock).mockResolvedValueOnce({ data: {} })
+      .mockRejectedValueOnce({ message: "Can't archive Main Store: 2 unfinished bills — finish or delete them first" });
+    renderTab();
+    await userEvent.click(await screen.findByTestId('archive-store-p1'));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('pharmacies/stores/p1', { is_active: false }));
+    await userEvent.click(await screen.findByTestId('archive-store-p1'));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('unfinished bills')));
+  });
+
+  it('can show archived pharmacies and restore one', async () => {
+    (api.get as jest.Mock).mockImplementation((url: string) => Promise.resolve({
+      data: url.includes('include_archived') ? [{ ...ONE_STORE[0], is_active: false }] : ONE_STORE }));
+    (api.put as jest.Mock).mockResolvedValue({ data: {} });
+    renderTab();
+    await screen.findByText('Main Store');
+    await userEvent.click(screen.getByTestId('show-archived-stores'));
+    expect(await screen.findByText('Archived')).toBeInTheDocument();
+    expect(screen.queryByTestId('edit-store-p1')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('archive-store-p1'));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('pharmacies/stores/p1', { is_active: true }));
+  });
+
+  it('hides edit and archive without the edit tick', async () => {
+    (api.get as jest.Mock).mockResolvedValue({ data: ONE_STORE });
+    renderTab({ role: 'manager', permissions: ['pharmacies:view', 'pharmacies:create'] });
+    await screen.findByText('Main Store');
+    expect(screen.queryByTestId('edit-store-p1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('archive-store-p1')).not.toBeInTheDocument();
   });
 });
