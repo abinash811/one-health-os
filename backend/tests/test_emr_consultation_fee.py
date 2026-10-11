@@ -4,11 +4,10 @@ patient's account at check-in, once per visit, and withdrawn if the visit is can
 it is billed. P0: no double charge, no silent loss of a billed charge, clinic isolation.
 """
 import uuid
-from datetime import date
 
 import requests
 
-from test_emr_appointments import BASE_URL, _clinic_for_token
+from test_emr_appointments import BASE_URL, _clinic_for_token, _today
 from test_patient_billing import API, _Billing
 
 
@@ -18,7 +17,7 @@ class _Fee(_Billing):
 
     def _walk_in(self, doctor_id):
         patient = self._patient()
-        appt = self._book(patient["id"], doctor_id, date.today())
+        appt = self._book(patient["id"], doctor_id, _today())
         assert appt.status_code == 200, appt.text
         return patient, appt.json()
 
@@ -127,7 +126,7 @@ class TestFeeOnTheQueue(_Fee):
 
     def _row(self, appt):
         rows = self.session.get(f"{BASE_URL}/api/emr/appointments",
-                                params={"date": date.today().isoformat()}).json()
+                                params={"date": _today().isoformat()}).json()
         return next(r for r in rows if r["id"] == appt["id"])
 
     def test_fee_state_follows_the_money(self):

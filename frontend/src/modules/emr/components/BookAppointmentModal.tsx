@@ -176,6 +176,7 @@ export default function BookAppointmentModal({ open, doctors, defaultDoctorId, d
                   <div className="flex flex-wrap gap-2">
                     {slots.map((s) => (
                       <AppButton key={s.start_time} size="sm" disabled={!s.available}
+                        title={s.past ? 'This time has already passed' : undefined}
                         variant={startTime === s.start_time ? 'primary' : 'outline'}
                         onClick={() => setStartTime(s.start_time)} data-testid={`slot-${s.start_time}`}>
                         {to12h(s.start_time)}

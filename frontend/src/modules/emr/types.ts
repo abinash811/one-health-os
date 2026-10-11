@@ -72,6 +72,8 @@ export interface EmrSlot {
   start_time: string;
   end_time: string;
   available: boolean;
+  /** Already started by the clinic's clock (today only) — shown, but cannot be picked. */
+  past?: boolean;
 }
 
 export interface EmrVitals {

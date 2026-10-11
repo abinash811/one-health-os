@@ -9,12 +9,22 @@ numbering, the appointment status machine, and soft deletes.
 """
 import os
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 import requests
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
+
+
+def _now_ist() -> datetime:
+    """The clinic's clock (India) — the same one the booking rules use, whatever timezone the test machine is in."""
+    return datetime.now(ZoneInfo("Asia/Kolkata"))
+
+
+def _today() -> date:
+    return _now_ist().date()
 
 
 def _clinic_for_token(token: str, name="Other Clinic"):
@@ -26,7 +36,7 @@ def _clinic_for_token(token: str, name="Other Clinic"):
 
 def _next_weekday_date(weekday: int) -> date:
     """The first date at least 7 days ahead that falls on `weekday` (Mon=0)."""
-    d = date.today() + timedelta(days=7)
+    d = _today() + timedelta(days=7)
     while d.weekday() != weekday:
         d += timedelta(days=1)
     return d
@@ -171,8 +181,8 @@ class TestPermissions(_EmrBase):
     def test_starting_and_completing_a_consultation_has_its_own_tick(self):
         """Oct 11, 2026: check-in stays with `appointments:edit`; Start consult / Complete need `appointments:consult`
         (doctors have it, receptionists don't) — decided by the role's ticks, never by the role's name."""
-        doctor_id = self._doctor_with_schedule(date.today().weekday())
-        appt = self._book(self._patient()["id"], doctor_id, date.today(), start=None).json()
+        doctor_id = self._doctor_with_schedule(_today().weekday())
+        appt = self._book(self._patient()["id"], doctor_id, _today(), start=None).json()
         url = f"{BASE_URL}/api/emr/appointments/{appt['id']}/status"
         _, rec = self._user("receptionist")
         assert rec.post(url, json={"status": "checked_in"}).status_code == 200
@@ -190,8 +200,8 @@ class TestPermissions(_EmrBase):
             "permissions": ["appointments:view", "appointments:edit", "appointments:consult", "patients:view"]})
         assert made.status_code == 200, made.text
         _, lead = self._user(role_name)
-        doctor_id = self._doctor_with_schedule(date.today().weekday())
-        appt = self._book(self._patient()["id"], doctor_id, date.today()).json()
+        doctor_id = self._doctor_with_schedule(_today().weekday())
+        appt = self._book(self._patient()["id"], doctor_id, _today()).json()
         url = f"{BASE_URL}/api/emr/appointments/{appt['id']}/status"
         for nxt in ("checked_in", "in_consult", "completed"):
             assert lead.post(url, json={"status": nxt}).status_code == 200
@@ -262,20 +272,20 @@ class TestAppointments(_EmrBase):
     def test_walk_in_tokens_per_doctor(self):
         doctor_a, doctor_b = self._doctor_with_schedule(5), self._doctor_with_schedule(5)
         p = self._patient()
-        t1 = self._book(p["id"], doctor_a, date.today())
-        t2 = self._book(p["id"], doctor_a, date.today())
-        other = self._book(p["id"], doctor_b, date.today())
+        t1 = self._book(p["id"], doctor_a, _today())
+        t2 = self._book(p["id"], doctor_a, _today())
+        other = self._book(p["id"], doctor_b, _today())
         assert [t1.json()["token_number"], t2.json()["token_number"]] == [1, 2]
         assert other.json()["token_number"] == 1                      # tokens are per doctor
         assert t1.json()["appointment_type"] == "walk_in" and t1.json()["start_time"] is None
         # a walk-in can only be for today
-        future = self._book(p["id"], doctor_a, date.today() + timedelta(days=2))
+        future = self._book(p["id"], doctor_a, _today() + timedelta(days=2))
         assert future.status_code == 422
 
     def test_status_machine_and_queue(self):
         doctor_id = self._doctor_with_schedule(6)
         p = self._patient()
-        appt = self._book(p["id"], doctor_id, date.today()).json()
+        appt = self._book(p["id"], doctor_id, _today()).json()
         url = f"{BASE_URL}/api/emr/appointments/{appt['id']}/status"
 
         assert self.session.post(url, json={"status": "completed"}).status_code == 409  # can't skip
@@ -289,6 +299,32 @@ class TestAppointments(_EmrBase):
         queue = self.session.get(f"{BASE_URL}/api/emr/appointments",
                                  params={"doctor_id": doctor_id}).json()
         assert [q["id"] for q in queue] == [appt["id"]] and queue[0]["patient_name"] == p["name"]
+
+    def test_a_slot_that_has_already_started_today_cannot_be_booked(self):
+        """Oct 11, 2026: past dates were already refused; now a slot that began earlier today is too."""
+        now = _now_ist()
+        doctor_id = self._doctor()
+        r = self.session.post(f"{BASE_URL}/api/emr/schedules", json={
+            "doctor_id": doctor_id, "weekday": now.weekday(), "start_time": "00:00", "end_time": "23:30",
+            "slot_minutes": 30})
+        assert r.status_code == 200, r.text
+        slots = self.session.get(f"{BASE_URL}/api/emr/slots", params={
+            "doctor_id": doctor_id, "date": now.date().isoformat()}).json()
+        clock = now.strftime("%H:%M")
+        for s in slots:
+            assert s["past"] == (s["start_time"] < clock)
+            if s["past"]:
+                assert s["available"] is False
+        patient = self._patient()["id"]
+        refused = self._book(patient, doctor_id, now.date(), start="00:00")
+        if clock > "00:00":
+            assert refused.status_code == 422 and "already passed" in refused.json()["detail"]
+        future = [s for s in slots if not s["past"]]
+        if future:   # not in the last half hour of the day
+            ok = self._book(patient, doctor_id, now.date(), start=future[0]["start_time"])
+            assert ok.status_code == 200, ok.text
+        # and a past DATE is still refused
+        assert self._book(patient, doctor_id, now.date() - timedelta(days=1)).status_code == 422
 
     def test_cancel_needs_reason_and_frees_slot(self):
         day = _next_weekday_date(0)
@@ -315,7 +351,7 @@ class TestAppointments(_EmrBase):
 
     def test_other_pharmacy_cannot_touch_appointment(self):
         doctor_id = self._doctor_with_schedule(2)
-        appt = self._book(self._patient()["id"], doctor_id, date.today()).json()
+        appt = self._book(self._patient()["id"], doctor_id, _today()).json()
         other = requests.post(f"{BASE_URL}/api/auth/register", json={
             "email": f"emr_other2_{self.suffix}@pharmacy.com", "name": "Other Admin",
             "password": "OtherPharmTest123", "phone": "9855555582",
@@ -331,8 +367,8 @@ class TestAppointments(_EmrBase):
 
     def test_booking_needs_real_patient_and_doctor(self):
         doctor_id = self._doctor_with_schedule(3)
-        assert self._book(str(uuid.uuid4()), doctor_id, date.today()).status_code == 404
-        assert self._book(self._patient()["id"], str(uuid.uuid4()), date.today()).status_code == 404
+        assert self._book(str(uuid.uuid4()), doctor_id, _today()).status_code == 404
+        assert self._book(self._patient()["id"], str(uuid.uuid4()), _today()).status_code == 404
 
 
 class TestCalendarRange(_EmrBase):
@@ -359,7 +395,7 @@ class TestCalendarRange(_EmrBase):
 
     def test_range_validation(self):
         url = f"{BASE_URL}/api/emr/appointments"
-        today = date.today()
+        today = _today()
         assert self.session.get(url, params={"date_from": today.isoformat()}).status_code == 422
         assert self.session.get(url, params={
             "date_from": today.isoformat(), "date_to": (today - timedelta(days=1)).isoformat()}).status_code == 422
@@ -407,7 +443,7 @@ class TestDoctorRecords(_EmrBase):
         r = self.session.post(f"{BASE_URL}/api/emr/schedules", json={
             "doctor_id": foreign, "weekday": 0, "start_time": "09:00", "end_time": "10:00"})
         assert r.status_code == 404
-        assert self._book(self._patient()["id"], foreign, date.today()).status_code == 404
+        assert self._book(self._patient()["id"], foreign, _today()).status_code == 404
 
     def test_a_deactivated_doctor_cannot_take_new_bookings_but_history_keeps_the_name(self):
         doctor_id = self._doctor_with_schedule(4)

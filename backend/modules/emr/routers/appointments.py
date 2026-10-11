@@ -22,7 +22,8 @@ from modules.emr.constants import (
     APPOINTMENT_TRANSITIONS, APPT_BOOKED, APPT_CANCELLED, APPT_CHECKED_IN, APPT_COMPLETED,
     APPT_IN_CONSULT, APPT_NO_SHOW, APPT_TYPE_SCHEDULED, APPT_TYPE_WALK_IN)
 from modules.emr.models import EmrAppointment, EmrPatient
-from modules.emr.slots import _booked_starts, _check_patient_doctor, _next_token, _resolve_slot, _slot_grid
+from modules.emr.clock import clinic_today
+from modules.emr.slots import _booked_starts, _is_past, _check_patient_doctor, _next_token, _resolve_slot, _slot_grid
 from routers.auth_helpers import User, get_current_user
 from services.clinics import active_clinic_id, get_clinic_owned_or_404
 
@@ -75,7 +76,8 @@ async def available_slots(doctor_id: uuid.UUID, on_date: date = Query(..., alias
     grid = await _slot_grid(db, clinic_id, doctor_id, on_date)
     taken = await _booked_starts(db, clinic_id, doctor_id, on_date)
     return [{"start_time": s.strftime("%H:%M"), "end_time": e.strftime("%H:%M"),
-             "available": s not in taken} for s, e in grid]
+             "past": _is_past(on_date, s), "available": s not in taken and not _is_past(on_date, s)}
+            for s, e in grid]
 
 
 @router.post("/appointments")
@@ -84,13 +86,13 @@ async def create_appointment(data: AppointmentCreate, request: Request,
                              db: AsyncSession = DbSession):
     await _require_emr_permission(current_user, "appointments:create", db)
     clinic_id = active_clinic_id(current_user)
-    if data.appointment_date < date.today():
+    if data.appointment_date < clinic_today():
         raise HTTPException(status_code=422, detail="Cannot book an appointment in the past")
     await _check_patient_doctor(db, clinic_id, data.patient_id, data.doctor_id)
 
     end_time = None
     if data.start_time is None:
-        if data.appointment_date != date.today():
+        if data.appointment_date != clinic_today():
             raise HTTPException(status_code=422, detail="A walk-in can only be added for today")
         appt_type = APPT_TYPE_WALK_IN
     else:
@@ -142,7 +144,7 @@ async def list_appointments(
     elif on_date:
         query = query.where(EmrAppointment.appointment_date == on_date)
     elif not patient_id:
-        query = query.where(EmrAppointment.appointment_date == date.today())
+        query = query.where(EmrAppointment.appointment_date == clinic_today())
     if patient_id:
         query = query.where(EmrAppointment.patient_id == patient_id)
     if doctor_id:
@@ -186,7 +188,7 @@ async def reschedule_appointment(appointment_id: str, data: dict, request: Reque
         doctor_id = uuid.UUID(data["doctor_id"]) if "doctor_id" in data else appt.practitioner_id
     except (TypeError, ValueError):
         raise HTTPException(status_code=422, detail="Invalid date, time or doctor id")
-    if day < date.today():
+    if day < clinic_today():
         raise HTTPException(status_code=422, detail="Cannot move an appointment into the past")
     await _check_patient_doctor(db, clinic_id, appt.patient_id, doctor_id)
     moved = (day, start, doctor_id) != (appt.appointment_date, appt.start_time, appt.practitioner_id)

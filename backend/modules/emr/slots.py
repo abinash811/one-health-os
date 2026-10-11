@@ -7,12 +7,18 @@ from datetime import date, datetime, time, timedelta
 from fastapi import HTTPException
 from sqlalchemy import func, select
 
+from modules.emr.clock import clinic_now, clinic_today
 from modules.emr.constants import APPT_BOOKED, APPT_CHECKED_IN, APPT_COMPLETED, APPT_IN_CONSULT
 from modules.emr.doctors import get_clinic_doctor
 from modules.emr.models import EmrAppointment, EmrDoctorSchedule, EmrPatient
 from services.clinics import get_clinic_owned_or_404
 
 _LIVE = (APPT_BOOKED, APPT_CHECKED_IN, APPT_IN_CONSULT, APPT_COMPLETED)
+
+
+def _is_past(day: date, start: time) -> bool:
+    """True when a slot on `day` has already started by the clinic's clock (earlier days: the date checks)."""
+    return day == clinic_today() and start < clinic_now().time().replace(tzinfo=None)
 
 
 async def _slot_grid(db, clinic_id, practitioner_id, day: date) -> list[tuple[time, time]]:
@@ -67,6 +73,8 @@ async def _resolve_slot(db, clinic_id, practitioner_id, day, start, ignore_id=No
         raise HTTPException(
             status_code=422,
             detail="That time is not an open slot in the doctor's schedule for that day")
+    if _is_past(day, start):
+        raise HTTPException(status_code=422, detail="That time has already passed — pick a later slot")
     if start in await _booked_starts(db, clinic_id, practitioner_id, day, ignore_id):
         raise HTTPException(status_code=409, detail="That slot is already booked")
     return grid[start]

@@ -71,15 +71,16 @@ export default function CalendarGrid({ columns, schedules, appointments, range, 
                 {hours.map((m) => <div key={m} className="absolute inset-x-0 border-t border-gray-200" style={{ top: px(m) }} />)}
                 {slotsFor(schedules, col.doctorId, col.date).map((slot) => {
                   if (taken.has(toHHMM(slot.start))) return null;
+                  const slotOpen = canBook && !(isToday && slot.start < nowMin);   // a slot that already started cannot be booked
                   const label = `Book ${col.title} ${col.date} at ${to12h(toHHMM(slot.start))}`;
                   return (
-                    <AppButton key={slot.start} variant="chip" aria-label={label} title={label} disabled={!canBook}
+                    <AppButton key={slot.start} variant="chip" aria-label={label} title={label} disabled={!slotOpen}
                       data-testid={`cal-slot-${col.key}-${toHHMM(slot.start)}`} onClick={() => onSlotClick(col, slot)}
-                      onDragOver={(e) => { if (dragging && canBook) e.preventDefault(); }}
-                      onDrop={(e) => { e.preventDefault(); if (dragging) onMove(dragging, col, slot); setDragging(null); }}
+                      onDragOver={(e) => { if (dragging && slotOpen) e.preventDefault(); }}
+                      onDrop={(e) => { e.preventDefault(); if (dragging && slotOpen) onMove(dragging, col, slot); setDragging(null); }}
                       className="group absolute inset-x-0 flex items-center justify-center rounded-none border-t border-dashed border-gray-100 text-transparent hover:bg-brand-tint hover:text-brand disabled:opacity-100 disabled:hover:bg-transparent"
                       style={{ top: px(slot.start), height: (slot.end - slot.start) * PX_PER_MIN }}>
-                      {canBook && <Plus className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100" strokeWidth={1.5} />}
+                      {slotOpen && <Plus className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100" strokeWidth={1.5} />}
                     </AppButton>
                   );
                 })}

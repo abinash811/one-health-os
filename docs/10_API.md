@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.49 | Last updated: October 11, 2026
+# Version: 1.50 | Last updated: October 11, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1472,8 +1472,8 @@ there first if these seem to be missing.
 ### Appointments — `appointments:view|create|edit|cancel`
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/emr/slots?doctor_id=&date=` | Slot grid from the doctor's schedule: `[{start_time, end_time, available}]` |
-| POST | `/emr/appointments` | `patient_id`, `doctor_id`, `appointment_date`, optional `start_time`, `reason`. With `start_time` = scheduled (must be an open slot, 422 if off-grid/outside hours, 409 if taken). Without = walk-in (today only). Past dates 422. Token number is per doctor per day |
+| GET | `/emr/slots?doctor_id=&date=` | Slot grid from the doctor's schedule: `[{start_time, end_time, available, past}]`. `past` = the slot has already started by the clinic's clock (today only); such a slot is also `available: false` |
+| POST | `/emr/appointments` | `patient_id`, `doctor_id`, `appointment_date`, optional `start_time`, `reason`. With `start_time` = scheduled (must be an open slot, 422 if off-grid/outside hours, 409 if taken). Without = walk-in (today only). Past dates 422, and so is a slot that has already started today ("That time has already passed") — also when rescheduling. "Today" and "now" are the clinic's clock, fixed to India time (`modules/emr/clock.py`), not the server's. Token number is per doctor per day |
 | GET | `/emr/appointments?date=&date_from=&date_to=&doctor_id=&patient_id=&status=` | Day view / live queue. Defaults to today (all dates when `patient_id` is given). Ordered by token. Includes `patient_name`, `doctor_name`. `date_from`+`date_to` (both required together, inclusive, max 31 days, else 422) return a whole range — the calendar's week view |
 | GET | `/emr/appointments/{id}` | |
 | PUT | `/emr/appointments/{id}` | Reschedule (`appointment_date`, `start_time`, `doctor_id`) or edit `reason`. Only while `booked` (else 409) |

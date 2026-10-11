@@ -51,6 +51,20 @@ describe('BookAppointmentModal', () => {
     expect(onBooked).toHaveBeenCalled();
   });
 
+  it('shows a slot that has already started today as disabled, with the reason', async () => {
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url.startsWith('emr/slots')) return Promise.resolve({ data: [
+        { start_time: '09:00', end_time: '09:30', available: false, past: true },
+        { start_time: '09:30', end_time: '10:00', available: true, past: false }] });
+      return Promise.resolve({ data: { data: [PATIENT] } });
+    });
+    render(<BookAppointmentModal open doctors={DOCTORS} defaultDoctorId="d1" onClose={jest.fn()} onBooked={jest.fn()} />);
+    const past = await screen.findByTestId('slot-09:00');
+    expect(past).toBeDisabled();
+    expect(past).toHaveAttribute('title', 'This time has already passed');
+    expect(screen.getByTestId('slot-09:30')).toBeEnabled();
+  });
+
   it('cannot submit until a patient and a slot are chosen', async () => {
     setup();
     expect(screen.getByTestId('submit-appointment-btn')).toBeDisabled();

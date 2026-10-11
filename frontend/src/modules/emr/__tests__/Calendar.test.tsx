@@ -42,8 +42,35 @@ function mockApi(appts: unknown[]) {
 const renderPage = (role = 'receptionist') => render(
   <AuthContext.Provider value={{ user: { role } } as never}><MemoryRouter><Calendar /></MemoryRouter></AuthContext.Provider>);
 
+/** Pins "now" to `h:m` today by swapping `Date` (timers keep running). The calendar greys out slots that have
+ *  already started, so these tests must not depend on the real time of day. */
+const RealDate = Date;
+const setClock = (h: number, m = 0) => {
+  const fixed = new RealDate(); fixed.setHours(h, m, 0, 0);
+  global.Date = class extends RealDate {
+    constructor(...args: unknown[]) { if (args.length === 0) super(fixed.getTime()); else super(...(args as [string])); }
+    static now() { return fixed.getTime(); }
+  } as DateConstructor;
+};
+
 describe('Calendar', () => {
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => { jest.clearAllMocks(); setClock(8); });
+  afterEach(() => { global.Date = RealDate; });
+
+  it('greys out a slot that has already started today', async () => {
+    setClock(9, 45);
+    mockApi([]);
+    renderPage();
+    expect(await screen.findByTestId('cal-slot-d1-09:00')).toBeDisabled();
+    expect(screen.getByTestId('cal-slot-d1-09:30')).toBeDisabled();
+  });
+
+  it('keeps a slot that has not started yet bookable', async () => {
+    setClock(8, 30);
+    mockApi([]);
+    renderPage();
+    expect(await screen.findByTestId('cal-slot-d1-09:30')).toBeEnabled();
+  });
 
   it('asks the API for exactly the day on screen and draws a column per doctor', async () => {
     mockApi([APPT]);
