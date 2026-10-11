@@ -9,6 +9,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +18,6 @@ from models.clinics import Clinic
 from models.users import AuditLog, Role as RoleORM, User as UserORM, UserClinicAccess
 from routers.auth_helpers import User, get_current_user, require_admin_or_super
 from services.clinics import get_clinic_or_404
-from services.role_scope import find_role
 from services.workspace import caller_workspace, get_workspace_user_or_404
 
 router = APIRouter(prefix="/api", tags=["clinic-access"])
@@ -41,7 +41,7 @@ class SwitchClinic(BaseModel):
 
 class GrantClinicAccess(BaseModel):
     clinic_id: str
-    role: str
+    role: Optional[str] = None   # ignored — a person has one role (users.role_id); kept so old callers still work
 
 
 @router.get("/users/me/clinics")
@@ -52,7 +52,7 @@ async def get_my_clinics(current_user: User = Depends(get_current_user), db: Asy
     rows = (await db.execute(
         select(UserClinicAccess, Clinic.name, RoleORM.name)
         .join(Clinic, Clinic.id == UserClinicAccess.clinic_id)  # tenant-safe: own rows
-        .join(RoleORM, RoleORM.id == UserClinicAccess.role_id)
+        .join(RoleORM, RoleORM.id == uuid.UUID(current_user.role_id))   # the one role applies at every place
         .where(UserClinicAccess.user_id == uuid.UUID(current_user.id), Clinic.is_active,
                Clinic.deleted_at.is_(None))
         .order_by(Clinic.name))).all()
@@ -63,8 +63,8 @@ async def get_my_clinics(current_user: User = Depends(get_current_user), db: Asy
 @router.post("/users/me/switch-clinic")
 async def switch_clinic(body: SwitchClinic, request: Request, current_user: User = Depends(get_current_user),
                         db: AsyncSession = DbSession):
-    """Makes another clinic this person already has access to their active one (and takes their role there,
-    as switching stores does).
+    """Makes another clinic this person already has access to their active one. The person's single role
+    applies everywhere — switching never changes it.
     # permission-exempt: self-service, only into a clinic this exact user has a real access row for
     """
     try:
@@ -81,8 +81,7 @@ async def switch_clinic(body: SwitchClinic, request: Request, current_user: User
     user = (await db.execute(  # tenant-safe: id is the caller's own JWT subject
         select(UserORM).where(UserORM.id == uuid.UUID(current_user.id)))).scalar_one()
     old = user.clinic_id
-    user.clinic_id = clinic_id
-    user.role_id = access.role_id
+    user.clinic_id = clinic_id   # the role is the person's own and does not change with the place
     await db.flush()
     await _record_audit(uuid.UUID(current_user.pharmacy_id), user.id, "switch_clinic", user.id,
                         {"clinic_id": str(clinic_id)}, db, old_values={"clinic_id": str(old) if old else None},
@@ -99,7 +98,7 @@ async def get_user_clinic_access(user_id: str, current_user: User = Depends(get_
     rows = (await db.execute(
         select(UserClinicAccess, Clinic.name, RoleORM.name)
         .join(Clinic, Clinic.id == UserClinicAccess.clinic_id)  # tenant-safe: own rows
-        .join(RoleORM, RoleORM.id == UserClinicAccess.role_id)
+        .join(RoleORM, RoleORM.id == target.role_id)   # the person's one role applies at every place
         .where(UserClinicAccess.user_id == target.id).order_by(Clinic.name))).all()
     return [{"clinic_id": str(a.clinic_id), "clinic_name": name, "role_name": role_name}
             for a, name, role_name in rows]
@@ -112,20 +111,18 @@ async def grant_user_clinic_access(user_id: str, body: GrantClinicAccess, reques
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     target = await get_workspace_user_or_404(db, user_id, await caller_workspace(db, current_user))
     clinic = await get_clinic_or_404(db, body.clinic_id, pharmacy_id)
-    role = await find_role(db, pharmacy_id, body.role)
-    if not role:
-        raise HTTPException(status_code=400, detail=f"Role '{body.role}' not found")
+    role_id = target.role_id   # access only — the person keeps their one role
     existing = (await db.execute(select(UserClinicAccess).where(
         UserClinicAccess.user_id == target.id, UserClinicAccess.clinic_id == clinic.id))).scalar_one_or_none()
     if existing:
-        existing.role_id = role.id
+        existing.role_id = role_id
     else:
-        db.add(UserClinicAccess(user_id=target.id, clinic_id=clinic.id, role_id=role.id))
+        db.add(UserClinicAccess(user_id=target.id, clinic_id=clinic.id, role_id=role_id))
     if target.clinic_id is None:
         target.clinic_id = clinic.id
     await db.flush()
     await _record_audit(pharmacy_id, uuid.UUID(current_user.id), "grant_clinic_access", target.id,
-                        {"clinic_id": str(clinic.id), "role": body.role}, db, ip_address=_client_ip(request))
+                        {"clinic_id": str(clinic.id)}, db, ip_address=_client_ip(request))
     await db.flush()
     return {"message": "Clinic access granted"}
 

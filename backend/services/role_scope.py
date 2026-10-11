@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.pharmacy import Pharmacy
-from models.users import Role, User, UserStoreRole
+from models.users import Role, User
 
 
 async def chain_of(db: AsyncSession, pharmacy_id: uuid.UUID) -> uuid.UUID:
@@ -57,9 +57,7 @@ async def get_role_or_404(db: AsyncSession, role_id: str, pharmacy_id: uuid.UUID
 
 
 async def role_users_in_chain(db: AsyncSession, role_id: uuid.UUID) -> int:
-    """How many logins hold a role anywhere (home role or any store-access row)."""
+    """How many logins hold a role. A person has exactly one role (`users.role_id`); store/clinic access rows
+    only say where they may work."""
     # tenant-safe: role ids are hospital-scoped and already verified by get_role_or_404
-    home = {r for r in (await db.execute(select(User.id).where(User.role_id == role_id))).scalars()}
-    via = {r for r in (await db.execute(
-        select(UserStoreRole.user_id).where(UserStoreRole.role_id == role_id))).scalars()}
-    return len(home | via)
+    return len({r for r in (await db.execute(select(User.id).where(User.role_id == role_id))).scalars()})

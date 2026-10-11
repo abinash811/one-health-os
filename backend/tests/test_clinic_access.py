@@ -65,6 +65,30 @@ class TestClinicAccess:
         active = [c["clinic_id"] for c in self.s.get(f"{API}/users/me/clinics").json() if c["is_active"]]
         assert active == [second]
 
+    def test_a_person_has_one_role_everywhere_and_switching_never_changes_it(self):
+        """One role per person (Oct 11, 2026): granting access and switching places never touch the role."""
+        first, second = self._clinic("Role Clinic A"), self._clinic("Role Clinic B")
+        uid, email = self._member("onerole", role="receptionist")
+        for cid in (first, second):
+            # the old per-place `role` field is ignored, even when it names a different role
+            r = self.s.post(f"{API}/users/{uid}/clinic-access", json={"clinic_id": cid, "role": "cashier"})
+            assert r.status_code == 200, r.text
+        member = requests.Session()
+        member.headers.update({"Content-Type": "application/json"})
+        tok = member.post(f"{API}/auth/login", json={"email": email, "password": "Member12345"}).json()["token"]
+        member.headers.update({"Authorization": f"Bearer {tok}"})
+        before = member.get(f"{API}/auth/me").json()["role"]
+        assert before == "receptionist"
+        for cid in (first, second, first):
+            assert member.post(f"{API}/users/me/switch-clinic", json={"clinic_id": cid}).status_code == 200
+            assert member.get(f"{API}/auth/me").json()["role"] == "receptionist"
+        shown = {c["role_name"] for c in member.get(f"{API}/users/me/clinics").json()}
+        assert shown == {"receptionist"}
+        # an admin changing the role changes it everywhere at once
+        assert self.s.put(f"{API}/users/{uid}", json={"role": "cashier"}).status_code == 200
+        assert member.get(f"{API}/auth/me").json()["role"] == "cashier"
+        assert {c["role_name"] for c in member.get(f"{API}/users/me/clinics").json()} == {"cashier"}
+
     def test_cannot_switch_to_a_clinic_without_access(self):
         cid = self._clinic("Private Clinic")
         _, email = self._member("nope")

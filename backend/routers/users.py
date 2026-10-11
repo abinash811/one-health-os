@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -177,6 +177,9 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, c
         if not role:
             raise HTTPException(status_code=400, detail=f"Role '{user_update.role}' not found")
         user.role_id = role.id
+        # Access rows mirror the person's one role, so nothing anywhere holds a different one.
+        await db.execute(update(UserStoreRole).where(UserStoreRole.user_id == user.id).values(role_id=role.id))
+        await db.execute(update(UserClinicAccess).where(UserClinicAccess.user_id == user.id).values(role_id=role.id))
 
     if user_update.email is not None and user_update.email != user.email:
         dup = await db.execute(
@@ -300,7 +303,7 @@ async def get_my_stores(current_user: User = Depends(
     result = await db.execute(
         select(UserStoreRole, PharmacyORM.name, RoleORM.name, PharmacyORM.gstin, PharmacyORM.is_active)
         .join(PharmacyORM, PharmacyORM.id == UserStoreRole.pharmacy_id)
-        .join(RoleORM, RoleORM.id == UserStoreRole.role_id)
+        .join(RoleORM, RoleORM.id == uuid.UUID(current_user.role_id))   # the one role applies at every place
         .where(UserStoreRole.user_id == uuid.UUID(current_user.id),
                PharmacyORM.is_active | (PharmacyORM.id == uuid.UUID(current_user.pharmacy_id)))
         .order_by(PharmacyORM.name)
@@ -332,10 +335,11 @@ async def get_my_stores(current_user: User = Depends(
 async def switch_store(body: SwitchStore, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = DbSession):
     """Makes another store this person already has access to their active
-    one. Not a login/session change — `users.pharmacy_id`/`role_id` are
-    read fresh from the DB on every request (routers/auth_helpers.py's
-    `get_current_user`), so updating those two columns *is* the switch;
-    no new token needs issuing.
+    one. Not a login/session change — `users.pharmacy_id` is read fresh
+    from the DB on every request (routers/auth_helpers.py's
+    `get_current_user`), so updating it *is* the switch; no new token needs
+    issuing. A person has ONE role (`users.role_id`) that applies at every
+    place — switching never changes it.
     # permission-exempt: self-service, but only into a store this exact
     # user already has a real user_store_roles row for — checked below,
     # not inferred from being logged in at all.
@@ -358,8 +362,7 @@ async def switch_store(body: SwitchStore, request: Request, current_user: User =
         select(UserORM).where(UserORM.id == uuid.UUID(current_user.id)))
     user = user_result.scalar_one()
     old_pharmacy_id = user.pharmacy_id
-    user.pharmacy_id = access.pharmacy_id
-    user.role_id = access.role_id
+    user.pharmacy_id = access.pharmacy_id   # the role is the person's own and does not change with the place
     await db.flush()
     await _record_audit(
         access.pharmacy_id, uuid.UUID(current_user.id), "switch_store", "user", user.id,
@@ -372,7 +375,7 @@ async def switch_store(body: SwitchStore, request: Request, current_user: User =
 
 class GrantStoreAccess(BaseModel):
     pharmacy_id: str
-    role: str
+    role: Optional[str] = None   # ignored — a person has one role (users.role_id); kept so old callers still work
 
 
 async def _same_chain_or_self(target_pharmacy_id: uuid.UUID, admin_pharmacy_id: uuid.UUID, db: AsyncSession) -> None:
@@ -397,13 +400,13 @@ async def _same_chain_or_self(target_pharmacy_id: uuid.UUID, admin_pharmacy_id: 
 async def get_user_store_access(user_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = DbSession):
     await require_admin_or_super(current_user, db)
-    await get_workspace_user_or_404(
+    target_user = await get_workspace_user_or_404(
         db, user_id, await caller_workspace(db, current_user))
 
     result = await db.execute(
         select(UserStoreRole, PharmacyORM.name, RoleORM.name)
         .join(PharmacyORM, PharmacyORM.id == UserStoreRole.pharmacy_id)
-        .join(RoleORM, RoleORM.id == UserStoreRole.role_id)
+        .join(RoleORM, RoleORM.id == target_user.role_id)   # the person's one role applies at every place
         .where(UserStoreRole.user_id == uuid.UUID(user_id))
         .order_by(PharmacyORM.name)
     )
@@ -433,23 +436,21 @@ async def grant_user_store_access(user_id: str, body: GrantStoreAccess, request:
             PharmacyORM.id == target_pharmacy_id).with_for_update(read=True))).scalar_one():
         raise HTTPException(status_code=409, detail="That pharmacy is archived")
 
-    role = await find_role(db, target_pharmacy_id, body.role)
-    if not role:
-        raise HTTPException(status_code=400, detail=f"Role '{body.role}' not found at that store")
+    role_id = target_user.role_id   # access only — the person keeps their one role
 
     existing_result = await db.execute(
         select(UserStoreRole).where(
             UserStoreRole.user_id == target_user.id, UserStoreRole.pharmacy_id == target_pharmacy_id))
     existing = existing_result.scalar_one_or_none()
     if existing:
-        existing.role_id = role.id
+        existing.role_id = role_id
     else:
-        db.add(UserStoreRole(user_id=target_user.id, pharmacy_id=target_pharmacy_id, role_id=role.id))
+        db.add(UserStoreRole(user_id=target_user.id, pharmacy_id=target_pharmacy_id, role_id=role_id))
     await db.flush()
 
     await _record_audit(
         admin_pharmacy_id, uuid.UUID(current_user.id), "grant_store_access", "user", target_user.id,
-        {"pharmacy_id": str(target_pharmacy_id), "role": body.role}, db, ip_address=_client_ip(request),
+        {"pharmacy_id": str(target_pharmacy_id)}, db, ip_address=_client_ip(request),
     )
     await db.flush()
     return {"message": "Store access granted"}

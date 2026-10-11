@@ -11,35 +11,33 @@ jest.mock('@/lib/axios', () => ({
 jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 
 const CLINICS = [{ id: 'c1', name: 'Sunrise Clinic', city: 'Pune' }, { id: 'c2', name: 'North Clinic', city: null }];
-const ROLES = [{ name: 'doctor', display_name: 'Doctor (EMR)' }, { name: 'receptionist', display_name: 'Receptionist (EMR)' }];
 const MEMBER = { id: 'u1', name: 'Asha' };
 
 function mockApi(grants: unknown[] = []) {
   (api.get as jest.Mock).mockImplementation((url: string) => Promise.resolve({
-    data: url.startsWith('clinics') ? CLINICS : url.startsWith('roles') ? ROLES : grants }));
+    data: url.startsWith('clinics') ? CLINICS : grants }));
 }
 const renderIt = () => render(<ClinicAccessModal member={MEMBER} open onClose={jest.fn()} />);
 
 describe('Clinic access (Team)', () => {
   beforeEach(() => { jest.clearAllMocks(); mockApi(); });
 
-  it('lists every clinic of the workspace with a role to grant', async () => {
+  it('lists every clinic of the workspace with a Grant button and no role picker', async () => {
     renderIt();
     expect(await screen.findByText('Sunrise Clinic')).toBeInTheDocument();
     expect(screen.getByText('North Clinic')).toBeInTheDocument();
-    expect(screen.getByTestId('clinic-role-c1')).toHaveValue('receptionist');
+    expect(screen.queryByTestId('clinic-role-c1')).not.toBeInTheDocument();
   });
 
-  it('grants access with the chosen role, then reloads', async () => {
+  it('grants access (clinic only — a person has one role), then reloads', async () => {
     (api.post as jest.Mock).mockResolvedValue({ data: {} });
     renderIt();
-    await userEvent.selectOptions(await screen.findByTestId('clinic-role-c1'), 'doctor');
-    await userEvent.click(screen.getByTestId('grant-clinic-c1'));
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('users/u1/clinic-access', { clinic_id: 'c1', role: 'doctor' }));
+    await userEvent.click(await screen.findByTestId('grant-clinic-c1'));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('users/u1/clinic-access', { clinic_id: 'c1' }));
   });
 
-  it('shows the role they hold and lets you revoke', async () => {
-    mockApi([{ clinic_id: 'c1', clinic_name: 'Sunrise Clinic', role_name: 'doctor' }]);
+  it('shows that they have access and lets you revoke', async () => {
+    mockApi([{ clinic_id: 'c1', clinic_name: 'Sunrise Clinic' }]);
     (api.delete as jest.Mock).mockResolvedValue({ data: {} });
     renderIt();
     await userEvent.click(await screen.findByTestId('revoke-clinic-c1'));
@@ -55,7 +53,7 @@ describe('Clinic access (Team)', () => {
   });
 
   it('points to Settings when the workspace has no clinic yet', async () => {
-    (api.get as jest.Mock).mockImplementation((url: string) => Promise.resolve({ data: url.startsWith('roles') ? ROLES : [] }));
+    (api.get as jest.Mock).mockImplementation(() => Promise.resolve({ data: [] }));
     renderIt();
     expect(await screen.findByText(/Add a clinic under Settings/)).toBeInTheDocument();
   });

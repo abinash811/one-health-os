@@ -149,14 +149,14 @@ class TestStoreAccessGrantRevoke(_Base):
         member_id = self._create_team_member()
 
         grant = self.session.post(f"{BASE_URL}/api/users/{member_id}/store-access", json={
-            "pharmacy_id": second_store["pharmacy_id"], "role": "manager",
+            "pharmacy_id": second_store["pharmacy_id"],   # access only — the person keeps their one role
         })
         assert grant.status_code == 200, grant.text
 
         access = self.session.get(f"{BASE_URL}/api/users/{member_id}/store-access").json()
         assert len(access) == 2  # original store + the granted one
         granted = next(a for a in access if a["pharmacy_id"] == second_store["pharmacy_id"])
-        assert granted["role_name"] == "manager"
+        assert granted["role_name"] == "cashier"   # the member's own role, the same at every store
 
     def test_grant_rejected_for_store_outside_chain(self):
         other = requests.post(f"{BASE_URL}/api/auth/register", json={

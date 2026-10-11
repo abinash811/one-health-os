@@ -54,6 +54,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
   Doctors / Create & Edit Doctors.
 
 ### Fixed
+- **One role per person, everywhere**: switching clinic or pharmacy no longer changes your role (and so your menus), granting a place needs no role, and changing someone's role under Users applies at every place. The role pickers in the Users → store/clinic access dialogs are gone.
 - **CI backend test step now gets the database and secret key** the direct-database tests need.
 - **CI backend tests could not start**: 4 test files import backend modules directly, and CI's plain `pytest` couldn't find them. Added `backend/pytest.ini` so they resolve the same way as locally.
 - **Browser (E2E) tests caught up with the app**: inventory tests now pick a medicine from the catalog (names must come from it since Sep 19), and the purchase test waits for the page to finish loading before opening the Distributor menu. Also 3 old backend lint errors fixed so the CI lint step passes.

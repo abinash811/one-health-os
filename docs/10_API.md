@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.47 | Last updated: October 11, 2026
+# Version: 1.48 | Last updated: October 11, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1511,7 +1511,7 @@ Clinics are EMR places, separate from pharmacies. Visible to the caller's own ho
 |--------|------|-------|
 | GET | `/users/me/clinics` | Clinics the caller can open: `[{clinic_id, clinic_name, role_name, is_active}]` (`is_active` = the one being worked at) |
 | POST | `/users/me/switch-clinic` | `{clinic_id}` — needs an access row (403 otherwise); sets the active clinic and takes the role held there |
-| GET / POST | `/users/{id}/clinic-access` | Administrator. POST `{clinic_id, role}` grants (or changes the role); the first grant becomes the person's active clinic. Clinic and person must be in the caller's workspace (404 otherwise) |
+| GET / POST | `/users/{id}/clinic-access` | Administrator. POST `{clinic_id}` grants access only (a person has ONE role, `users.role_id`, at every place; an old `role` field is ignored); the first grant becomes the person's active clinic. Clinic and person must be in the caller's workspace (404 otherwise) |
 | DELETE | `/users/{id}/clinic-access/{clinic_id}` | Administrator. Moves the active clinic to another one they have, or clears it |
 Creating a clinic gives its creator access (their current role) and makes it their active clinic if they had none. `/auth/me` is unchanged.
 

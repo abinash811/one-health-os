@@ -80,14 +80,14 @@ class TestRolesFollowTheHospital(_Base):
             "pharmacy_id": store["pharmacy_id"], "role": f"floor_{self.suffix}"})
         assert grant.status_code == 200, grant.text
 
-    def test_deleting_a_role_is_blocked_while_anyone_holds_it_at_any_place(self):
+    def test_deleting_a_role_is_blocked_while_anyone_holds_it(self):
         store = self._add_store()
         role = self._new_role(f"temp_{self.suffix}", ["billing:view"])
         member = self.s.post(f"{API}/users", json={
             "name": "Temp Staff", "email": f"temp_{self.suffix}@pharmacy.com",
-            "password": "TempStaff123", "role": "cashier"}).json()
-        r = self.s.post(f"{API}/users/{member['id']}/store-access", json={
-            "pharmacy_id": store["pharmacy_id"], "role": role["name"]})
+            "password": "TempStaff123", "role": role["name"]}).json()
+        # one role per person: it is held on the login itself, at every place they can open
+        r = self.s.post(f"{API}/users/{member['id']}/store-access", json={"pharmacy_id": store["pharmacy_id"]})
         assert r.status_code == 200, r.text
         blocked = self.s.delete(f"{API}/roles/{role['id']}")
         assert blocked.status_code == 400

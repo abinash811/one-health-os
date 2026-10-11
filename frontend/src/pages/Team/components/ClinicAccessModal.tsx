@@ -1,6 +1,7 @@
 /**
- * ClinicAccessModal — grant / revoke a team member's access to the workspace's clinics, with the role they
- * hold at each (docs/32_CLINICS_SCOPE.md P2). The clinic twin of StoreAccessModal. Roles are workspace-wide.
+ * ClinicAccessModal — grant / revoke a team member's access to the workspace's clinics (docs/32_CLINICS_SCOPE.md
+ * P2). The clinic twin of StoreAccessModal. Access only says WHERE someone may work; a person has one role
+ * (set under Users → Edit) that applies at every clinic and pharmacy.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -8,33 +9,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AppButton, InlineLoader } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
-import RoleBadge from './RoleBadge';
-
-const selectCls = 'h-8 px-2 rounded-lg border border-gray-300 text-xs focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none';
 
 interface Clinic { id: string; name: string; city: string | null }
-interface Grant { clinic_id: string; clinic_name: string; role_name: string }
-interface Role { name: string; display_name: string }
+interface Grant { clinic_id: string; clinic_name: string }
 interface Member { id: string; name: string }
 
 export default function ClinicAccessModal({ member, open, onClose }: { member: Member | null; open: boolean; onClose: () => void }) {
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [grants, setGrants] = useState<Grant[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pendingRole, setPendingRole] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!member) return;
     setLoading(true);
     try {
-      const [c, g, r] = await Promise.all([
-        api.get(apiUrl.clinics()), api.get(apiUrl.userClinicAccess(member.id)), api.get(apiUrl.roles()),
-      ]);
+      const [c, g] = await Promise.all([api.get(apiUrl.clinics()), api.get(apiUrl.userClinicAccess(member.id))]);
       setClinics(c.data || []);
       setGrants(g.data || []);
-      setRoles(r.data || []);
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -43,8 +35,6 @@ export default function ClinicAccessModal({ member, open, onClose }: { member: M
   }, [member]);
 
   useEffect(() => { if (open) load(); }, [open, load]);
-
-  const defaultRole = roles.find((r) => r.name === 'receptionist')?.name || roles[0]?.name || '';
 
   const act = async (clinicId: string, run: () => Promise<unknown>, done: string) => {
     setBusyId(clinicId);
@@ -70,7 +60,6 @@ export default function ClinicAccessModal({ member, open, onClose }: { member: M
             {clinics.map((c) => {
               const grant = grants.find((g) => g.clinic_id === c.id);
               const busy = busyId === c.id;
-              const role = pendingRole[c.id] || defaultRole;
               return (
                 <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-gray-200">
                   <div className="min-w-0">
@@ -79,7 +68,7 @@ export default function ClinicAccessModal({ member, open, onClose }: { member: M
                   </div>
                   {grant ? (
                     <div className="flex items-center gap-2 shrink-0">
-                      <RoleBadge role={grant.role_name} />
+                      <span className="text-xs text-gray-500">Has access</span>
                       <AppButton variant="ghost" size="sm" disabled={busy} data-testid={`revoke-clinic-${c.id}`}
                         onClick={() => act(c.id, () => api.delete(apiUrl.revokeClinicAccess(member!.id, c.id)), 'Clinic access revoked')}>
                         Revoke
@@ -87,12 +76,8 @@ export default function ClinicAccessModal({ member, open, onClose }: { member: M
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 shrink-0">
-                      <select className={selectCls} value={role} data-testid={`clinic-role-${c.id}`}
-                        onChange={(e) => setPendingRole((p) => ({ ...p, [c.id]: e.target.value }))}>
-                        {roles.map((r) => <option key={r.name} value={r.name}>{r.display_name || r.name}</option>)}
-                      </select>
-                      <AppButton variant="secondary" size="sm" disabled={busy || !role} data-testid={`grant-clinic-${c.id}`}
-                        onClick={() => act(c.id, () => api.post(apiUrl.userClinicAccess(member!.id), { clinic_id: c.id, role }), 'Clinic access granted')}>
+                      <AppButton variant="secondary" size="sm" disabled={busy} data-testid={`grant-clinic-${c.id}`}
+                        onClick={() => act(c.id, () => api.post(apiUrl.userClinicAccess(member!.id), { clinic_id: c.id }), 'Clinic access granted')}>
                         Grant
                       </AppButton>
                     </div>

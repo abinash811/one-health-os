@@ -57,8 +57,8 @@ async def archive_blocker(db: AsyncSession, pharmacy: Pharmacy) -> Optional[str]
 
 
 async def move_people_off(db: AsyncSession, pharmacy_id: uuid.UUID) -> None:
-    """Everyone whose active pharmacy was just archived lands on another one they can open (taking their role
-    there) — one query for the people and their candidate grants, not one per person."""
+    """Everyone whose active pharmacy was just archived lands on another one they can open (keeping their
+    role) — one query for the people and their candidate grants, not one per person."""
     rows = (await db.execute(
         select(UserORM, UserStoreRole)
         .join(UserStoreRole, UserStoreRole.user_id == UserORM.id)
@@ -70,6 +70,6 @@ async def move_people_off(db: AsyncSession, pharmacy_id: uuid.UUID) -> None:
     for person, grant in rows:
         if person.id in moved:
             continue
-        person.pharmacy_id, person.role_id = grant.pharmacy_id, grant.role_id
+        person.pharmacy_id = grant.pharmacy_id   # their role is their own; it does not change with the place
         moved.add(person.id)
     await db.flush()

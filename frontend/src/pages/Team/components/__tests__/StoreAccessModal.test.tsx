@@ -34,7 +34,7 @@ describe('StoreAccessModal', () => {
     expect(screen.getByTestId('revoke-store-p1')).toBeInTheDocument();
   });
 
-  it('granting access posts the chosen role and refreshes', async () => {
+  it('granting access posts only the store (no role) and refreshes', async () => {
     (api.get as jest.Mock)
       .mockResolvedValueOnce({ data: STORES })
       .mockResolvedValueOnce({ data: [] })
@@ -45,11 +45,11 @@ describe('StoreAccessModal', () => {
     render(<StoreAccessModal member={MEMBER} open onClose={jest.fn()} />);
     await waitFor(() => expect(screen.getByTestId('grant-store-p1')).toBeInTheDocument());
 
-    await userEvent.selectOptions(screen.getByTestId('role-select-p1'), 'manager');
+    expect(screen.queryByTestId('role-select-p1')).not.toBeInTheDocument();
     await userEvent.click(screen.getByTestId('grant-store-p1'));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith(
-      'users/u1/store-access', { pharmacy_id: 'p1', role: 'manager' }));
+      'users/u1/store-access', { pharmacy_id: 'p1' }));
   });
 
   it('revoking access calls delete and shows the real error reason on failure', async () => {

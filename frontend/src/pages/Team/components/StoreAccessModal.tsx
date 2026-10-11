@@ -11,26 +11,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AppButton, InlineLoader } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
-import RoleBadge from './RoleBadge';
-
-const ROLE_OPTIONS = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'cashier', label: 'Cashier' },
-  { value: 'inventory_staff', label: 'Inventory Staff' },
-];
-
-const selectCls = 'h-8 px-2 rounded-lg border border-gray-300 text-xs focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none';
 
 interface Store { pharmacy_id: string; name: string; city: string; }
-interface Grant { pharmacy_id: string; pharmacy_name: string; role_name: string; }
+interface Grant { pharmacy_id: string; pharmacy_name: string; }
 interface Member { id: string; name: string; }
 
 export default function StoreAccessModal({ member, open, onClose }: { member: Member | null; open: boolean; onClose: () => void }) {
   const [stores, setStores] = useState<Store[]>([]);
   const [grants, setGrants] = useState<Grant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pendingRole, setPendingRole] = useState<Record<string, string>>({});
   const [busyStoreId, setBusyStoreId] = useState<string | null>(null);
 
   const load = async () => {
@@ -53,10 +42,9 @@ export default function StoreAccessModal({ member, open, onClose }: { member: Me
   useEffect(() => { if (open) load(); }, [open, member?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGrant = async (pharmacyId: string) => {
-    const role = pendingRole[pharmacyId] || 'cashier';
     setBusyStoreId(pharmacyId);
     try {
-      await api.post(apiUrl.userStoreAccess(member!.id), { pharmacy_id: pharmacyId, role });
+      await api.post(apiUrl.userStoreAccess(member!.id), { pharmacy_id: pharmacyId });
       toast.success('Store access granted');
       await load();
     } catch (error: any) {
@@ -98,7 +86,7 @@ export default function StoreAccessModal({ member, open, onClose }: { member: Me
                   </div>
                   {grant ? (
                     <div className="flex items-center gap-2 shrink-0">
-                      <RoleBadge role={grant.role_name} />
+                      <span className="text-xs text-gray-500">Has access</span>
                       <AppButton
                         variant="ghost" size="sm" disabled={busy}
                         onClick={() => handleRevoke(store.pharmacy_id)}
@@ -109,14 +97,6 @@ export default function StoreAccessModal({ member, open, onClose }: { member: Me
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 shrink-0">
-                      <select
-                        className={selectCls}
-                        value={pendingRole[store.pharmacy_id] || 'cashier'}
-                        onChange={e => setPendingRole(p => ({ ...p, [store.pharmacy_id]: e.target.value }))}
-                        data-testid={`role-select-${store.pharmacy_id}`}
-                      >
-                        {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                      </select>
                       <AppButton
                         variant="secondary" size="sm" disabled={busy}
                         onClick={() => handleGrant(store.pharmacy_id)}
