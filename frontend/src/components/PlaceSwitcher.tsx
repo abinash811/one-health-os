@@ -19,32 +19,41 @@ import { moduleForPath } from '@/components/navConfig';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 interface Clinic { clinic_id: string; clinic_name: string; role_name: string; is_active: boolean }
-interface Store { pharmacy_id: string; pharmacy_name: string; role_name: string; is_active: boolean }
+interface Store { pharmacy_id: string; pharmacy_name: string; role_name: string; is_active: boolean; is_archived?: boolean }
 
 interface PlaceData { clinics: Clinic[]; stores: Store[]; loading: boolean }
-const PlaceContext = createContext<PlaceData | null>(null);
+interface PlaceState extends PlaceData { refresh: () => void }
+const PlaceContext = createContext<PlaceState | null>(null);
+
+/** Reload the clinic / pharmacy lists (after a pharmacy is archived or restored). No-op outside the app shell. */
+export function usePlaceRefresh(): () => void {
+  return useContext(PlaceContext)?.refresh ?? (() => undefined);
+}
 
 /** Loads the clinics and pharmacies this login can open — once, for the whole app shell. */
 export function PlaceProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<PlaceData>({ clinics: [], stores: [], loading: true });
-  // Fetched once on mount: the trigger needs the active names before the list is ever opened.
+  const [tick, setTick] = useState(0);
+  // Fetched on mount (the trigger needs the active names before the list is ever opened) and again on refresh.
   useEffect(() => {
     Promise.all([
       api.get(apiUrl.myClinics()).then((r: { data: Clinic[] }) => r.data || []).catch(() => [] as Clinic[]),
       api.get(apiUrl.myStores()).then((r: { data: Store[] }) => r.data || []).catch(() => [] as Store[]),
     ]).then(([clinics, stores]) => setData({ clinics, stores, loading: false }));
-  }, []);
-  return <PlaceContext.Provider value={data}>{children}</PlaceContext.Provider>;
+  }, [tick]);
+  const value = { ...data, refresh: () => setTick((t) => t + 1) };
+  return <PlaceContext.Provider value={value}>{children}</PlaceContext.Provider>;
 }
 
 /** Renders nothing outside a PlaceProvider (e.g. a page rendered on its own in a test). */
 export default function PlaceSwitcher({ withDivider = false }: { withDivider?: boolean }) {
   const ctx = useContext(PlaceContext);
   if (!ctx) return null;
+  const { clinics, stores, loading } = ctx;
   return (
     <>
       {withDivider && <span className="h-6 w-px bg-gray-200" aria-hidden="true" />}
-      <PlaceSwitcherInner {...ctx} />
+      <PlaceSwitcherInner clinics={clinics} stores={stores} loading={loading} />
     </>
   );
 }
@@ -62,7 +71,8 @@ function PlaceSwitcherInner({ clinics, stores, loading }: PlaceData) {
   const activeStore = stores.find((s) => s.is_active);
   const label = kind === 'clinic'
     ? (activeClinic?.clinic_name || 'Select a clinic')
-    : (activeStore?.pharmacy_name || (loading ? 'Loading…' : 'Select a pharmacy'));
+    : (activeStore ? `${activeStore.pharmacy_name}${activeStore.is_archived ? ' (archived)' : ''}`
+      : (loading ? 'Loading…' : 'Select a pharmacy'));
   const Icon = kind === 'clinic' ? Stethoscope : Building2;
 
   const run = async (url: string, body: object) => {
@@ -113,12 +123,17 @@ function PlaceSwitcherInner({ clinics, stores, loading }: PlaceData) {
             ))}
           </>
         )}
+        {kind === 'pharmacy' && stores.length === 0 && (
+          <p className="px-2.5 py-2 text-xs text-gray-500" data-testid="place-switcher-no-pharmacies">
+            No pharmacy available to switch to.
+          </p>
+        )}
         {kind === 'pharmacy' && stores.map((s) => (
           <AppButton key={s.pharmacy_id} variant="ghost" onClick={() => pickStore(s)} disabled={switching}
             className="w-full justify-start px-2.5 py-2 text-sm rounded-md" data-testid={`place-option-pharmacy-${s.pharmacy_id}`}>
             <Check_ on={s.is_active} />
             <div className="min-w-0 text-left">
-              <div className="truncate text-gray-900 font-normal">{s.pharmacy_name}</div>
+              <div className="truncate text-gray-900 font-normal">{s.pharmacy_name}{s.is_archived ? ' (archived)' : ''}</div>
               <div className="truncate text-xs text-gray-500 capitalize font-normal">{s.role_name}</div>
             </div>
           </AppButton>

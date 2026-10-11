@@ -97,7 +97,7 @@ describe('StoresTab', () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Admin access required'));
   });
 
-  it('edits a pharmacy: the form opens filled in and saves with PUT', async () => {
+  it('edits a pharmacy: the form opens filled in and sends only what changed', async () => {
     (api.get as jest.Mock).mockResolvedValue({ data: ONE_STORE });
     (api.put as jest.Mock).mockResolvedValue({ data: {} });
     renderTab();
@@ -106,18 +106,22 @@ describe('StoresTab', () => {
     await userEvent.clear(screen.getByLabelText('City *'));
     await userEvent.type(screen.getByLabelText('City *'), 'Mysuru');
     await userEvent.click(screen.getByTestId('store-save-btn'));
-    await waitFor(() => expect(api.put).toHaveBeenCalledWith('pharmacies/stores/p1', expect.objectContaining({ city: 'Mysuru' })));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('pharmacies/stores/p1', { city: 'Mysuru' }));
   });
 
-  it('archives in one click, no confirmation (it can be undone), and shows the reason when refused', async () => {
+  it('archiving asks first, then archives; a refusal shows the real reason', async () => {
     const { toast } = require('sonner');
     (api.get as jest.Mock).mockResolvedValue({ data: ONE_STORE });
     (api.put as jest.Mock).mockResolvedValueOnce({ data: {} })
       .mockRejectedValueOnce({ message: "Can't archive Main Store: 2 unfinished bills — finish or delete them first" });
     renderTab();
     await userEvent.click(await screen.findByTestId('archive-store-p1'));
+    expect(api.put).not.toHaveBeenCalled();            // archiving asks first — it moves people off the pharmacy
+    expect(screen.getByText(/anyone working there is moved/)).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('confirm-dialog-confirm'));
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('pharmacies/stores/p1', { is_active: false }));
     await userEvent.click(await screen.findByTestId('archive-store-p1'));
+    await userEvent.click(screen.getByTestId('confirm-dialog-confirm'));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('unfinished bills')));
   });
 

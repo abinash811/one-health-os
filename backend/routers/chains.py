@@ -38,16 +38,22 @@ def _client_ip(request: Request) -> str | None:
 async def _record_audit(
     pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
     entity_type: str, entity_id: uuid.UUID, new_values: dict, db: AsyncSession,
-    ip_address: str | None = None,
+    ip_address: str | None = None, old_values: dict | None = None,
 ) -> None:
     db.add(AuditLog(
         pharmacy_id=pharmacy_id, user_id=user_id, action=action,
         entity_type=entity_type, entity_id=entity_id, new_values=new_values,
-        ip_address=ip_address,
+        old_values=old_values, ip_address=ip_address,
     ))
 
 
+def _store_brief(s: PharmacyORM) -> dict:
+    """What any signed-in person in the workspace may see of a pharmacy — no licence or contact details."""
+    return {"pharmacy_id": str(s.id), "name": s.name, "city": s.city, "state": s.state, "is_active": s.is_active}
+
+
 def _store_row(s: PharmacyORM) -> dict:
+    """The full row (address, GSTIN, licence, phone…) — only for people who may edit pharmacies."""
     return {
         "pharmacy_id": str(s.id), "name": s.name, "city": s.city, "state": s.state, "address": s.address,
         "pincode": s.pincode, "phone": s.phone, "email": s.email, "gstin": s.gstin,
@@ -71,6 +77,11 @@ class StoreUpdate(BaseModel):
     @classmethod
     def _strip(cls, v):
         return v.strip() if isinstance(v, str) else v
+
+    @field_validator("email", "gstin", "drug_license_number")
+    @classmethod
+    def _blank_optional_is_none(cls, v):
+        return v or None   # an optional field cleared in the form is stored as "nothing", never as ""
 
     @field_validator("name", "address", "city", "state", "pincode", "phone")
     @classmethod
@@ -116,12 +127,15 @@ async def get_chain_stores(include_archived: bool = False, current_user: User = 
     result = await db.execute(select(PharmacyORM).where(PharmacyORM.id == pharmacy_id))
     pharmacy = result.scalar_one()
 
+    # Licence / contact details and archived pharmacies are for people who may edit pharmacies; everyone else
+    # gets the plain picker list (name, city, state) of active ones.
+    editor = await has_permission(current_user, "pharmacies:edit", db)
     query = select(PharmacyORM).where(PharmacyORM.chain_id == pharmacy.chain_id)
-    if not include_archived:
+    if not (include_archived and editor):
         query = query.where(PharmacyORM.is_active)   # archived pharmacies drop out of every picker
     stores = (await db.execute(query.order_by(PharmacyORM.name))).scalars().all()
 
-    return [_store_row(s) for s in stores]
+    return [_store_row(s) if editor else _store_brief(s) for s in stores]
 
 
 @router.post("/pharmacies/stores")
@@ -183,8 +197,9 @@ async def update_chain_store(store_id: str, body: StoreUpdate, request: Request,
         raise HTTPException(status_code=404, detail="Pharmacy not found")
     own = (await db.execute(select(PharmacyORM).where(
         PharmacyORM.id == uuid.UUID(current_user.pharmacy_id)))).scalar_one()
+    # Locked for the length of this request, so a grant / draft that lands while we check cannot slip past.
     store = (await db.execute(select(PharmacyORM).where(  # tenant-safe: also matched to the caller's workspace
-        PharmacyORM.id == target_id, PharmacyORM.chain_id == own.chain_id))).scalar_one_or_none()
+        PharmacyORM.id == target_id, PharmacyORM.chain_id == own.chain_id).with_for_update())).scalar_one_or_none()
     if store is None:
         raise HTTPException(status_code=404, detail="Pharmacy not found")
     if not await has_permission(current_user, "*", db):
@@ -207,10 +222,11 @@ async def update_chain_store(store_id: str, body: StoreUpdate, request: Request,
     if archiving:
         await move_people_off(db, store.id)
     restoring = changes.get("is_active") is True and old.get("is_active") is False
+    # Recorded against the pharmacy that changed (so ITS history shows it), with what it used to say.
     await _record_audit(
-        uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id),
+        store.id, uuid.UUID(current_user.id),
         "archive" if archiving else ("restore" if restoring else "update"),
-        "store", store.id, dict(changes), db, ip_address=_client_ip(request),
+        "store", store.id, dict(changes), db, ip_address=_client_ip(request), old_values=old,
     )
     await db.flush()
     return _store_row(store)

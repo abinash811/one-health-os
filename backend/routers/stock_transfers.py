@@ -29,7 +29,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import select, or_
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import DbSession
@@ -168,7 +168,7 @@ async def create_stock_transfer(
 
     source_pharmacy = await _get_pharmacy(source_pharmacy_id, db)
     destination_pharmacy = await _get_pharmacy(destination_pharmacy_id, db)
-    if not destination_pharmacy.is_active:
+    if not (destination_pharmacy.is_active and source_pharmacy.is_active):
         raise HTTPException(status_code=409, detail="That pharmacy is archived — pick an active destination")
     if destination_pharmacy.chain_id != source_pharmacy.chain_id:
         raise HTTPException(status_code=403, detail="That store is not in your workspace")
@@ -342,6 +342,11 @@ async def reverse_stock_transfer(
         raise HTTPException(status_code=404, detail="Transfer not found")
     if transfer.reversed_at is not None:
         raise HTTPException(status_code=400, detail="This transfer has already been reversed")
+    ends = (await db.execute(select(func.count()).select_from(PharmacyORM).where(
+        PharmacyORM.id.in_((transfer.source_pharmacy_id, transfer.destination_pharmacy_id)),
+        ~PharmacyORM.is_active))).scalar_one()  # tenant-safe: both ends of the already-scoped transfer
+    if ends:
+        raise HTTPException(status_code=409, detail="One of these pharmacies is archived — restore it to reverse")
 
     items_result = await db.execute(select(StockTransferItem).where(StockTransferItem.transfer_id == transfer.id))
     items = items_result.scalars().all()

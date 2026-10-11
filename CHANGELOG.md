@@ -23,6 +23,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 - New role ticks: View / Create / Edit Clinics and View / Create / Edit Pharmacies.
 
 ### Changed
+- Code-review fixes for pharmacy edit/archive: a deleted draft no longer blocks archiving; GSTIN, licence and contact details are visible only to people who may edit pharmacies; the audit log keeps the old values and records the change on the edited pharmacy; editing one field no longer re-checks the others; archiving now asks for confirmation and the header switcher updates straight away; archived pharmacies cannot be granted access, used for transfers or flagged-away silently.
 - The header dropdown now lists only what fits the page: clinics on EMR pages, pharmacies on pharmacy pages, and nothing on workspace-wide pages (Users, Audit Log, Organisation settings).
 - **Create Bill now starts blank.** An unfinished bill is kept only for the same login at the same pharmacy, offered as "You have an unfinished bill · Resume / Discard", and dropped after a day. Before, the last bill's customer details appeared in every new bill — even for another user or pharmacy on the same computer.
 - Audit Log now names clinic, doctor-at-clinic and pharmacy entries and lets you filter by them.

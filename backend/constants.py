@@ -1,6 +1,12 @@
 """Shared constants — DEFAULT_ROLES, ALL_PERMISSIONS, and other app-wide values."""
 from __future__ import annotations
 
+# ── Record states the pharmacy guards look at (the routers still use their own literals) ───────────────────
+BILL_STATUS_DRAFT = "draft"       # a parked bill is stored as a draft (routers/billing.py)
+BILL_STATUS_PARKED = "parked"
+OPEN_BILL_STATUSES = (BILL_STATUS_DRAFT, BILL_STATUS_PARKED)
+PURCHASE_STATUS_DRAFT = "draft"
+
 # ── Default roles seeded at startup ───────────────────────────────────────────
 DEFAULT_ROLES = [
     {

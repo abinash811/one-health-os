@@ -298,7 +298,7 @@ async def get_my_stores(current_user: User = Depends(
     # permission-exempt: self-service, scoped to the caller's own access
     """
     result = await db.execute(
-        select(UserStoreRole, PharmacyORM.name, RoleORM.name, PharmacyORM.gstin)
+        select(UserStoreRole, PharmacyORM.name, RoleORM.name, PharmacyORM.gstin, PharmacyORM.is_active)
         .join(PharmacyORM, PharmacyORM.id == UserStoreRole.pharmacy_id)
         .join(RoleORM, RoleORM.id == UserStoreRole.role_id)
         .where(UserStoreRole.user_id == uuid.UUID(current_user.id),
@@ -322,8 +322,9 @@ async def get_my_stores(current_user: User = Depends(
             "role_name": role_name,
             "is_active": usr.pharmacy_id == current_pharmacy_id,
             "gstin": gstin,
+            "is_archived": not pharmacy_active,   # only ever true for the place someone is still standing in
         }
-        for usr, pharmacy_name, role_name, gstin in rows
+        for usr, pharmacy_name, role_name, gstin, pharmacy_active in rows
     ]
 
 
@@ -427,6 +428,10 @@ async def grant_user_store_access(user_id: str, body: GrantStoreAccess, request:
 
     target_pharmacy_id = uuid.UUID(body.pharmacy_id)
     await _same_chain_or_self(target_pharmacy_id, admin_pharmacy_id, db)
+    # FOR SHARE: waits for an archive in progress, so nobody is granted into a pharmacy as it is switched off.
+    if not (await db.execute(select(PharmacyORM.is_active).where(
+            PharmacyORM.id == target_pharmacy_id).with_for_update(read=True))).scalar_one():
+        raise HTTPException(status_code=409, detail="That pharmacy is archived")
 
     role = await find_role(db, target_pharmacy_id, body.role)
     if not role:

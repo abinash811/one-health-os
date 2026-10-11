@@ -39,8 +39,19 @@ export default function StoreFormModal({ open, store, onClose, onSaved }: Props)
     e.preventDefault();
     setSaving(true);
     try {
-      if (store) await api.put(apiUrl.chainStore(store.pharmacy_id), form);
-      else await api.post(apiUrl.chainStores(), form);
+      if (store) {
+        // Only what was changed: an old value elsewhere on the record can never block an unrelated edit.
+        const was: Record<string, string> = {
+          name: store.name || '', address: store.address || '', city: store.city || '', state: store.state || '',
+          pincode: store.pincode || '', phone: store.phone || '', gstin: store.gstin || '',
+          drug_license_number: store.drug_license_number || '',
+        };
+        const changed = Object.fromEntries(Object.entries(form).filter(([k, v]) => v !== was[k]));
+        if (Object.keys(changed).length === 0) { onClose(); return; }
+        await api.put(apiUrl.chainStore(store.pharmacy_id), changed);
+      } else {
+        await api.post(apiUrl.chainStores(), form);
+      }
       toast.success(store ? 'Pharmacy saved' : 'Pharmacy added');
       onSaved();
       onClose();

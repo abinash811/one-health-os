@@ -2,11 +2,16 @@
 Pharmacies under Settings → Organisation: edit details, archive and restore (Oct 4, 2026). Archiving is soft;
 an archived pharmacy drops out of every picker, nobody is left working in it, and unfinished work blocks it.
 """
+import asyncio
 import os
 import uuid
+from datetime import datetime, timezone
 
 import pytest
 import requests
+
+from database import AsyncSessionLocal, engine
+from models.billing import Bill
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 API = f"{BASE_URL}/api"
@@ -26,6 +31,20 @@ def _register(tag):
         "state": "K", "pincode": "560001", "drug_license_number": f"DL-{tag}-{sfx}"})
     assert r.status_code == 200, r.text
     return _session(r.json()["token"]), sfx
+
+
+def _insert_draft_bill(pharmacy_id: str, deleted: bool):
+    """A draft bill written straight to the database (the screens offer no 'old deleted draft' shortcut)."""
+    async def _do():
+        try:
+            async with AsyncSessionLocal() as db:
+                db.add(Bill(
+                    pharmacy_id=uuid.UUID(pharmacy_id), bill_number=f"DRAFT-{uuid.uuid4().hex[:6]}", status="draft",
+                    deleted_at=datetime.now(timezone.utc) if deleted else None))
+                await db.commit()
+        finally:
+            await engine.dispose()
+    asyncio.run(_do())
 
 
 class TestPharmacyEditArchive:
@@ -51,7 +70,7 @@ class TestPharmacyEditArchive:
         r = self._put(self.b, {"name": "Branch Renamed", "city": "Pune", "gstin": "29abcde1234f1z5", "email": ""})
         assert r.status_code == 200, r.text
         assert r.json()["name"] == "Branch Renamed" and r.json()["gstin"] == "29ABCDE1234F1Z5"
-        assert r.json()["email"] == ""
+        assert r.json()["email"] is None   # a cleared optional field is stored as nothing, never ""
         listed = {x["pharmacy_id"]: x for x in self.s.get(f"{API}/pharmacies/stores").json()}
         assert listed[self.b]["city"] == "Pune"
 
@@ -115,3 +134,49 @@ class TestPharmacyEditArchive:
         self._put(self.b, {"is_active": False})
         logs = self.s.get(f"{API}/audit-logs", params={"entity_type": "store", "entity_id": self.b}).json()["data"]
         assert {"update", "archive"} <= {x["action"] for x in logs}
+
+    # Found by the Oct 11, 2026 code review of the archive work:
+    def test_a_deleted_draft_bill_no_longer_blocks_archiving_but_a_live_one_does(self):
+        _insert_draft_bill(self.b, deleted=True)
+        live = self._put(self.b, {"is_active": False})
+        assert live.status_code == 200, live.text
+        self._put(self.b, {"is_active": True})
+        _insert_draft_bill(self.b, deleted=False)
+        blocked = self._put(self.b, {"is_active": False})
+        assert blocked.status_code == 409 and "unfinished bill" in blocked.json()["detail"]
+
+    def test_licence_and_contact_details_are_for_editors_only(self):
+        role = f"pc_{uuid.uuid4().hex[:6]}"
+        self.s.post(f"{API}/roles", json={"name": role, "display_name": role, "permissions": ["billing:view"]})
+        email = f"{role}@pharmacy.com"
+        self.s.post(f"{API}/users", json={"name": "C", "email": email, "password": "Cashier12345", "role": role})
+        tok = requests.post(f"{API}/auth/login", json={"email": email, "password": "Cashier12345"}).json()["token"]
+        plain = _session(tok).get(f"{API}/pharmacies/stores", params={"include_archived": "true"}).json()
+        assert plain and set(plain[0]) == {"pharmacy_id", "name", "city", "state", "is_active"}
+        self._put(self.b, {"is_active": False})
+        assert self.b not in {x["pharmacy_id"] for x in _session(tok).get(
+            f"{API}/pharmacies/stores", params={"include_archived": "true"}).json()}
+        full = self.s.get(f"{API}/pharmacies/stores").json()[0]
+        assert {"gstin", "drug_license_number", "phone", "address"} <= set(full)
+
+    def test_the_audit_entry_records_the_old_values_on_the_edited_pharmacy(self):
+        self._put(self.b, {"city": "Nashik"})
+        logs = self.s.get(f"{API}/audit-logs", params={"entity_type": "store", "entity_id": self.b}).json()["data"]
+        edit = next(x for x in logs if x["action"] == "update")
+        assert edit["old_value"] == {"city": "Mumbai"} and edit["new_value"] == {"city": "Nashik"}
+
+    def test_only_the_changed_fields_are_checked_so_an_old_bad_value_does_not_block_an_edit(self):
+        # untouched fields are never re-validated: an edit that only renames goes through
+        assert self._put(self.b, {"name": "Only A New Name"}).status_code == 200
+        assert self._put(self.b, {"drug_license_number": "  "}).json()["drug_license_number"] is None
+
+    def test_cannot_grant_access_to_an_archived_pharmacy_or_reverse_a_transfer_through_one(self):
+        uid = self.s.post(f"{API}/users", json={"name": "G", "email": f"g_{self.sfx}@pharmacy.com",
+                                                "password": "Member12345", "role": "cashier"}).json()["id"]
+        self._put(self.b, {"is_active": False})
+        r = self.s.post(f"{API}/users/{uid}/store-access", json={"pharmacy_id": self.b, "role": "cashier"})
+        assert r.status_code == 409 and "archived" in r.json()["detail"]
+
+    def test_my_stores_flags_an_archived_place_someone_is_still_standing_in(self):
+        mine = self.s.get(f"{API}/users/me/stores").json()
+        assert all(x["is_archived"] is False for x in mine)

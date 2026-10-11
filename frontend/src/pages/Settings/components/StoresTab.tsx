@@ -7,7 +7,8 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { Plus, Building2, Pencil, Archive, ArchiveRestore } from 'lucide-react';
 import { toast } from 'sonner';
-import { AppButton, InlineLoader } from '@/components/shared';
+import { AppButton, ConfirmDialog, InlineLoader } from '@/components/shared';
+import { usePlaceRefresh } from '@/components/PlaceSwitcher';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { AuthContext } from '@/App';
@@ -26,6 +27,8 @@ export default function StoresTab() {
   const [showArchived, setShowArchived] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Store | null>(null);
+  const [archiving, setArchiving] = useState<Store | null>(null);
+  const refreshPlaces = usePlaceRefresh();
 
   const fetchStores = useCallback(async () => {
     try {
@@ -42,16 +45,20 @@ export default function StoresTab() {
 
   const open = (s: Store | null) => { setEditing(s); setFormOpen(true); };
 
-  const toggleArchive = async (s: Store) => {
-    const archiving = s.is_active !== false;
+  const setActive = async (s: Store, active: boolean) => {
     try {
-      await api.put(apiUrl.chainStore(s.pharmacy_id), { is_active: !archiving });
-      toast.success(archiving ? `${s.name} archived` : `${s.name} is active again`);
+      await api.put(apiUrl.chainStore(s.pharmacy_id), { is_active: active });
+      toast.success(active ? `${s.name} is active again` : `${s.name} archived`);
+      setArchiving(null);
       fetchStores();
+      refreshPlaces();   // the header switcher must stop offering (or start offering) it
     } catch (error) {
       toast.error((error as Error).message);
     }
   };
+
+  // Restoring is harmless, so it is one click. Archiving moves people off the pharmacy, so it asks first.
+  const onArchiveClick = (s: Store) => (s.is_active === false ? setActive(s, true) : setArchiving(s));
 
   return (
     <div className="space-y-6">
@@ -103,7 +110,7 @@ export default function StoresTab() {
                     )}
                     <AppButton variant="ghost" size="sm" iconOnly data-testid={`archive-store-${store.pharmacy_id}`}
                       icon={archived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
-                      aria-label={archived ? `Restore ${store.name}` : `Archive ${store.name}`} onClick={() => toggleArchive(store)} />
+                      aria-label={archived ? `Restore ${store.name}` : `Archive ${store.name}`} onClick={() => onArchiveClick(store)} />
                   </div>
                 )}
               </div>
@@ -113,6 +120,9 @@ export default function StoresTab() {
       )}
 
       <StoreFormModal open={formOpen} store={editing} onClose={() => setFormOpen(false)} onSaved={fetchStores} />
+      <ConfirmDialog open={!!archiving} onClose={() => setArchiving(null)} onConfirm={async () => { if (archiving) await setActive(archiving, false); }}
+        title={`Archive ${archiving?.name ?? 'this pharmacy'}?`} confirmLabel="Archive"
+        description="It disappears from the switcher and pickers, and anyone working there is moved to another pharmacy they can open. Nothing is deleted — you can restore it later." />
     </div>
   );
 }

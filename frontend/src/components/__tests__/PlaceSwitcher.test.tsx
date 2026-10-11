@@ -108,6 +108,20 @@ describe('PlaceSwitcher', () => {
     expect(await screen.findByTestId('place-switcher-no-clinics')).toHaveTextContent('Settings → Organisation → Clinics');
   });
 
+  it('says so when the place you are standing in has been archived', async () => {
+    mockApi(CLINICS, [{ ...STORES[0], is_archived: true }, STORES[1]]);
+    renderAt('/billing');
+    expect(await screen.findByText('Main Pharmacy (archived)')).toBeInTheDocument();
+  });
+
+  it('says so when there is no pharmacy to switch to', async () => {
+    mockApi(CLINICS, []);
+    renderAt('/billing');
+    expect(await screen.findByText('Select a pharmacy')).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('place-switcher-trigger'));
+    expect(await screen.findByTestId('place-switcher-no-pharmacies')).toBeInTheDocument();
+  });
+
   it('shows the server reason when switching fails', async () => {
     const { toast } = jest.requireMock('sonner');
     (api.post as jest.Mock).mockRejectedValue(new Error('You do not have access to that clinic'));
