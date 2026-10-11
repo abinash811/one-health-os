@@ -14,6 +14,8 @@ export interface QueueActionsProps {
   onOpenRx: (appointment: EmrAppointment) => void;
   /** False for roles that can only look at prescriptions: "Write Rx" is hidden, "View Rx" stays. */
   canWriteRx?: boolean;
+  /** False for roles without the Start / Complete Consultations tick: those two steps are hidden. */
+  canConsult?: boolean;
   /** Opens the Collect dialog for the visit's fee. Omit for roles that can't collect (hides the button). */
   onCollect?: (appointment: EmrAppointment) => void;
   /** Opens the printable invoice/receipt for a billed fee. */
@@ -21,14 +23,15 @@ export interface QueueActionsProps {
 }
 
 /** The next-step button for a queue row, plus Cancel / No-show where they apply. */
-export default function QueueActions({ appointment: a, busy, onMove, onCancel, onOpenRx, canWriteRx = true, onCollect, onPrintReceipt }: QueueActionsProps) {
+export default function QueueActions({ appointment: a, busy, onMove, onCancel, onOpenRx, canWriteRx = true, canConsult = true, onCollect, onPrintReceipt }: QueueActionsProps) {
   const S = APPOINTMENT_STATUS;
   const primary: Record<string, { label: string; next: string; icon: React.ReactNode }> = {
     [S.BOOKED]:     { label: 'Check in',      next: S.CHECKED_IN, icon: <LogIn className="w-4 h-4" /> },
     [S.CHECKED_IN]: { label: 'Start consult', next: S.IN_CONSULT, icon: <Play className="w-4 h-4" /> },
     [S.IN_CONSULT]: { label: 'Complete',      next: S.COMPLETED,  icon: <CheckCircle2 className="w-4 h-4" /> },
   };
-  const step = primary[a.status];
+  const consultStep = a.status === S.CHECKED_IN || a.status === S.IN_CONSULT;
+  const step = consultStep && !canConsult ? undefined : primary[a.status];
   const canOpenRx = a.status === S.COMPLETED || (a.status === S.IN_CONSULT && canWriteRx);
   const canCancel = a.status === S.BOOKED || a.status === S.CHECKED_IN;
   const visitLive = a.status !== S.CANCELLED && a.status !== S.NO_SHOW;

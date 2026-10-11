@@ -58,7 +58,7 @@ export default function Appointments() {
   const [cancelling, setCancelling] = useState<EmrAppointment | null>(null);
   const [collecting, setCollecting] = useState<EmrAppointment | null>(null);
   const [collected, setCollected] = useState<DaySummary | null>(null);
-  const { canCollect, canWriteRx } = useClinicAccess();
+  const { canCollect, canWriteRx, canConsult } = useClinicAccess();
 
   useEffect(() => {
     api.get(apiUrl.emrDoctors()).then((res: { data: EmrDoctor[] }) => setDoctors(res.data || []))
@@ -174,7 +174,7 @@ export default function Appointments() {
                   <td className="px-4 py-3">
                     <QueueActions appointment={a} busy={busyId === a.id} onMove={move} onCancel={setCancelling}
                       onOpenRx={(x) => navigate(ROUTES.EMR.CONSULT(x.id))}
-                      canWriteRx={canWriteRx}
+                      canWriteRx={canWriteRx} canConsult={canConsult}
                       onCollect={canCollect ? setCollecting : undefined}
                       onPrintReceipt={(x) => x.fee?.invoice_id && navigate(ROUTES.PATIENT_BILLING.INVOICE_PRINT(x.fee.invoice_id))} />
                   </td>

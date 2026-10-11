@@ -42,7 +42,7 @@ export default function Calendar() {
   const [cancelling, setCancelling] = useState<EmrAppointment | null>(null);
   const [collecting, setCollecting] = useState<EmrAppointment | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const { canCollect, canWriteRx } = useClinicAccess();
+  const { canCollect, canWriteRx, canConsult } = useClinicAccess();
 
   const dates = view === 'week' ? weekDates(date) : [date];
   const from = dates[0];
@@ -141,7 +141,7 @@ export default function Calendar() {
         onClose={() => setBookOpen(false)} onBooked={() => reload(false)} />
       <AppointmentDetailDialog appointment={selected} busy={busyId === selected?.id} onClose={() => setSelected(null)}
         onMove={changeStatus} onCancel={(a) => { setSelected(null); setCancelling(a); }}
-        onOpenRx={(a) => navigate(ROUTES.EMR.CONSULT(a.id))} canWriteRx={canWriteRx}
+        onOpenRx={(a) => navigate(ROUTES.EMR.CONSULT(a.id))} canWriteRx={canWriteRx} canConsult={canConsult}
         onCollect={canCollect ? (a) => { setSelected(null); setCollecting(a); } : undefined}
         onPrintReceipt={(a) => a.fee?.invoice_id && navigate(ROUTES.PATIENT_BILLING.INVOICE_PRINT(a.fee.invoice_id))}
         onOpenPatient={(a) => navigate(ROUTES.EMR.PATIENT(a.patient_id))} />

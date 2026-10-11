@@ -18,5 +18,6 @@ export function useClinicAccess() {
     canCollect: hasPermission(perms, 'patient_billing:collect'),
     canCancelInvoice: hasPermission(perms, 'patient_billing:void'),
     canWriteRx: hasPermission(perms, 'prescriptions:create'),
+    canConsult: hasPermission(perms, 'appointments:consult'),
   };
 }

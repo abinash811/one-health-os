@@ -72,7 +72,7 @@ DEFAULT_ROLES = [
         "display_name": "Doctor (EMR)",
         "permissions": [
             "patients:view", "patients:create", "patients:edit",
-            "appointments:view", "appointments:create", "appointments:edit",
+            "appointments:view", "appointments:create", "appointments:edit", "appointments:consult",
             "schedules:view", "schedules:edit", "doctors:view", "clinics:view",
             "prescriptions:view", "prescriptions:create", "prescriptions:edit",
             "prescriptions:issue", "prescriptions:cancel", "patient_billing:view",
@@ -155,6 +155,7 @@ ALL_PERMISSIONS = {
         {"id": "appointments:create", "name": "Book Appointments"},
         {"id": "appointments:edit", "name": "Reschedule / Update Appointments"},
         {"id": "appointments:cancel", "name": "Cancel Appointments"},
+        {"id": "appointments:consult", "name": "Start / Complete Consultations"},
     ]},
     "prescriptions": {"display_name": "Prescriptions (EMR)", "permissions": [
         {"id": "prescriptions:view", "name": "View / Print Prescriptions"},

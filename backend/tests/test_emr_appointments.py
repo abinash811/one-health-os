@@ -168,6 +168,34 @@ class TestPermissions(_EmrBase):
         assert r.status_code == 403
         assert rec.delete(f"{BASE_URL}/api/emr/patients/{uuid.uuid4()}").status_code == 403
 
+    def test_starting_and_completing_a_consultation_has_its_own_tick(self):
+        """Oct 11, 2026: check-in stays with `appointments:edit`; Start consult / Complete need `appointments:consult`
+        (doctors have it, receptionists don't) — decided by the role's ticks, never by the role's name."""
+        doctor_id = self._doctor_with_schedule(date.today().weekday())
+        appt = self._book(self._patient()["id"], doctor_id, date.today(), start=None).json()
+        url = f"{BASE_URL}/api/emr/appointments/{appt['id']}/status"
+        _, rec = self._user("receptionist")
+        assert rec.post(url, json={"status": "checked_in"}).status_code == 200
+        blocked = rec.post(url, json={"status": "in_consult"})
+        assert blocked.status_code == 403 and "appointments:consult" in blocked.json()["detail"]
+        _, doc = self._user("doctor")
+        assert doc.post(url, json={"status": "in_consult"}).status_code == 200
+        assert rec.post(url, json={"status": "completed"}).status_code == 403
+        assert doc.post(url, json={"status": "completed"}).status_code == 200
+
+    def test_any_role_with_the_consult_tick_can_run_a_consultation(self):
+        role_name = f"clinic_lead_{self.suffix}"
+        made = self.session.post(f"{BASE_URL}/api/roles", json={
+            "name": role_name, "display_name": "Clinic Lead",
+            "permissions": ["appointments:view", "appointments:edit", "appointments:consult", "patients:view"]})
+        assert made.status_code == 200, made.text
+        _, lead = self._user(role_name)
+        doctor_id = self._doctor_with_schedule(date.today().weekday())
+        appt = self._book(self._patient()["id"], doctor_id, date.today()).json()
+        url = f"{BASE_URL}/api/emr/appointments/{appt['id']}/status"
+        for nxt in ("checked_in", "in_consult", "completed"):
+            assert lead.post(url, json={"status": nxt}).status_code == 200
+
     def test_doctor_login_can_edit_schedules(self):
         doctor_id = self._doctor()
         _, doc = self._user("doctor")

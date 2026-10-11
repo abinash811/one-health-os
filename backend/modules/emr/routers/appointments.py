@@ -214,10 +214,19 @@ async def reschedule_appointment(appointment_id: str, data: dict, request: Reque
 async def change_appointment_status(appointment_id: str, data: StatusChange, request: Request,
                                     current_user: User = Depends(get_current_user),
                                     db: AsyncSession = DbSession):
-    """Queue moves: check in, start consult, complete, cancel (with reason), no-show."""
+    """Queue moves: check in, start consult, complete, cancel (with reason), no-show.
+
+    Each kind of move has its own tick (Roles & Permissions): cancelling needs `appointments:cancel`, starting or
+    completing a consultation `appointments:consult`, and the rest (check-in, no-show) `appointments:edit` —
+    so a front-desk role can check patients in without being able to run the consultation."""
     cancelling = data.status == APPT_CANCELLED
-    await _require_emr_permission(
-        current_user, "appointments:cancel" if cancelling else "appointments:edit", db)
+    if cancelling:
+        needed = "appointments:cancel"
+    elif data.status in (APPT_IN_CONSULT, APPT_COMPLETED):
+        needed = "appointments:consult"
+    else:
+        needed = "appointments:edit"
+    await _require_emr_permission(current_user, needed, db)
     clinic_id = active_clinic_id(current_user)
     appt = await get_clinic_owned_or_404(
         db, EmrAppointment, appointment_id, clinic_id, not_found_detail="Appointment not found",

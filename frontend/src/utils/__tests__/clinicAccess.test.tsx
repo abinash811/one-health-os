@@ -33,7 +33,7 @@ describe('useClinicAccess — ticks decide, never the role name', () => {
 
   it('an admin (["*"]) can do everything even with a clinical role', () => {
     const { result } = renderHook(() => useClinicAccess(), { wrapper: wrap({ role: 'doctor', permissions: ['*'] }) });
-    expect(result.current).toEqual({ canCollect: true, canCancelInvoice: true, canWriteRx: true });
+    expect(result.current).toEqual({ canCollect: true, canCancelInvoice: true, canWriteRx: true, canConsult: true });
   });
 
   it('Write Rx follows the prescriptions tick', () => {
@@ -41,5 +41,12 @@ describe('useClinicAccess — ticks decide, never the role name', () => {
     expect(off.result.current.canWriteRx).toBe(false);
     const on = renderHook(() => useClinicAccess(), { wrapper: wrap({ role: 'cashier', permissions: ['prescriptions:create'] }) });
     expect(on.result.current.canWriteRx).toBe(true);
+  });
+
+  it('Start / Complete consultation follows its own tick, whatever the role is called', () => {
+    const off = renderHook(() => useClinicAccess(), { wrapper: wrap({ role: 'doctor', permissions: ['appointments:edit'] }) });
+    expect(off.result.current.canConsult).toBe(false);
+    const on = renderHook(() => useClinicAccess(), { wrapper: wrap({ role: 'receptionist', permissions: ['appointments:consult'] }) });
+    expect(on.result.current.canConsult).toBe(true);
   });
 });

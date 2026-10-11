@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.93 | Last updated: October 11, 2026
+# Version: 3.94 | Last updated: October 11, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1566,7 +1566,7 @@ going forward — do not re-propose Sheets without Abinash raising it again.
 - Frontend only knows a user's *role*, not their permissions (`/auth/login` + `/auth/me` don't return them), so a receptionist is shown "Add Working Hours" and only gets a clear 403 after filling the form. Proper fix: return `permissions` from the auth endpoints and hide controls the user can't use — a core auth change, needs Abinash's go-ahead.
 - Today's slots in the past (e.g. 9:00 AM when it's already 2 PM) are still bookable — only past *dates* are blocked.
 - ~~Frontend only knows a user's *role*…~~ Partly addressed Oct 3: `useClinicAccess` hides doctor-only/desk-only buttons by role name (backend still enforces). Proper fix = login response carries permissions (needs approval).
-- Receptionist role can also press Start consult / Complete (it has `appointments:edit`) — decide whether those belong to the doctor only.
+- ~~Receptionist role can also press Start consult / Complete (it has `appointments:edit`)~~ **Fixed Oct 11, 2026** (Abinash: "based on role and permissions"): new tick `appointments:consult` ("Start / Complete Consultations") gates those two moves; default `doctor` roles have it, `receptionist` does not, and any custom role can be given it. Migration `b9f3d6a2e158` adds it to stored `doctor` system roles (additive); custom roles that should run consultations need the tick in Roles & Permissions. The Start consult / Complete buttons are hidden without the tick. Check-in and no-show stay under `appointments:edit`.
 - Dialogs log a Radix "Missing Description" accessibility warning (same as the existing shared dialogs).
 
 Open: patient↔customer phone-match link and "Added in pharmacy/EMR" badge (needs both modules on); clinic with no pharmacy.
