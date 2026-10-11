@@ -99,6 +99,7 @@ jobs:
         run: alembic upgrade head
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/pharmacare_test
+          SECRET_KEY: ci-test-secret-key-not-for-production
 
       - name: Lint
         run: flake8 . --max-line-length=120 --exclude=venv,migrations/versions,__pycache__
@@ -113,6 +114,7 @@ jobs:
         run: python seed_admin.py --email testadmin@pharmacy.com --password admin123 --name "Test Admin"
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/pharmacare_test
+          SECRET_KEY: ci-test-secret-key-not-for-production
 
       - name: Start backend
         run: |
@@ -188,12 +190,14 @@ jobs:
         run: alembic upgrade head
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/pharmacare_test
+          SECRET_KEY: ci-test-secret-key-not-for-production
 
       - name: Seed test admin account
         working-directory: backend
         run: python seed_admin.py --email testadmin@pharmacy.com --password admin123 --name "Test Admin"
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/pharmacare_test
+          SECRET_KEY: ci-test-secret-key-not-for-production
 
       - name: Start backend
         working-directory: backend
