@@ -1,4 +1,15 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
+
+// Medicine names must come from the catalog (AddMedicineModal's strict SuggestField, Sep 19, 2026) —
+// type a few letters and pick the first suggestion, like a user does. Returns the chosen name.
+async function pickCatalogMedicine(page: Page): Promise<string> {
+  const input = page.getByTestId('medicine-name-input');
+  await input.fill('Dolo');
+  await page.getByRole('button', { name: /dolo/i }).first().dispatchEvent('mousedown');
+  await expect(input).not.toHaveValue('Dolo');
+  return input.inputValue();
+}
+
 
 // Authenticate before inventory tests
 test.beforeEach(async ({ page }) => {
@@ -16,12 +27,11 @@ test.describe('Inventory', () => {
   });
 
   test('adding a medicine makes it appear in the inventory list', async ({ page }) => {
-    const medicineName = `E2E Test Medicine ${Date.now()}`;
 
     await page.goto('/inventory', { waitUntil: 'domcontentloaded' });
     await page.getByTestId('add-medicine-btn').click();
 
-    await page.getByTestId('medicine-name-input').fill(medicineName);
+    const medicineName = await pickCatalogMedicine(page);
     await page.getByTestId('medicine-category-select').selectOption({ index: 1 });
     await page.getByTestId('medicine-dosageform-select').selectOption({ index: 1 });
 
@@ -55,10 +65,9 @@ test.describe('Inventory', () => {
   // either endpoint is still caught even before something starts rendering
   // them.
   test('reports/dashboard and analytics/summary APIs return real data, not silent zeros', async ({ page, request }) => {
-    const medicineName = `E2E API Test Medicine ${Date.now()}`;
     await page.goto('/inventory', { waitUntil: 'domcontentloaded' });
     await page.getByTestId('add-medicine-btn').click();
-    await page.getByTestId('medicine-name-input').fill(medicineName);
+    const medicineName = await pickCatalogMedicine(page);
     await page.getByTestId('medicine-category-select').selectOption({ index: 1 });
     await page.getByTestId('medicine-dosageform-select').selectOption({ index: 1 });
     const expiry = new Date();

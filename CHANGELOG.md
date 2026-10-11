@@ -54,6 +54,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
   Doctors / Create & Edit Doctors.
 
 ### Fixed
+- **Browser (E2E) tests caught up with the app**: inventory tests now pick a medicine from the catalog (names must come from it since Sep 19), and the purchase test waits for the page to finish loading before opening the Distributor menu. Also 3 old backend lint errors fixed so the CI lint step passes.
 - **Accessibility/lint cleanup**: 74 ESLint warnings in `src/pages` cleared (form labels now tied to their inputs, clickable rows reachable by keyboard, dead imports/state removed) so the Design Guard CI job passes. The few hook-dependency warnings that would need a refactor carry a one-line `eslint-disable` with the reason.
 - **First admin had no store access row** (created by `seed_admin.py`): the sidebar store switcher read "Loading…" and clinic pickers
   were empty. The script, a data fix and a safety fallback now cover it, and a new check blocks it happening again.

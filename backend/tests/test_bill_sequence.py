@@ -50,6 +50,7 @@ def _create_real_item(auth_headers, suffix, qty_on_hand=50):
         "gst_percent": 5, "line_total": 10.5,
     }
 
+
 # Test credentials
 TEST_EMAIL = "testadmin@pharmacy.com"
 TEST_PASSWORD = "admin123"

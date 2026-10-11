@@ -41,6 +41,9 @@ test.describe('Purchases', () => {
     await page.goto('/purchases', { waitUntil: 'domcontentloaded' });
     await page.getByTestId('new-purchase-btn').click();
     await page.waitForURL(/purchases\/create/, { waitUntil: 'domcontentloaded' });
+    // The page is still loading its lists right after the URL changes; a click on the Distributor menu in that
+    // window is lost when the page re-renders. Wait for it to settle, as a user would.
+    await page.waitForLoadState('networkidle');
 
     await page.getByTestId('supplier-selector').click();
     await page.getByTestId('supplier-search-input').fill(supplierName);

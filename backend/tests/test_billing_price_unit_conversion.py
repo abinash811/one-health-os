@@ -104,7 +104,7 @@ class TestBatchPriceNotDividedByPackSize(_AuthedTestBase):
         batch = self._create_batch(sku, qty=100, mrp_per_unit=2.50, cost_per_unit=1.80)
 
         search = self.session.get(f"{BASE_URL}/api/products/search-with-batches",
-                                   params={"q": name}).json()
+                                  params={"q": name}).json()
         unit_price = search[0]["batches"][0]["mrp_per_unit"]
         assert unit_price == pytest.approx(2.50)
 
