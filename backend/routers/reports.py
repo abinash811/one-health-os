@@ -29,6 +29,10 @@ from models.purchases import (
     PurchaseReturnItem as PurchaseReturnItemORM,
 )
 from models.pharmacy import Pharmacy, PharmacySettings
+from modules.emr.models import (
+    EmrAppointment, EmrDoctorSchedule, EmrPatient, EmrPrescription, EmrPrescriptionItem, EmrSettings,
+)
+from modules.patient_billing.models import PbChargeItem, PbInvoice, PbPayment
 from models.suppliers import Supplier as SupplierORM
 from models.users import AuditLog, User as UserORM
 from routers.auth_helpers import (
@@ -1759,6 +1763,13 @@ async def get_purchase_analytics(
 
 # ── backup export ─────────────────────────────────────────────────────────────
 
+CLINIC_EXPORT_TABLES = [
+    ("emr_patients", EmrPatient), ("emr_appointments", EmrAppointment),
+    ("emr_prescriptions", EmrPrescription), ("emr_prescription_items", EmrPrescriptionItem),
+    ("emr_doctor_schedules", EmrDoctorSchedule), ("emr_settings", EmrSettings),
+    ("patient_invoices", PbInvoice), ("patient_charge_items", PbChargeItem), ("patient_payments", PbPayment),
+]
+
 
 @router.get("/backup/export")
 async def export_data(request: Request, db: AsyncSession = DbSession,
@@ -1766,8 +1777,9 @@ async def export_data(request: Request, db: AsyncSession = DbSession,
     await require_admin_or_super(current_user, db, detail="Only admins can export data")
     pid = current_user.pharmacy_id
 
-    async def _dump(model):
-        rows = (await db.execute(select(model).where(model.pharmacy_id == pid))).scalars().all()
+    async def _dump(model, key=None):
+        key = model.pharmacy_id == pid if key is None else key
+        rows = (await db.execute(select(model).where(key))).scalars().all()
         result = []
         for r in rows:
             d = {c.name: getattr(r, c.name) for c in r.__table__.columns}
@@ -1788,6 +1800,12 @@ async def export_data(request: Request, db: AsyncSession = DbSession,
         "suppliers": await _dump(SupplierORM),
     }
 
+    # Clinic-side data (EMR + patient billing) belongs to the clinic the admin is working at. With no clinic
+    # active these stay empty — the admin picks a clinic and exports again for each one.
+    cid = current_user.clinic_id
+    for name, model in CLINIC_EXPORT_TABLES:
+        counts[name] = await _dump(model, model.clinic_id == cid) if cid else []
+
     # A full pharmacy-data export is a sensitive action worth its own trail
     # — the same "who did what, when" reasoning as the Settings/Login
     # history audit trail (Sep 13, 2026), just for a read-only download
@@ -1797,7 +1815,7 @@ async def export_data(request: Request, db: AsyncSession = DbSession,
     db.add(AuditLog(
         pharmacy_id=uuid.UUID(pid), user_id=uuid.UUID(current_user.id), action="export",
         entity_type="data_export", entity_id=uuid.UUID(pid),
-        new_values={k: len(v) for k, v in counts.items()},
+        new_values={**{k: len(v) for k, v in counts.items()}, "clinic_id": cid},
         ip_address=_client_ip(request),
     ))
     await db.flush()

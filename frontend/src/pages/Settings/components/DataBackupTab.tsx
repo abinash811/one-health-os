@@ -69,6 +69,7 @@ export default function DataBackupTab() {
             <ul className="list-disc list-inside space-y-1 text-amber-700">
               <li>Only administrators can download a backup</li>
               <li>Every download is recorded in the Audit Log, with who and when</li>
+              <li>Clinic data (patients, appointments, prescriptions, patient bills) comes from the clinic you are working at — switch clinic and download again for each one</li>
               <li>This is a point-in-time snapshot — it doesn't update itself later</li>
             </ul>
           </div>

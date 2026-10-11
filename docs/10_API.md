@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.46 | Last updated: October 4, 2026
+# Version: 1.47 | Last updated: October 11, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1229,7 +1229,7 @@ Purchases summary card).
 
 ### `GET /backup/export`
 Admin-only. Dumps every row (this pharmacy only) from `products`, `bills`,
-`purchases`, `customers`, `doctors`, `suppliers` as JSON. Manual substitute
+`purchases`, `customers`, `doctors`, `suppliers` as JSON. Also (Oct 11, 2026) the caller's **active clinic**: `emr_patients`, `emr_appointments`, `emr_prescriptions`, `emr_prescription_items`, `emr_doctor_schedules`, `emr_settings`, `patient_invoices`, `patient_charge_items`, `patient_payments` (empty lists when no clinic is active). Manual substitute
 for the "No automated backups" gap tracked in `docs/13_DEPLOYMENT.md`
 pre-launch blockers — not a scheduled/automated backup itself.
 

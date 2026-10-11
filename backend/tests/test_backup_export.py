@@ -111,5 +111,30 @@ class TestBackupExportContentAndAudit(_FreshPharmacyTestBase):
         assert len(self._audit_entries()) == 2
 
 
+class TestBackupExportClinicData(_FreshPharmacyTestBase):
+    """Oct 11, 2026: the export also carries the active clinic's EMR and patient-billing rows."""
+
+    def _clinic_and_patient(self, name):
+        cid = self.session.post(f"{BASE_URL}/api/clinics", json={"name": f"{name} {self.suffix}"}).json()["id"]
+        assert self.session.post(f"{BASE_URL}/api/users/me/switch-clinic", json={"clinic_id": cid}).status_code == 200
+        pat = self.session.post(f"{BASE_URL}/api/emr/patients", json={"name": f"{name} Pat", "phone": "9000000001"})
+        assert pat.status_code in (200, 201), pat.text
+        return pat.json()["id"]
+
+    def test_export_carries_the_active_clinics_patients_only(self):
+        a = self._clinic_and_patient("Alpha")
+        b = self._clinic_and_patient("Beta")  # active clinic is now Beta
+        data = self.session.get(f"{BASE_URL}/api/backup/export").json()
+        ids = [p["id"] for p in data["emr_patients"]]
+        assert ids == [b] and a not in ids
+        for key in ["emr_appointments", "emr_prescriptions", "emr_prescription_items", "emr_doctor_schedules",
+                    "emr_settings", "patient_invoices", "patient_charge_items", "patient_payments"]:
+            assert key in data
+
+    def test_without_an_active_clinic_the_clinic_lists_are_empty(self):
+        data = self.session.get(f"{BASE_URL}/api/backup/export").json()
+        assert data["emr_patients"] == [] and data["patient_invoices"] == []
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

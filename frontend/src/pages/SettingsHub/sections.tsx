@@ -35,7 +35,7 @@ export const isAdmin = (u: HubUser): boolean => u.role === 'admin' || !!u.is_sup
 /** An explicit tick — a session from before permissions were sent counts as "no tick". */
 const ticked = (u: HubUser, permission: string): boolean => !!u.permissions && hasPermission(u.permissions, permission);
 
-const canSeeClinics = (u: HubUser): boolean =>
+export const canSeeClinics = (u: HubUser): boolean =>
   isAdmin(u) || ['clinics:view', 'clinics:create', 'clinics:edit'].some((p) => ticked(u, p));
 const canSeePharmacies = (u: HubUser): boolean =>
   isAdmin(u) || ['pharmacies:view', 'pharmacies:create', 'pharmacies:edit'].some((p) => ticked(u, p));

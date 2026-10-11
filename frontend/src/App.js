@@ -15,6 +15,7 @@ import AuthPage from '@/pages/AuthPage';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 import Layout from '@/components/Layout';
+import EmrClinicGate from '@/components/EmrClinicGate';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ROUTES } from '@/constants/routes';
 import { USER_ROLE } from '@/constants/domainConstants';
@@ -162,19 +163,21 @@ function AppRoutes({ user }) {
       <Routes>
         <Route path="/" element={<ErrorBoundary><Layout /></ErrorBoundary>}>
           <Route index element={<Navigate to={homePathFor(user)} replace />} />
-          <Route path="emr/appointments" element={<EmrAppointments />} />
-          <Route path="emr/calendar" element={<EmrCalendar />} />
-          <Route path="emr/patients" element={<EmrPatients />} />
-          <Route path="emr/patients/:patientId" element={<EmrPatientProfile />} />
-          <Route path="emr/schedules" element={<Navigate to="/settings/emr/schedules" replace />} />
-          <Route path="emr/settings" element={<Navigate to="/settings/emr/clinic-profile" replace />} />
-          <Route path="emr/consult/:appointmentId" element={<EmrConsultation />} />
-          <Route path="patient-billing" element={<Navigate to={ROUTES.PATIENT_BILLING.PENDING} replace />} />
-          <Route path="patient-billing/pending" element={<PatientBillingDesk tab="pending" />} />
-          <Route path="patient-billing/invoices" element={<PatientBillingDesk tab="invoices" />} />
-          <Route path="patient-billing/receipts" element={<PatientBillingDesk tab="receipts" />} />
-          <Route path="patient-billing/closing" element={<PatientBillingDesk tab="closing" />} />
-          <Route path="patient-billing/accounts/:patientId" element={<PatientBillingAccount />} />
+          <Route element={<EmrClinicGate user={user} />}>
+            <Route path="emr/appointments" element={<EmrAppointments />} />
+            <Route path="emr/calendar" element={<EmrCalendar />} />
+            <Route path="emr/patients" element={<EmrPatients />} />
+            <Route path="emr/patients/:patientId" element={<EmrPatientProfile />} />
+            <Route path="emr/schedules" element={<Navigate to="/settings/emr/schedules" replace />} />
+            <Route path="emr/settings" element={<Navigate to="/settings/emr/clinic-profile" replace />} />
+            <Route path="emr/consult/:appointmentId" element={<EmrConsultation />} />
+            <Route path="patient-billing" element={<Navigate to={ROUTES.PATIENT_BILLING.PENDING} replace />} />
+            <Route path="patient-billing/pending" element={<PatientBillingDesk tab="pending" />} />
+            <Route path="patient-billing/invoices" element={<PatientBillingDesk tab="invoices" />} />
+            <Route path="patient-billing/receipts" element={<PatientBillingDesk tab="receipts" />} />
+            <Route path="patient-billing/closing" element={<PatientBillingDesk tab="closing" />} />
+            <Route path="patient-billing/accounts/:patientId" element={<PatientBillingAccount />} />
+          </Route>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="billing" element={<BillingOperations />} />
           <Route path="billing/new" element={<BillingWorkspace />} />
