@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **CI now runs on cloud-session branches** (`ccr-*`): before this, pushes to them got no online checks at all.
 - **Backup includes clinic data**: Settings → Data & Backup now also downloads the active clinic's patients, appointments, prescriptions, schedules and patient bills. Switch clinic and download again for each one.
 - **No more dead-end EMR pages**: with no clinic selected, EMR and Patient Billing show a friendly screen — pick a clinic, add your first clinic (admins), or ask an administrator for access.
 - **Settings say what they belong to**: every settings panel now starts with a bar — "Editing settings for **Main Street Pharmacy** — changes apply to this pharmacy only" for Pharmacy settings, the clinic's name for EMR settings, and "apply to your whole organisation" for Organisation settings. With no clinic selected it says so and points to the fix.

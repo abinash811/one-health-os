@@ -9,7 +9,7 @@ on:
     # Added Aug 25, 2026, direct request — before this, CI only ran on
     # push-to-main/PR or a manual workflow_dispatch, so a whole session's
     # worth of commits could land with zero automatic CI signal.
-    branches: [main, 'claude/**', 'fix/**']
+    branches: [main, 'claude/**', 'fix/**', 'ccr-*']  # 'ccr-*' = cloud sessions' auto-named branches (added Oct 11, 2026)
   pull_request:
     branches: [main]
   workflow_dispatch: {}

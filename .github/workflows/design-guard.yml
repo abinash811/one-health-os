@@ -7,7 +7,7 @@ on:
     # Same fix as ci.yml, same day, same reason — see docs/11_TESTING.md's
     # CI STATUS section. Runs automatically on every feature-branch push,
     # not just after a PR exists.
-    branches: [main, 'claude/**', 'fix/**']
+    branches: [main, 'claude/**', 'fix/**', 'ccr-*']
 
 jobs:
   design-guard:
