@@ -13,10 +13,10 @@ export default function InventoryTab({ inventory, onUpdate }) {
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="fld-inventorytabjsx-16" className="block text-sm font-medium text-gray-700 mb-2">
             Near Expiry Alert (Days before expiry)
           </label>
-          <input
+          <input id="fld-inventorytabjsx-16"
             type="number"
             value={inventory.near_expiry_days}
             onChange={(e) => onUpdate('near_expiry_days', parseInt(e.target.value))}

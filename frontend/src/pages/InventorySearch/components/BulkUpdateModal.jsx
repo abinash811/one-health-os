@@ -37,8 +37,8 @@ export default function BulkUpdateModal({ selectedCount, filterOptions = {}, onC
         <div className="space-y-4">
           {/* Field selector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Select Field</label>
-            <select value={field} onChange={(e) => { setField(e.target.value); setValue(''); }} className={INPUT_CLS} data-testid="bulk-field-select">
+            <label htmlFor="fld-bulkupdatemodaljsx-40" className="block text-sm font-medium text-gray-700 mb-1">Select Field</label>
+            <select id="fld-bulkupdatemodaljsx-40" value={field} onChange={(e) => { setField(e.target.value); setValue(''); }} className={INPUT_CLS} data-testid="bulk-field-select">
               <option value="">Choose field to update…</option>
               <option value="location">Location</option>
               <option value="discount_percent">Discount %</option>
@@ -53,9 +53,9 @@ export default function BulkUpdateModal({ selectedCount, filterOptions = {}, onC
           {/* Value input — type depends on field */}
           {field && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">New Value</label>
+              <label htmlFor="fld-bulkupdatemodaljsx-56" className="block text-sm font-medium text-gray-700 mb-1">New Value</label>
               {field === 'location' ? (
-                <select value={value} onChange={(e) => setValue(e.target.value)} className={INPUT_CLS} data-testid="bulk-value-input">
+                <select id="fld-bulkupdatemodaljsx-56" value={value} onChange={(e) => setValue(e.target.value)} className={INPUT_CLS} data-testid="bulk-value-input">
                   <option value="">Select location…</option>
                   {locations.map(l => <option key={l} value={l}>{l}</option>)}
                 </select>

@@ -25,6 +25,7 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
 
   useEffect(() => {
     const preview = `${form.prefix.toUpperCase()}-${String(form.starting_number).padStart(form.sequence_length, '0')}`;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets form/list state when the input changes; moving it out of the effect is a separate refactor
     setPreviewNumber(preview);
   }, [form]);
 
@@ -124,8 +125,8 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Prefix <span className="text-red-500">*</span></label>
-              <input type="text" value={form.prefix}
+              <label htmlFor="fld-billsequencetabjsx-127" className="block text-sm font-medium text-gray-700 mb-2">Prefix <span className="text-red-500">*</span></label>
+              <input id="fld-billsequencetabjsx-127" type="text" value={form.prefix}
                 onChange={(e) => setForm(p => ({ ...p, prefix: e.target.value.toUpperCase() }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded font-mono uppercase"
                 placeholder="INV" maxLength={10} data-testid="sequence-prefix-input" />
@@ -133,8 +134,8 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Starting Number <span className="text-red-500">*</span></label>
-              <input type="number" value={form.starting_number}
+              <label htmlFor="fld-billsequencetabjsx-136" className="block text-sm font-medium text-gray-700 mb-2">Starting Number <span className="text-red-500">*</span></label>
+              <input id="fld-billsequencetabjsx-136" type="number" value={form.starting_number}
                 onChange={(e) => setForm(p => ({ ...p, starting_number: Math.max(1, parseInt(e.target.value) || 1) }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded"
                 min="1" data-testid="sequence-starting-number" />
@@ -142,8 +143,8 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Sequence Length</label>
-              <select value={form.sequence_length}
+              <label htmlFor="fld-billsequencetabjsx-145" className="block text-sm font-medium text-gray-700 mb-2">Sequence Length</label>
+              <select id="fld-billsequencetabjsx-145" value={form.sequence_length}
                 onChange={(e) => setForm(p => ({ ...p, sequence_length: parseInt(e.target.value) }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded"
                 data-testid="sequence-length-select">
@@ -152,7 +153,7 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Preview</label>
+              <span className="block text-sm font-medium text-gray-700 mb-2">Preview</span>
               <div className="w-full px-4 py-3 bg-white border-2 border-green-200 rounded font-mono text-lg text-green-700 flex items-center gap-2">
                 <CheckCircle className="w-5 h-5" />
                 {previewNumber}

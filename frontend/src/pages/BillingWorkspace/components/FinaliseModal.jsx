@@ -120,8 +120,8 @@ export default function FinaliseModal({
             {/* ── Right: Notes + confirm ───────────────────────────── */}
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Internal Note</label>
-                <textarea
+                <label htmlFor="fld-finalisemodaljsx-123" className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Internal Note</label>
+                <textarea id="fld-finalisemodaljsx-123"
                   value={internalNote}
                   onChange={(e) => setInternalNote(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"

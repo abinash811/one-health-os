@@ -17,7 +17,6 @@ import BillingTable           from './components/BillingTable';
 import BillingFooter          from './components/BillingFooter';
 import FinaliseModal          from './components/FinaliseModal';
 import ScheduleHWarning       from './components/ScheduleHWarning';
-import PatientSearchModal     from './components/PatientSearchModal';
 import PrintReceipt           from './components/PrintReceipt';
 import { PageSkeleton } from '@/components/shared';
 import DrugLicenseRequiredState from './components/DrugLicenseRequiredState';
@@ -62,15 +61,14 @@ export default function BillingWorkspace() {
   const [paymentSplits, setPaymentSplits] = useState([]);
   const [billDate,      setBillDate]      = useState(new Date());
   const [draftNumber,   setDraftNumber]   = useState(null);
-  const [billDiscount,     setBillDiscount]     = useState(0);
-  const [billDiscountType, setBillDiscountType] = useState('%');
+  const [billDiscount] = useState(0);
+  const [billDiscountType] = useState('%');
 
   const [isInitialising, setIsInitialising] = useState(true);
 
   // ── Modal flags ──────────────────────────────────────────────────────────
   const [showFinalise,      setShowFinalise]      = useState(false);
   const [showScheduleH,     setShowScheduleH]     = useState(false);
-  const [showPatientModal,  setShowPatientModal]  = useState(false);
 
   // ── Print ────────────────────────────────────────────────────────────────
   const [savedBillData,  setSavedBillData]  = useState(null);
@@ -177,6 +175,7 @@ export default function BillingWorkspace() {
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately run only on these inputs; adding the missing ones would re-run it on every render
   }, [saveDraft]);
 
   // ── Schedule H guard ──────────────────────────────────────────────────────

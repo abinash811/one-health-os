@@ -124,10 +124,12 @@ export function useInventorySearch() {
       toast.error(err.message || 'Failed to load inventory');
       setInventory([]);
     } finally { setLoading(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately run only on these inputs; adding the missing ones would re-run it on every render
   }, [debouncedSearch, activeFilters, currentPage]);
 
   useEffect(() => {
     fetchInventory(currentPage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately run only on these inputs; adding the missing ones would re-run it on every render
   }, [debouncedSearch, activeFilters, currentPage]);
 
   // ── Filter helpers ───────────────────────────────────────────────────────

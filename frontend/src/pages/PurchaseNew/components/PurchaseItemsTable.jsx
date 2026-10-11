@@ -114,7 +114,10 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onSetItemField
                       ))}
                       {searchResults.length === 0 && (
                         <div
+                          role="button"
+                          tabIndex={0}
                           onClick={() => { setNewMedicineName(searchQuery.trim()); setShowAddMedicine(true); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setNewMedicineName(searchQuery.trim()); setShowAddMedicine(true); } }}
                           className="px-4 py-3 hover:bg-gray-50 cursor-pointer text-sm text-brand font-medium"
                           data-testid="add-new-medicine-btn"
                         >

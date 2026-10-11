@@ -23,6 +23,7 @@ export default function DoctorFormDialog({ open, editingDoctor, onClose, onSave 
 
   useEffect(() => {
     if (editingDoctor) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets form/list state when the input changes; moving it out of the effect is a separate refactor
       setForm({
         name:                 editingDoctor.name                 || '',
         contact:              editingDoctor.contact              || '',

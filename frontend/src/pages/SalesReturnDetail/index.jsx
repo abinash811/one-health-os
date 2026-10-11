@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';

@@ -106,7 +106,11 @@ export default function SupplierDropdown({ suppliers = [], value, onChange, allo
               filtered.map(supplier => (
                 <div
                   key={supplier.id}
+                  role="option"
+                  aria-selected={false}
+                  tabIndex={0}
                   onClick={() => { onChange(supplier); setShowDropdown(false); setSupplierSearch(''); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onChange(supplier); setShowDropdown(false); setSupplierSearch(''); } }}
                   className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
                   data-testid={`supplier-option-${supplier.id}`}
                 >

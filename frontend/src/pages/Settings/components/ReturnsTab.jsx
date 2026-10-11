@@ -13,8 +13,8 @@ export default function ReturnsTab({ returns, onUpdate }) {
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Return Window (Days)</label>
-          <input
+          <label htmlFor="fld-returnstabjsx-16" className="block text-sm font-medium text-gray-700 mb-2">Return Window (Days)</label>
+          <input id="fld-returnstabjsx-16"
             type="number"
             value={returns?.return_window_days || 7}
             onChange={(e) => onUpdate('return_window_days', parseInt(e.target.value))}

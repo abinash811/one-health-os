@@ -26,6 +26,7 @@ export default function CustomerFormDialog({ open, editingCustomer, onClose, onS
     defaultValues: DEFAULTS,
   });
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form watch(); the React compiler skips this component by design
   const customerType = watch('customer_type');
 
   useEffect(() => {

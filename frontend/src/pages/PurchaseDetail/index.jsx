@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { ArrowLeft, Printer, RotateCcw, FileText, Paperclip, PenLine } from 'lucide-react';

@@ -13,13 +13,13 @@ export default function SalesReturnEditModal({ open, onClose, editForm, onFormCh
             <h3 className="text-sm font-semibold text-gray-700">Non-Financial Edit</h3>
             <p className="text-xs text-gray-500">Edit doctor or note without changing amounts.</p>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Doctor</label>
-              <input type="text" value={editForm.doctor} onChange={(e) => onFormChange({ ...editForm, doctor: e.target.value })}
+              <label htmlFor="fld-salesreturneditmodaljsx-16" className="block text-xs font-medium text-gray-600 mb-1">Doctor</label>
+              <input id="fld-salesreturneditmodaljsx-16" type="text" value={editForm.doctor} onChange={(e) => onFormChange({ ...editForm, doctor: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand" placeholder="Doctor name" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Note</label>
-              <textarea value={editForm.note} onChange={(e) => onFormChange({ ...editForm, note: e.target.value.slice(0, 150) })}
+              <label htmlFor="fld-salesreturneditmodaljsx-21" className="block text-xs font-medium text-gray-600 mb-1">Note</label>
+              <textarea id="fld-salesreturneditmodaljsx-21" value={editForm.note} onChange={(e) => onFormChange({ ...editForm, note: e.target.value.slice(0, 150) })}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none h-20 focus:outline-none focus:ring-1 focus:ring-brand"
                 placeholder="Add a note..." />
             </div>

@@ -79,6 +79,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to save bill');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately run only on these inputs; adding the missing ones would re-run it on every render
   }, [billSnapshot]);
 
   // ── saveBillAndPrint ──────────────────────────────────────────────────────
@@ -122,6 +123,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to park bill');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately run only on these inputs; adding the missing ones would re-run it on every render
   }, [billSnapshot]);
 
   // ── confirmAndSaveBill (finalise) ─────────────────────────────────────────

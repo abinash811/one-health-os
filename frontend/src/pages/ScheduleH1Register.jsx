@@ -21,8 +21,6 @@ import usePagination from '@/hooks/usePagination';
 export default function ScheduleH1Register() {
   const [entries, setEntries]   = useState([]);
   const [loading, setLoading]   = useState(true);
-  const [total, setTotal]       = useState(0);
-  const [period, setPeriod]     = useState({});
   const [accessDenied, setAccessDenied] = useState(false);
 
   // Filters
@@ -42,8 +40,6 @@ export default function ScheduleH1Register() {
 
       const res = await api.get(apiUrl.scheduleH1(params));
       setEntries(res.data.entries || []);
-      setTotal(res.data.total_count || 0);
-      setPeriod(res.data.period || {});
     } catch (err) {
       if (err.response?.status === 403) {
         setAccessDenied(true);

@@ -57,13 +57,13 @@ export default function CustomerDetailDialog({ open, customer, onClose }) {
         <div className="space-y-6">
           {/* Info grid */}
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="text-xs text-gray-500 uppercase">Name</label><p className="font-medium">{customer.name}</p></div>
-            <div><label className="text-xs text-gray-500 uppercase">Type</label><p><CustomerTypeBadge type={customer.customer_type} /></p></div>
-            {customer.phone && <div><label className="text-xs text-gray-500 uppercase">Phone</label><p>{customer.phone}</p></div>}
-            {customer.email && <div><label className="text-xs text-gray-500 uppercase">Email</label><p>{customer.email}</p></div>}
+            <div><span className="block text-xs text-gray-500 uppercase">Name</span><p className="font-medium">{customer.name}</p></div>
+            <div><span className="block text-xs text-gray-500 uppercase">Type</span><p><CustomerTypeBadge type={customer.customer_type} /></p></div>
+            {customer.phone && <div><span className="block text-xs text-gray-500 uppercase">Phone</span><p>{customer.phone}</p></div>}
+            {customer.email && <div><span className="block text-xs text-gray-500 uppercase">Email</span><p>{customer.email}</p></div>}
             {customer.address && (
               <div className="col-span-2">
-                <label className="text-xs text-gray-500 uppercase">Address</label>
+                <span className="block text-xs text-gray-500 uppercase">Address</span>
                 <p className="text-sm">{customer.address}</p>
               </div>
             )}

@@ -126,8 +126,8 @@ export default function InvoiceBreakdownModal({
 
           {/* Internal note */}
           <div className="mt-4">
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Internal Note</label>
-            <textarea
+            <label htmlFor="fld-invoicebreakdownmodaljsx-129" className="block text-xs font-semibold text-gray-500 uppercase mb-2">Internal Note</label>
+            <textarea id="fld-invoicebreakdownmodaljsx-129"
               value={internalNote}
               onChange={(e) => onInternalNote(e.target.value)}
               placeholder="Add a note (optional)"

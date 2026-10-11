@@ -18,8 +18,8 @@ export default function PurchaseReturnEditModal({ open, onClose, editType, editN
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Note</label>
-            <textarea value={editNote} onChange={(e) => onNoteChange(e.target.value.slice(0, 150))}
+            <label htmlFor="fld-purchasereturneditmodaljsx-21" className="block text-sm font-medium text-gray-700 mb-1.5">Note</label>
+            <textarea id="fld-purchasereturneditmodaljsx-21" value={editNote} onChange={(e) => onNoteChange(e.target.value.slice(0, 150))}
               placeholder="Add a note..."
               className="w-full h-24 px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-brand" />
             <div className="text-right text-xs text-gray-400 mt-1">{editNote.length}/150</div>

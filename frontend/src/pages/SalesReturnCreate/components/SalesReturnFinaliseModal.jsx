@@ -32,8 +32,8 @@ export default function SalesReturnFinaliseModal({ open, onClose, totals, note, 
           </div>
           {/* Note */}
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Note</label>
-            <textarea value={note} onChange={(e) => onNoteChange(e.target.value.slice(0, 150))}
+            <label htmlFor="fld-salesreturnfinalisemodaljsx-35" className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Note</label>
+            <textarea id="fld-salesreturnfinalisemodaljsx-35" value={note} onChange={(e) => onNoteChange(e.target.value.slice(0, 150))}
               placeholder="Add a note for this return..."
               className="w-full h-40 px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-brand"
               data-testid="note-input" />

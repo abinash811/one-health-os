@@ -6,7 +6,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Upload } from 'lucide-react';
-import { InlineLoader, TableSkeleton, PageHeader, PageTabs, AppButton } from '@/components/shared';
+import { TableSkeleton, PageHeader, PageTabs, AppButton } from '@/components/shared';
 import ExcelBulkUploadWizard from '@/components/ExcelBulkUploadWizard';
 import { INVENTORY_TABS, inventoryTabRoute } from '../inventoryTabs';
 

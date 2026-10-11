@@ -20,7 +20,6 @@ export default function PurchaseReturnCreate() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [supplier, setSupplier]       = useState({ id: null, name: '' });
   const [invoiceNo, setInvoiceNo]     = useState('');
-  const [purchaseNumber, setPurchaseNumber] = useState('');
   const [paymentType, setPaymentType] = useState('credit');
   const [reason, setReason]           = useState(PURCHASE_RETURN_REASON.DAMAGED);
   const [note, setNote]               = useState('');
@@ -42,7 +41,6 @@ export default function PurchaseReturnCreate() {
       const data = res.data;
       setSupplier({ id: data.supplier_id, name: data.supplier_name });
       setInvoiceNo(data.invoice_no || '');
-      setPurchaseNumber(data.purchase_number || '');
       setItems(data.items.filter((i) => i.max_returnable_qty > 0).map((item) => ({
         id: crypto.randomUUID(),
         // GET /purchases/{id}/items-for-return returns product_id/product_name

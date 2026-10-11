@@ -24,7 +24,6 @@ export default function SalesReturnsList() {
 
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats]     = useState({ returnsToday: 0, totalRefundedToday: 0 });
 
   // Search & filters — dateRange can arrive pre-set via URL (?from_date=&
   // to_date=) so the Dashboard's "Returns (Month)" card drills straight
@@ -57,7 +56,6 @@ export default function SalesReturnsList() {
       const res = await api.get(apiUrl.salesReturns(params));
       setReturns(res.data.data || []);
       pg.setFromResponse(res.data.pagination);
-      if (res.data.stats) setStats(res.data.stats);
     } catch {
       toast.error('Failed to load sales returns');
     } finally {

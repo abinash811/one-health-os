@@ -43,6 +43,7 @@ export function useBillItems(billDiscount = 0, billDiscountType = '%') {
     const sub   = mrp - itemDisc - billDiscAmt;
     const grand = sub + gst + cess;
     const mAmt  = sub - cost;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets form/list state when the input changes; moving it out of the effect is a separate refactor
     setMrpTotal(mrp);
     setSubtotal(sub);
     setTotalDiscount(itemDisc + billDiscAmt);

@@ -22,7 +22,8 @@ jest.mock('@/components/shared/AddMedicineModal', () => ({
     <div data-testid="mock-add-medicine-modal">
       prefilled: {initialName}
       hideOpeningStock: {String(hideOpeningStock)}
-      <div role="button" onClick={() => onSuccess({ id: 'new-1', sku: 'SKU-NEW', name: initialName, gst_percent: 5 })}>
+      <div role="button" tabIndex={0} onKeyDown={() => undefined}
+        onClick={() => onSuccess({ id: 'new-1', sku: 'SKU-NEW', name: initialName, gst_percent: 5 })}>
         mock-create-medicine
       </div>
     </div>

@@ -70,7 +70,10 @@ export default function LogoUpload({ value, onChange, label = 'Pharmacy Logo' }:
       ) : (
         /* Drop zone */
         <div
+          role="button"
+          tabIndex={0}
           onClick={() => inputRef.current?.click()}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); } }}
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}

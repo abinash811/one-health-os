@@ -148,8 +148,8 @@ export default function RolesTab() {
           <DialogHeader><DialogTitle>Create Custom Role</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-xs font-medium text-gray-700 mb-1">Role Key *</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={inputCls} placeholder="e.g., store_manager" required /><p className="text-xs text-gray-500 mt-1">Lowercase, underscores only</p></div>
-              <div><label className="block text-xs font-medium text-gray-700 mb-1">Display Name *</label><input type="text" value={formData.display_name} onChange={(e) => setFormData({ ...formData, display_name: e.target.value })} className={inputCls} placeholder="e.g., Store Manager" required /></div>
+              <div><label htmlFor="fld-rolestabjsx-151" className="block text-xs font-medium text-gray-700 mb-1">Role Key *</label><input id="fld-rolestabjsx-151" type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={inputCls} placeholder="e.g., store_manager" required /><p className="text-xs text-gray-500 mt-1">Lowercase, underscores only</p></div>
+              <div><label htmlFor="fld-rolestabjsx-152" className="block text-xs font-medium text-gray-700 mb-1">Display Name *</label><input id="fld-rolestabjsx-152" type="text" value={formData.display_name} onChange={(e) => setFormData({ ...formData, display_name: e.target.value })} className={inputCls} placeholder="e.g., Store Manager" required /></div>
             </div>
             <div>
               <p className="text-xs font-medium text-gray-700 mb-2">Permissions *</p>
@@ -168,7 +168,7 @@ export default function RolesTab() {
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Role</DialogTitle></DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4 mt-2">
-            <div><label className="block text-xs font-medium text-gray-700 mb-1">Display Name *</label><input type="text" value={formData.display_name} onChange={(e) => setFormData({ ...formData, display_name: e.target.value })} className={inputCls} required /></div>
+            <div><label htmlFor="fld-rolestabjsx-171" className="block text-xs font-medium text-gray-700 mb-1">Display Name *</label><input id="fld-rolestabjsx-171" type="text" value={formData.display_name} onChange={(e) => setFormData({ ...formData, display_name: e.target.value })} className={inputCls} required /></div>
             <div>
               <p className="text-xs font-medium text-gray-700 mb-2">Permissions *</p>
               <PermissionsMatrix permissions={permissions} selectedPermissions={formData.selectedPermissions} onTogglePermission={togglePermission} onToggleModule={toggleModule} onToggleAll={toggleAllPermissions} />

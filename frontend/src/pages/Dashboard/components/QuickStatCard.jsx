@@ -24,6 +24,7 @@ export default function QuickStatCard({ title, value, icon, color, onClick }) {
   };
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- role and tabIndex are applied only when onClick is given
     <div
       className={`p-4 rounded-xl border ${COLOR_CLASSES[color]} ${onClick ? 'cursor-pointer hover:shadow-md' : ''} transition-all`}
       onClick={onClick}

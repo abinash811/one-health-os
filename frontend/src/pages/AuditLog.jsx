@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { AlertCircle, RefreshCw, X } from 'lucide-react';
 import {
   PageHeader, DataCard, SearchInput,
-  TableSkeleton, PaginationBar, StatusBadge,
+  TableSkeleton, PaginationBar,
   FilterPills, AppButton,
 } from '@/components/shared';
 import { AuthContext } from '@/App';

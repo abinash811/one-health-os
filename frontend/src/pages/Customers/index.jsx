@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Stethoscope, Plus, FileSpreadsheet } from 'lucide-react';
-import { SearchInput, TableSkeleton, DeleteConfirmDialog, PaginationBar, PageTabs, PageHeader, AppButton } from '@/components/shared';
+import { SearchInput, DeleteConfirmDialog, PaginationBar, PageTabs, PageHeader, AppButton } from '@/components/shared';
 import usePagination from '@/hooks/usePagination';
 import { toast } from 'sonner';
 import { exportCustomersToExcel, exportDoctorsToExcel } from '@/utils/excelExport';
@@ -38,6 +38,7 @@ export default function Customers() {
   const docPg  = usePagination({ pageSize: 20 });
 
   useEffect(() => { fetchData(); }, []); // eslint-disable-line
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- resets form/list state when the input changes; moving it out of the effect is a separate refactor
   useEffect(() => { setSearchQuery(''); }, [activeSection]);
 
   const q = debouncedSearch.toLowerCase();

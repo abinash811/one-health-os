@@ -38,16 +38,16 @@ export default function SupplierPaymentModal({ supplier, onClose, onConfirm }) {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Payment Amount *</label>
-            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
+            <label htmlFor="fld-supplierpaymentmodaljsx-41" className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Payment Amount *</label>
+            <input id="fld-supplierpaymentmodaljsx-41" type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
               max={supplier?.outstanding || 0}
               className={`${cls} font-mono`} placeholder="0.00"
               data-testid="payment-amount-input" />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Note</label>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
+            <label htmlFor="fld-supplierpaymentmodaljsx-49" className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Note</label>
+            <textarea id="fld-supplierpaymentmodaljsx-49" value={note} onChange={(e) => setNote(e.target.value)} rows={2}
               className={`${cls} resize-none`} placeholder="Optional note..." />
           </div>
         </div>

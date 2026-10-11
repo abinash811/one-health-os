@@ -20,7 +20,7 @@ import { AppButton } from '@/components/shared';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import AddPersonMiniForm from './AddPersonMiniForm';
 
-export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
+export default function PatientCombobox({ value, onSelect, readOnly }) {
   const [open,    setOpen]    = useState(false);
   const [query,   setQuery]   = useState('');
   const [results, setResults] = useState([]);

@@ -163,9 +163,9 @@ export default function MembersTab({ currentUser }) {
         <DialogContent>
           <DialogHeader><DialogTitle>Invite Member</DialogTitle></DialogHeader>
           <form onSubmit={handleAddUser} className="space-y-4 mt-2">
-            <div><label className="block text-xs font-medium text-gray-700 mb-1">Name *</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={inputCls} required /></div>
-            <div><label className="block text-xs font-medium text-gray-700 mb-1">Email *</label><input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={inputCls} required /></div>
-            <div><label className="block text-xs font-medium text-gray-700 mb-1">Password *</label><input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className={inputCls} required minLength={6} /><p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p></div>
+            <div><label htmlFor="fld-memberstabjsx-166" className="block text-xs font-medium text-gray-700 mb-1">Name *</label><input id="fld-memberstabjsx-166" type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={inputCls} required /></div>
+            <div><label htmlFor="fld-memberstabjsx-167" className="block text-xs font-medium text-gray-700 mb-1">Email *</label><input id="fld-memberstabjsx-167" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={inputCls} required /></div>
+            <div><label htmlFor="fld-memberstabjsx-168" className="block text-xs font-medium text-gray-700 mb-1">Password *</label><input id="fld-memberstabjsx-168" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className={inputCls} required minLength={6} /><p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p></div>
             <div><label htmlFor="member-role" className="block text-xs font-medium text-gray-700 mb-1">Role *</label><select id="member-role" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className={inputCls} required><option value="">Select a role…</option>{memberRoles.map((r) => <option key={r.id} value={r.name}>{r.display_name}</option>)}</select></div>
             <AdminCheckbox checked={formData.is_admin} onChange={(v) => setFormData({ ...formData, is_admin: v })} />
             <ClinicTicks value={formData.clinic_ids} onChange={(ids) => setFormData((f) => ({ ...f, clinic_ids: ids }))} role={formData.role} roles={availableRoles} />
@@ -182,8 +182,8 @@ export default function MembersTab({ currentUser }) {
         <DialogContent>
           <DialogHeader><DialogTitle>Edit Member</DialogTitle></DialogHeader>
           <form onSubmit={handleEditUser} className="space-y-4 mt-2">
-            <div><label className="block text-xs font-medium text-gray-700 mb-1">Name *</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={inputCls} required /></div>
-            <div><label className="block text-xs font-medium text-gray-700 mb-1">Email *</label><input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={inputCls} required /></div>
+            <div><label htmlFor="fld-memberstabjsx-185" className="block text-xs font-medium text-gray-700 mb-1">Name *</label><input id="fld-memberstabjsx-185" type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={inputCls} required /></div>
+            <div><label htmlFor="fld-memberstabjsx-186" className="block text-xs font-medium text-gray-700 mb-1">Email *</label><input id="fld-memberstabjsx-186" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={inputCls} required /></div>
             <div><label htmlFor="member-role" className="block text-xs font-medium text-gray-700 mb-1">Role *</label><select id="member-role" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className={inputCls} required><option value="">Select a role…</option>{memberRoles.map((r) => <option key={r.id} value={r.name}>{r.display_name}</option>)}</select></div>
             <AdminCheckbox checked={formData.is_admin} disabled={selectedUser?.id === currentUser.id} onChange={(v) => setFormData({ ...formData, is_admin: v })} />
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
@@ -199,9 +199,9 @@ export default function MembersTab({ currentUser }) {
         <DialogContent>
           <DialogHeader><DialogTitle>Change My Password</DialogTitle></DialogHeader>
           <form onSubmit={handleChangePassword} className="space-y-4 mt-2">
-            <div><label className="block text-xs font-medium text-gray-700 mb-1">Current Password *</label><input type="password" value={passwordData.current_password} onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })} className={inputCls} required /></div>
-            <div><label className="block text-xs font-medium text-gray-700 mb-1">New Password *</label><input type="password" value={passwordData.new_password} onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })} className={inputCls} required minLength={6} /></div>
-            <div><label className="block text-xs font-medium text-gray-700 mb-1">Confirm New Password *</label><input type="password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })} className={inputCls} required minLength={6} /></div>
+            <div><label htmlFor="fld-memberstabjsx-202" className="block text-xs font-medium text-gray-700 mb-1">Current Password *</label><input id="fld-memberstabjsx-202" type="password" value={passwordData.current_password} onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })} className={inputCls} required /></div>
+            <div><label htmlFor="fld-memberstabjsx-203" className="block text-xs font-medium text-gray-700 mb-1">New Password *</label><input id="fld-memberstabjsx-203" type="password" value={passwordData.new_password} onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })} className={inputCls} required minLength={6} /></div>
+            <div><label htmlFor="fld-memberstabjsx-204" className="block text-xs font-medium text-gray-700 mb-1">Confirm New Password *</label><input id="fld-memberstabjsx-204" type="password" value={passwordData.confirm_password} onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })} className={inputCls} required minLength={6} /></div>
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
               <AppButton type="button" variant="secondary" onClick={() => setShowPasswordDialog(false)}>Cancel</AppButton>
               <AppButton type="submit">Change Password</AppButton>

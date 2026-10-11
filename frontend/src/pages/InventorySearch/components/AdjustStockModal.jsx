@@ -31,6 +31,7 @@ export default function AdjustStockModal({ product, onClose, onSuccess }) {
         if (list.length > 0) setSelectedBatch(list[0].id);
       } catch { toast.error('Failed to load batches'); }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately run only on these inputs; adding the missing ones would re-run it on every render
   }, []);
 
   const handleSubmit = async (e) => {
@@ -61,29 +62,29 @@ export default function AdjustStockModal({ product, onClose, onSuccess }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Select Batch *</label>
-            <select value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)} className={INPUT_CLS} required data-testid="adjust-batch-select">
+            <label htmlFor="fld-adjuststockmodaljsx-64" className="block text-sm font-medium text-gray-700 mb-1">Select Batch *</label>
+            <select id="fld-adjuststockmodaljsx-64" value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)} className={INPUT_CLS} required data-testid="adjust-batch-select">
               <option value="">Select batch…</option>
               {batches.map(b => <option key={b.id} value={b.id}>{b.batch_no} — Qty: {b.qty_on_hand}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Adjustment Type *</label>
-            <select value={adjustmentType} onChange={(e) => setAdjustmentType(e.target.value)} className={INPUT_CLS} data-testid="adjust-type-select">
+            <label htmlFor="fld-adjuststockmodaljsx-72" className="block text-sm font-medium text-gray-700 mb-1">Adjustment Type *</label>
+            <select id="fld-adjuststockmodaljsx-72" value={adjustmentType} onChange={(e) => setAdjustmentType(e.target.value)} className={INPUT_CLS} data-testid="adjust-type-select">
               <option value="add">Add Stock</option>
               <option value="remove">Remove Stock</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Quantity (Units) *</label>
-            <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={INPUT_CLS} required min="1" data-testid="adjust-quantity" />
+            <label htmlFor="fld-adjuststockmodaljsx-80" className="block text-sm font-medium text-gray-700 mb-1">Quantity (Units) *</label>
+            <input id="fld-adjuststockmodaljsx-80" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={INPUT_CLS} required min="1" data-testid="adjust-quantity" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
-            <select value={reason} onChange={(e) => setReason(e.target.value)} className={INPUT_CLS} required data-testid="adjust-reason">
+            <label htmlFor="fld-adjuststockmodaljsx-85" className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
+            <select id="fld-adjuststockmodaljsx-85" value={reason} onChange={(e) => setReason(e.target.value)} className={INPUT_CLS} required data-testid="adjust-reason">
               <option value="">Select reason…</option>
               <option value="Stock count correction">Stock count correction</option>
               <option value="Damaged goods">Damaged goods</option>

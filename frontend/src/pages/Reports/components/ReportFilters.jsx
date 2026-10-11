@@ -14,8 +14,8 @@ export default function ReportFilters({
 
       {activeReport === 'expiry' && (
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-600">Expiring in:</label>
-          <select
+          <label htmlFor="fld-reportfiltersjsx-17" className="text-sm font-medium text-gray-600">Expiring in:</label>
+          <select id="fld-reportfiltersjsx-17"
             value={expiryDays}
             onChange={(e) => onExpiryChange(parseInt(e.target.value))}
             className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand"
