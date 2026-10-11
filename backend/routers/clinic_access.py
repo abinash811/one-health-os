@@ -111,13 +111,11 @@ async def grant_user_clinic_access(user_id: str, body: GrantClinicAccess, reques
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     target = await get_workspace_user_or_404(db, user_id, await caller_workspace(db, current_user))
     clinic = await get_clinic_or_404(db, body.clinic_id, pharmacy_id)
-    role_id = target.role_id   # access only — the person keeps their one role
+    # access only — the person keeps their one role
     existing = (await db.execute(select(UserClinicAccess).where(
         UserClinicAccess.user_id == target.id, UserClinicAccess.clinic_id == clinic.id))).scalar_one_or_none()
-    if existing:
-        existing.role_id = role_id
-    else:
-        db.add(UserClinicAccess(user_id=target.id, clinic_id=clinic.id, role_id=role_id))
+    if not existing:
+        db.add(UserClinicAccess(user_id=target.id, clinic_id=clinic.id))
     if target.clinic_id is None:
         target.clinic_id = clinic.id
     await db.flush()

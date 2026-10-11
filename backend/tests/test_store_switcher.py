@@ -17,10 +17,8 @@ import uuid
 
 import requests
 
-from sqlalchemy import select
-
 from database import AsyncSessionLocal, engine
-from models.users import Role as RoleORM, UserStoreRole
+from models.users import UserStoreRole
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'http://localhost:8000').rstrip('/')
 
@@ -40,12 +38,7 @@ def _grant_second_store(user_id: str, pharmacy_id: str):
     on any freshly registered pharmacy."""
     async def _do():
         async with AsyncSessionLocal() as db:
-            role_result = await db.execute(
-                select(RoleORM).where(
-                    RoleORM.pharmacy_id == uuid.UUID(pharmacy_id), RoleORM.name == "admin"))
-            role = role_result.scalar_one()
-            db.add(UserStoreRole(
-                user_id=uuid.UUID(user_id), pharmacy_id=uuid.UUID(pharmacy_id), role_id=role.id))
+            db.add(UserStoreRole(user_id=uuid.UUID(user_id), pharmacy_id=uuid.UUID(pharmacy_id)))
             await db.commit()
     return _run(_do)
 

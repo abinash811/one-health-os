@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.28 | Last updated: October 4, 2026
+# Version: 1.29 | Last updated: October 11, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -111,6 +111,8 @@ Nothing reads this table yet — see `docs/26_MULTI_CHAIN_SCOPE.md`.
 | `created_at`, `updated_at` | TIMESTAMP | — |
 
 ---
+
+> **Oct 11, 2026 (migration `a8e2c5f1d047`, contract step):** dropped `emr_doctor_schedules.doctor_user_id`, `emr_appointments.doctor_user_id`, `emr_prescriptions.doctor_user_id`, the whole `emr_doctor_profiles` table, and `role_id` on `user_store_roles` and `user_clinic_access` (a person has ONE role, `users.role_id`; those two tables only say where someone may work). Verified before dropping that every value already lived in `practitioners` / `practitioner_clinics`. Downgrade restores the columns (refilled from the person's role / the doctor record's login) and an empty profiles table. Older entries below that mention these columns describe history.
 
 ### `user_store_roles` — added `3bc60ce0ce95`, Sep 26, 2026, Phase 2 groundwork only
 

@@ -169,10 +169,9 @@ async def create_chain_store(body: StoreCreate, request: Request, current_user: 
     )
     await db.flush()
 
-    # The creator gets the role they already hold (roles are hospital-wide) — creating a pharmacy
+    # The creator can open the pharmacy they just made; their role is unchanged — creating a pharmacy
     # never promotes anyone to administrator.
-    await sync_user_store_role(
-        db, user_id=uuid.UUID(current_user.id), pharmacy_id=new_store.id, role_id=uuid.UUID(current_user.role_id))
+    await sync_user_store_role(db, user_id=uuid.UUID(current_user.id), pharmacy_id=new_store.id)
 
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "create", "store", new_store.id,

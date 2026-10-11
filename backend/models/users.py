@@ -85,8 +85,8 @@ class User(Base):
 
 
 class UserStoreRole(Base):
-    """One row per (person, store) they can access, with their role at
-    that specific store — docs/26_MULTI_CHAIN_SCOPE.md's schema sketch.
+    """One row per (person, store) they can open — docs/26_MULTI_CHAIN_SCOPE.md's schema sketch. It says
+    WHERE someone may work; a person has ONE role (`users.role_id`) at every place (Oct 11, 2026).
 
     Not read by login/permission checks yet — those still use `users.
     pharmacy_id`/`users.role_id` directly, unchanged. This table is kept
@@ -104,8 +104,6 @@ class UserStoreRole(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     pharmacy_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
-    role_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False)
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[str] = mapped_column(
@@ -113,8 +111,8 @@ class UserStoreRole(Base):
 
 
 class UserClinicAccess(Base):
-    """One row per (person, clinic) they can open, with their role there — the clinic twin of
-    `UserStoreRole` (docs/32_CLINICS_SCOPE.md P2). Roles are workspace-wide."""
+    """One row per (person, clinic) they can open — the clinic twin of `UserStoreRole`
+    (docs/32_CLINICS_SCOPE.md P2). Access only; the person's one role is `users.role_id`."""
     __tablename__ = "user_clinic_access"
     __table_args__ = (UniqueConstraint("user_id", "clinic_id"),)
 
@@ -123,8 +121,6 @@ class UserClinicAccess(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     clinic_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
-    role_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False)
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[str] = mapped_column(

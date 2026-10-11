@@ -134,7 +134,7 @@ async def register(user_data: UserCreate, db: AsyncSession = DbSession):
     )
     db.add(user)
     await db.flush()
-    await sync_user_store_role(db, user_id=user.id, pharmacy_id=pharmacy.id, role_id=role.id)
+    await sync_user_store_role(db, user_id=user.id, pharmacy_id=pharmacy.id)
     # The person who creates the workspace owns it.
     await db.execute(update(Chain).where(Chain.id == pharmacy.chain_id).values(owner_user_id=user.id))
 
@@ -328,7 +328,7 @@ async def create_session(request: Request, response: Response, db: AsyncSession 
         )
         db.add(user)
         await db.flush()
-        await sync_user_store_role(db, user_id=user.id, pharmacy_id=pharmacy.id, role_id=role.id)
+        await sync_user_store_role(db, user_id=user.id, pharmacy_id=pharmacy.id)
         role_name_out = role_name
     else:
         role_name_out = user.role.name

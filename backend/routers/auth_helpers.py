@@ -206,7 +206,7 @@ async def resolve_store_override_for_write(
     case (a real regression caught before it shipped: an earlier draft
     of this helper returned the caller's own pharmacy_id with no
     permission check at all when there was no override)."""
-    from models.users import Role as RoleORM, UserStoreRole as UserStoreRoleORM  # local import avoids a circular import
+    from models.users import UserStoreRole as UserStoreRoleORM  # local import avoids a circular import
 
     if not requested_pharmacy_id or requested_pharmacy_id == current_user.pharmacy_id:
         module, _, action = required_permission.partition(":")
@@ -225,20 +225,12 @@ async def resolve_store_override_for_write(
     if not grant:
         raise HTTPException(status_code=403, detail="You don't have access to that store")
 
-    role_result = await db.execute(select(RoleORM).where(RoleORM.id == grant.role_id))
-    role = role_result.scalar_one_or_none()
+    # One role per person: the same role decides at every store they can open.
     module, _, action = required_permission.partition(":")
-    allowed = False
-    if role:
-        perms = role.permissions
-        if isinstance(perms, list):
-            allowed = "*" in perms or required_permission in perms
-        elif isinstance(perms, dict):
-            allowed = bool(perms.get("*")) or bool(perms.get(module, {}).get(action, False))
-    if not allowed:
+    if not await has_permission(current_user, required_permission, db):
         raise HTTPException(
             status_code=403,
-            detail=f"Your role at that store does not have permission to {action} {module}")
+            detail=f"Your role does not have permission to {action} {module}")
     return target_pharmacy_id
 
 

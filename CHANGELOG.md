@@ -54,6 +54,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
   Doctors / Create & Edit Doctors.
 
 ### Fixed
+- **Old, unused database leftovers removed** (migration `a8e2c5f1d047`): the legacy doctor-login columns on EMR schedules/appointments/prescriptions, the old doctor-profiles table, and the per-place role columns on access tables. Checked first that all of it already lives in the new doctor records; the migration can be reversed. Viewing another pharmacy now uses your one role.
 - **One role per person, everywhere**: switching clinic or pharmacy no longer changes your role (and so your menus), granting a place needs no role, and changing someone's role under Users applies at every place. The role pickers in the Users → store/clinic access dialogs are gone.
 - **CI backend test step now gets the database and secret key** the direct-database tests need.
 - **CI backend tests could not start**: 4 test files import backend modules directly, and CI's plain `pytest` couldn't find them. Added `backend/pytest.ini` so they resolve the same way as locally.

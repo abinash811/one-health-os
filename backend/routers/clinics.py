@@ -130,10 +130,9 @@ async def create_clinic(body: ClinicCreate, request: Request, current_user: User
     clinic = Clinic(chain_id=await caller_workspace(db, current_user), **body.model_dump())
     db.add(clinic)
     await db.flush()
-    # The creator can open the clinic they just made (with the role they already hold), and it becomes
+    # The creator can open the clinic they just made, and it becomes
     # their active clinic if they had none.
-    db.add(UserClinicAccess(user_id=uuid.UUID(current_user.id), clinic_id=clinic.id,
-                            role_id=uuid.UUID(current_user.role_id)))
+    db.add(UserClinicAccess(user_id=uuid.UUID(current_user.id), clinic_id=clinic.id))
     if current_user.clinic_id is None:
         await db.execute(update(UserORM).where(UserORM.id == uuid.UUID(current_user.id)).values(clinic_id=clinic.id))
     await db.flush()

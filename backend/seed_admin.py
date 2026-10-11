@@ -150,8 +150,7 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
                 UserStoreRole.user_id == existing_user.id,
                 UserStoreRole.pharmacy_id == pharmacy.id))).scalar_one_or_none()
             if not has_row:
-                await sync_user_store_role(
-                    db, user_id=existing_user.id, pharmacy_id=pharmacy.id, role_id=existing_user.role_id)
+                await sync_user_store_role(db, user_id=existing_user.id, pharmacy_id=pharmacy.id)
                 print("  🔧 Added the missing store-access row for this admin")
         else:
             admin_role = role_map.get("admin")
@@ -174,7 +173,7 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
             await db.flush()
             # Every user-creation path writes the matching store-access row (docs/26) — without it the
             # sidebar store switcher and "Works at" lists come up empty for this admin.
-            await sync_user_store_role(db, user_id=new_user.id, pharmacy_id=pharmacy.id, role_id=admin_role.id)
+            await sync_user_store_role(db, user_id=new_user.id, pharmacy_id=pharmacy.id)
             print(f"  ✨ Created admin user: {name} <{email}>")
 
         await db.commit()

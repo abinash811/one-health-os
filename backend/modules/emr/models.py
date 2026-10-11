@@ -79,9 +79,6 @@ class EmrDoctorSchedule(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     clinic_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
-    # Legacy login id from before doctors became their own records (docs/31, P2). No longer written;
-    # kept readable for history until phase 4 drops it.
-    doctor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     practitioner_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("practitioners.id"), nullable=False)
     weekday: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -118,9 +115,6 @@ class EmrAppointment(Base):
         UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False)
     patient_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("emr_patients.id"), nullable=False)
-    # Legacy login id from before doctors became their own records (docs/31, P2). No longer written;
-    # kept readable for history until phase 4 drops it.
-    doctor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     practitioner_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("practitioners.id"), nullable=False)
     appointment_date: Mapped[date] = mapped_column(Date, nullable=False)
@@ -167,9 +161,6 @@ class EmrPrescription(Base):
         UUID(as_uuid=True), ForeignKey("emr_appointments.id"), nullable=False)
     patient_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("emr_patients.id"), nullable=False)
-    # Legacy login id from before doctors became their own records (docs/31, P2). No longer written;
-    # kept readable for history until phase 4 drops it.
-    doctor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     practitioner_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("practitioners.id"), nullable=False)
     rx_number: Mapped[str] = mapped_column(String(30), nullable=False)
@@ -247,28 +238,6 @@ class EmrSettings(Base):
     # {"allergies": "required", "blood_group": "hidden", ...} — missing keys use PATIENT_FORM_DEFAULTS.
     patient_form: Mapped[dict] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
-    created_at: Mapped[str] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[str] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-
-
-class EmrDoctorProfile(Base):
-    """Professional details printed on a doctor's prescriptions. The doctor
-    themself is still just a `users` row."""
-    __tablename__ = "emr_doctor_profiles"
-    __table_args__ = (UniqueConstraint("pharmacy_id", "user_id", name="uq_emr_doctor_profiles_user"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    specialty: Mapped[Optional[str]] = mapped_column(String(100))
-    qualification: Mapped[Optional[str]] = mapped_column(String(200))
-    registration_no: Mapped[Optional[str]] = mapped_column(String(100))
-    # Default consultation fee in paise; blank or 0 = no fee is charged at check-in.
-    consultation_fee_paise: Mapped[Optional[int]] = mapped_column(Integer)
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[str] = mapped_column(

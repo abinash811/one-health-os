@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -131,10 +131,10 @@ async def create_user(user_data: UserCreate, request: Request, current_user: Use
     )
     db.add(user)
     await db.flush()
-    await sync_user_store_role(db, user_id=user.id, pharmacy_id=pharmacy_id, role_id=role.id)
+    await sync_user_store_role(db, user_id=user.id, pharmacy_id=pharmacy_id)
     for clinic_id in dict.fromkeys(user_data.clinic_ids):   # de-duplicated, order kept
         clinic = await get_clinic_or_404(db, str(clinic_id), pharmacy_id)
-        db.add(UserClinicAccess(user_id=user.id, clinic_id=clinic.id, role_id=role.id))
+        db.add(UserClinicAccess(user_id=user.id, clinic_id=clinic.id))
         if user.clinic_id is None:
             user.clinic_id = clinic.id
     await _record_audit(
@@ -177,9 +177,6 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request, c
         if not role:
             raise HTTPException(status_code=400, detail=f"Role '{user_update.role}' not found")
         user.role_id = role.id
-        # Access rows mirror the person's one role, so nothing anywhere holds a different one.
-        await db.execute(update(UserStoreRole).where(UserStoreRole.user_id == user.id).values(role_id=role.id))
-        await db.execute(update(UserClinicAccess).where(UserClinicAccess.user_id == user.id).values(role_id=role.id))
 
     if user_update.email is not None and user_update.email != user.email:
         dup = await db.execute(
@@ -436,16 +433,13 @@ async def grant_user_store_access(user_id: str, body: GrantStoreAccess, request:
             PharmacyORM.id == target_pharmacy_id).with_for_update(read=True))).scalar_one():
         raise HTTPException(status_code=409, detail="That pharmacy is archived")
 
-    role_id = target_user.role_id   # access only — the person keeps their one role
-
+    # access only — the person keeps their one role
     existing_result = await db.execute(
         select(UserStoreRole).where(
             UserStoreRole.user_id == target_user.id, UserStoreRole.pharmacy_id == target_pharmacy_id))
     existing = existing_result.scalar_one_or_none()
-    if existing:
-        existing.role_id = role_id
-    else:
-        db.add(UserStoreRole(user_id=target_user.id, pharmacy_id=target_pharmacy_id, role_id=role_id))
+    if not existing:
+        db.add(UserStoreRole(user_id=target_user.id, pharmacy_id=target_pharmacy_id))
     await db.flush()
 
     await _record_audit(
