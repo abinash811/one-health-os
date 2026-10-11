@@ -25,6 +25,11 @@ interface PlaceData { clinics: Clinic[]; stores: Store[]; loading: boolean }
 interface PlaceState extends PlaceData { refresh: () => void }
 const PlaceContext = createContext<PlaceState | null>(null);
 
+/** Where this login is working right now, for screens that must say so. `null` outside the app shell. */
+export function usePlaces(): PlaceData | null {
+  return useContext(PlaceContext);
+}
+
 /** Reload the clinic / pharmacy lists (after a pharmacy is archived or restored). No-op outside the app shell. */
 export function usePlaceRefresh(): () => void {
   return useContext(PlaceContext)?.refresh ?? (() => undefined);

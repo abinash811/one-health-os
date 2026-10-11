@@ -10,6 +10,7 @@ import { AlertCircle, History } from 'lucide-react';
 import { AuthContext } from '@/App';
 import { AppButton, PageHeader, PageTabs } from '@/components/shared';
 import { HubUser, isAdmin, settingsPath, visibleModules } from './sections';
+import SettingsPlaceBar from './SettingsPlaceBar';
 
 export default function SettingsHub() {
   const { user } = useContext(AuthContext) as unknown as { user: HubUser | null };
@@ -50,6 +51,8 @@ export default function SettingsHub() {
         activeTab={current.key}
         onChange={(k) => navigate(settingsPath(k))}
       />
+
+      <SettingsPlaceBar moduleKey={current.key} />
 
       <div className="flex gap-6 items-start">
         <nav className="w-56 shrink-0 bg-white rounded-xl border border-gray-200 p-2" aria-label={`${current.label} settings`}>
